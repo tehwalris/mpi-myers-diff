@@ -1,0 +1,25 @@
+// input file 1
+12498
+2346245
+3245432
+123432
+
+// input file 2
+12498
+2346245
+923988
+3245432
+123432
+9899898
+
+
+// output
+123 -
+123 + 134561
+123 + 8923
+126 + 9234
+
+// folder structure
+<test_case_name>/in_1.txt
+<test_case_name>/in_2.txt
+<test_case_name>/diff_size.txt

@@ -1,0 +1,1 @@
+diff  in_1.txt in_2.txt | egrep -c "^[<>]"
