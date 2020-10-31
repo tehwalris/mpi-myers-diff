@@ -5,7 +5,7 @@ import math
 import random
 
 
-def generate_input(
+def generate_input_1(
     length: int,
     distribution: Literal["uniform", "zipf"],
     values_range: Optional[int] = None,
@@ -41,28 +41,39 @@ def random_interleaving(a: Sequence[int], b: Sequence[int]):
 
 
 def generate_input_pair(
-    strategy: Literal["independent", "remove", "add"],
     length_1: int,
+    strategy: Literal["independent", "remove", "add", "addremove"],
     change_strength: float,  # 0 - no changes, 1 - many changes
     distribution: Literal["uniform", "zipf"],
 ):
     if strategy == "independent":
         assert change_strength == 1
-        return tuple(generate_input(length_1, distribution) for _ in range(2))
+        return tuple(generate_input_1(length_1, distribution) for _ in range(2))
 
-    values_1 = generate_input(length_1, distribution)
+    def generate_input_2(values_1, strategy, change_strength):
+        # important, since values_1 may be different than in outer scope
+        length_1 = len(values_1)
+
+        if strategy == "remove":
+            return values_1[np.random.rand(length_1) > change_strength]
+        elif strategy == "add":
+            addition_count = int(math.floor(length_1 * change_strength))
+            added_values = generate_input_1(
+                addition_count, distribution, values_range=length_1
+            )
+            return random_interleaving(values_1, added_values)
+        elif strategy == "addremove":
+            assert change_strength > 0
+            values_with_added = generate_input_2(values_1, "add", change_strength)
+            # roughly keep original length
+            remove_change_strength = 1 - (1 / (1 + change_strength))
+            return generate_input_2(values_with_added, "remove", remove_change_strength)
+        else:
+            raise ValueError(f"unsupported strategy {strategy}")
+
+    values_1 = generate_input_1(length_1, distribution)
     assert len(values_1) == length_1
-
-    if strategy == "remove":
-        return (values_1, values_1[np.random.rand(length_1) > change_strength])
-    if strategy == "add":
-        addition_count = int(math.floor(length_1 * change_strength))
-        added_values = generate_input(
-            addition_count, distribution, values_range=length_1
-        )
-        return (values_1, random_interleaving(values_1, added_values))
-    else:
-        raise ValueError(f"unsupported strategy {strategy}")
+    return (values_1, generate_input_2(values_1, strategy, change_strength))
 
 
 def test_case_name_from_config(config: Dict):
@@ -77,15 +88,8 @@ def test_case_name_from_config(config: Dict):
     return "_".join(str(p) for p in parts)
 
 
-if __name__ == "__main__":
+def generate_and_save_test_case(config: Dict):
     all_test_cases_dir = Path(__file__).parent / "../test_cases"
-
-    config = {
-        "strategy": "add",
-        "length_1": 30,
-        "change_strength": 0.5,
-        "distribution": "zipf",
-    }
 
     test_case_dir = all_test_cases_dir / test_case_name_from_config(config)
     test_case_dir.mkdir(exist_ok=True)
@@ -96,3 +100,14 @@ if __name__ == "__main__":
         with (test_case_dir / f"in_{i + 1}.txt").open("w", encoding="utf8") as f:
             for v in values:
                 f.write(f"{v}\n")
+
+
+if __name__ == "__main__":
+    generate_and_save_test_case(
+        {
+            "strategy": "addremove",
+            "length_1": 30,
+            "change_strength": 0.1,
+            "distribution": "zipf",
+        }
+    )
