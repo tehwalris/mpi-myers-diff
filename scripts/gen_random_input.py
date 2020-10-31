@@ -1,7 +1,8 @@
-from typing import Dict, Iterable, Literal, Optional
+from typing import Dict, Literal, Optional, Sequence
 import numpy as np
 from pathlib import Path
-from shutil import rmtree
+import math
+import random
 
 
 def generate_input(
@@ -23,8 +24,24 @@ def generate_input(
     return np.random.choice(values_range, size=length, replace=True, p=weights)
 
 
+def random_interleaving(a: Sequence[int], b: Sequence[int]):
+    p_take_a = len(a) / (len(a) + len(b))
+    output = np.zeros(len(a) + len(b), dtype=int)
+    ia, ib = 0, 0
+    while ia < len(a) or ib < len(b):
+        take_a = (not ia == len(a)) and (ib == len(b) or random.random() < p_take_a)
+        if take_a:
+            output[ia + ib] = a[ia]
+            ia += 1
+        else:
+            output[ia + ib] = b[ib]
+            ib += 1
+    assert ia == len(a) and ib == len(b)
+    return output
+
+
 def generate_input_pair(
-    strategy: Literal["independent", "remove"],
+    strategy: Literal["independent", "remove", "add"],
     length_1: int,
     change_strength: float,  # 0 - no changes, 1 - many changes
     distribution: Literal["uniform", "zipf"],
@@ -38,6 +55,14 @@ def generate_input_pair(
 
     if strategy == "remove":
         return (values_1, values_1[np.random.rand(length_1) > change_strength])
+    if strategy == "add":
+        addition_count = int(math.floor(length_1 * change_strength))
+        added_values = generate_input(
+            addition_count, distribution, values_range=length_1
+        )
+        return (values_1, random_interleaving(values_1, added_values))
+    else:
+        raise ValueError(f"unsupported strategy {strategy}")
 
 
 def test_case_name_from_config(config: Dict):
@@ -55,9 +80,9 @@ if __name__ == "__main__":
     all_test_cases_dir = Path(__file__).parent / "../test_cases"
 
     config = {
-        "strategy": "remove",
+        "strategy": "add",
         "length_1": 30,
-        "change_strength": 0.8,
+        "change_strength": 0.5,
         "distribution": "zipf",
     }
 
