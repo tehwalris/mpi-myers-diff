@@ -67,6 +67,7 @@ def generate_input_pair(
 
 def test_case_name_from_config(config: Dict):
     parts = [
+        "temp",
         "random",
         config["strategy"],
         config["length_1"],
