@@ -1,0 +1,7 @@
+{
+  "python.formatting.provider": "black",
+  "python.pythonPath": "scripts/.venv/bin/python",
+  "cSpell.words": [
+    "zipf"
+  ]
+}
