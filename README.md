@@ -36,5 +36,5 @@ Here is roughly what the different options do:
 Calculate size of diff
 
 ```shell
-diff  in_1.txt in_2.txt | egrep -c "^[<>]"
+diff --minimal in_1.txt in_2.txt | egrep -c "^[<>]"
 ```

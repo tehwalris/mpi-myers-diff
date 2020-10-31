@@ -5,8 +5,8 @@ from subprocess import check_call
 from termcolor import colored
 
 test_case_folder = "../test_cases/"
-diff_filename    = "diff_size.txt"
-diff_command     = 'diff  in_1.txt in_2.txt | egrep -c "^[<>]" > diff_size.txt'
+diff_filename = "diff_size.txt"
+diff_command = 'diff --minimal in_1.txt in_2.txt | egrep -c "^[<>]" > diff_size.txt'
 always_create_diff = False
 
 help_msg = """
@@ -23,7 +23,6 @@ if len(sys.argv) > 1:
         exit(1)
 
 
-
 # go through test_case folders
 counter = 0
 print("Folder\t\tEdit Distance")
@@ -37,7 +36,7 @@ for folder in os.scandir(test_case_folder):
         if always_create_diff or not diff_exists:
             try:
                 result = check_call(diff_command, shell=True, cwd=folder.path)
-                f = open(diff_path, 'r')
+                f = open(diff_path, "r")
                 result = f.read().rstrip()
                 f.close()
                 counter += 1
