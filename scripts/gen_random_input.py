@@ -3,6 +3,7 @@ import numpy as np
 from pathlib import Path
 import math
 import random
+import itertools
 
 
 def generate_input_1(
@@ -24,19 +25,41 @@ def generate_input_1(
     return np.random.choice(values_range, size=length, replace=True, p=weights)
 
 
-def random_interleaving(a: Sequence[int], b: Sequence[int]):
-    p_take_a = len(a) / (len(a) + len(b))
-    output = np.zeros(len(a) + len(b), dtype=int)
-    ia, ib = 0, 0
-    while ia < len(a) or ib < len(b):
-        take_a = (not ia == len(a)) and (ib == len(b) or random.random() < p_take_a)
-        if take_a:
-            output[ia + ib] = a[ia]
-            ia += 1
-        else:
-            output[ia + ib] = b[ib]
-            ib += 1
-    assert ia == len(a) and ib == len(b)
+def random_interleaving(a: Sequence[int], b: Sequence[int], chunkiness: float):
+    assert 0 <= chunkiness <= 1
+    # HACK Try to make the insertion chunkiness similar to the removal chunkiness
+    chunkiness = 0.1 + 0.7 * chunkiness
+    assert 0 <= chunkiness <= 1
+
+    def chunks_from_sequence(seq: Sequence[int], chunk_count: int):
+        chunk_count = min(len(seq), chunk_count)
+        chunk_sizes = random_positive_integers_to_sum(len(seq), chunk_count)
+        chunk_ends = np.cumsum(chunk_sizes)
+        chunk_starts = np.concatenate([[0], chunk_ends[:-1]])
+        for start, end in zip(chunk_starts, chunk_ends):
+            yield seq[start:end]
+
+    # HACK This is likely not the correct probability. It seems to be biasing
+    # insertions to happen at the start/end of a sequence.
+    p_a_at_edge = len(a) / (len(a) + len(b))
+    a_at_start = random.random() < p_a_at_edge
+    a_at_end = random.random() < p_a_at_edge
+
+    chunk_count = int(math.floor(min(len(a), len(b)) ** (1 - chunkiness)))
+    chunks = itertools.zip_longest(
+        chunks_from_sequence(
+            a if a_at_start else b,
+            chunk_count + (1 if a_at_start and a_at_end else 0),
+        ),
+        chunks_from_sequence(
+            b if a_at_start else a,
+            chunk_count,
+        ),
+    )
+    chunks = itertools.chain.from_iterable(chunks)
+    chunks = [c for c in chunks if c is not None]
+    output = np.concatenate(chunks)
+    assert len(output) == len(a) + len(b)
     return output
 
 
@@ -63,7 +86,6 @@ def random_chunky_mask(size: int, p_true: float, chunkiness: float):
 
     base_mask = np.random.rand(size) < p_true
     chunk_count = int(math.floor(base_mask.sum() ** (1 - chunkiness)))
-    print("DEBUG", chunk_count)
     chunk_sizes = random_positive_integers_to_sum(base_mask.sum(), chunk_count)
 
     chunk_ranges = []
@@ -99,7 +121,7 @@ def generate_input_pair(
     length_1: int,
     strategy: Literal["independent", "remove", "add", "addremove"],
     change_strength: float,  # 0 - no changes, 1 - many changes
-    chunkiness: float,  # 0 - individual random changes, 1 - all changes consecutive
+    chunkiness: float,  # 0 - mostly individual random changes, 1 - mostly consecutive changes
     distribution: Literal["uniform", "zipf"],
 ):
     assert 0 < change_strength <= 1
@@ -116,12 +138,11 @@ def generate_input_pair(
         if strategy == "remove":
             return values_1[~random_chunky_mask(length_1, change_strength, chunkiness)]
         elif strategy == "add":
-            assert chunkiness == 0
             addition_count = int(math.floor(length_1 * change_strength))
             added_values = generate_input_1(
                 addition_count, distribution, values_range=length_1
             )
-            return random_interleaving(values_1, added_values)
+            return random_interleaving(values_1, added_values, chunkiness)
         elif strategy == "addremove":
             values_with_added = generate_input_2(values_1, "add", change_strength)
             # roughly keep original length
@@ -165,9 +186,9 @@ def generate_and_save_test_case(config: Dict):
 if __name__ == "__main__":
     generate_and_save_test_case(
         {
-            "strategy": "remove",
-            "length_1": 70,
-            "change_strength": 0.4,
+            "strategy": "addremove",
+            "length_1": 50,
+            "change_strength": 0.2,
             "chunkiness": 0.5,
             "distribution": "zipf",
         }
