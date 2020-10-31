@@ -156,23 +156,32 @@ def generate_input_pair(
     return (values_1, generate_input_2(values_1, strategy, change_strength))
 
 
-def test_case_name_from_config(config: Dict):
-    parts = [
-        "temp",
-        "random",
-        # config["strategy"],
-        # config["length_1"],
-        # format(config["change_strength"], ".2f"),
-        # format(config["chunkiness"], ".2f"),
-        # config["distribution"],
-    ]
+def test_case_name_from_config(config: Dict, temporary: bool, detailed_name: bool):
+    parts = []
+    if temporary:
+        parts.append("temp")
+    parts.append("random")
+    if detailed_name:
+        parts.extend(
+            [
+                config["strategy"],
+                config["length_1"],
+                format(config["change_strength"], ".2f"),
+                format(config["chunkiness"], ".2f"),
+                config["distribution"],
+            ]
+        )
     return "_".join(str(p) for p in parts)
 
 
-def generate_and_save_test_case(config: Dict):
+def generate_and_save_test_case(
+    config: Dict, temporary: bool = False, detailed_name: bool = False
+):
     all_test_cases_dir = Path(__file__).parent / "../test_cases"
 
-    test_case_dir = all_test_cases_dir / test_case_name_from_config(config)
+    test_case_dir = all_test_cases_dir / test_case_name_from_config(
+        config, temporary, detailed_name
+    )
     test_case_dir.mkdir(exist_ok=True)
     for path in test_case_dir.glob("in_*.txt"):
         path.unlink()
@@ -191,5 +200,7 @@ if __name__ == "__main__":
             "change_strength": 0.2,
             "chunkiness": 0.5,
             "distribution": "zipf",
-        }
+        },
+        temporary=True,
+        detailed_name=False,
     )
