@@ -3,6 +3,14 @@
 #include <assert.h>
 #include <vector>
 
+const int shutdown_sentinel = -1;
+
+enum Tag
+{
+  AssignWork,
+  ReportWork,
+};
+
 typedef std::vector<std::vector<int>> Results;
 
 int &result_at(int d, int k, Results results)
@@ -29,7 +37,7 @@ void main_master()
   std::cout << "started master\n";
 
   std::vector<int> in_1{2, 4, 1, 3, 3};
-  std::vector<int> in_2{4, 7, 1, 3, 3, 3};
+  std::vector<int> in_2{2, 4, 7, 1, 3, 3, 3};
 
   std::cout << "sending inputs\n";
   auto send_vector = [](const std::vector<int> &vec) {
@@ -43,10 +51,16 @@ void main_master()
   int max_d = in_1.size() + in_2.size() + 1;
   Results results(max_d, std::vector<int>(2 * max_d + 1));
 
-  for (int d = 0; d < max_d; d++)
+  for (int d = 0; d < 1; d++)
   {
-    // k in [-d, d]
+    std::vector<int> msg{d, -d, d};
+    MPI_Send(msg.data(), msg.size(), MPI_INT, 1, Tag::AssignWork, MPI_COMM_WORLD);
   }
+
+  std::cout << "shutting down workers\n";
+  // TODO send to all workers
+  std::vector<int> msg{shutdown_sentinel, 0, 0};
+  MPI_Send(msg.data(), msg.size(), MPI_INT, 1, Tag::AssignWork, MPI_COMM_WORLD);
 }
 
 void main_worker()
@@ -63,8 +77,29 @@ void main_worker()
   };
   std::vector<int> in_1 = receive_vector();
   std::vector<int> in_2 = receive_vector();
-  print_vector(in_1);
-  print_vector(in_2);
+
+  while (true)
+  {
+    std::vector<int> msg(3);
+    MPI_Recv(msg.data(), msg.size(), MPI_INT, 0, Tag::AssignWork, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    if (msg.at(0) == shutdown_sentinel)
+    {
+      break;
+    }
+
+    std::cout << "\"working\" " << msg.at(0) << " " << msg.at(1) << " " << msg.at(2) << "\n";
+
+    int x = 0, y = 0;
+    for (int k = msg.at(1); k <= msg.at(2); k += 2)
+    {
+      x++;
+      y++;
+    }
+
+    std::cout << x << "\n";
+  }
+
+  std::cout << "worker exiting\n";
 }
 
 int main()
