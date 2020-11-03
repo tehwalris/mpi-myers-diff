@@ -59,6 +59,46 @@ default:           apply the edit scripts and validate that the output matches
 folder names..:    only validate the provided tests
 ```
 
+## Output Formats for Tests
+
+## Input Files
+Labeled with `in_1.txt` and `in_2.txt`. They contain a number on every line. No empty line at the end.
+
+### Edit Script
+File `edit_script.txt` contains an editing script that transforms file `in_1.txt` into `in_2.txt`. No empty line at the end.
+
+Each line start with the `index` (starting from 1) of the affected line in `in_1.txt` followed by the operation `+` or `-` for addition or deletion respectively. In the case of an addition, the third value is the content that will be newly inserted.
+
+`+`Addition 
+The index refers to *after* which line in `in_1.txt` the value will be inserted. If the insertion affects the very first line then the index should be 0.
+
+`-`Deletion
+The index of the line from `in_1.txt` that will be deleted.
+
+**Example:**
+```
+in_1                    in_2                    Edit Script
+		  +	1: 42			-> 0 + 42
+		  +	2: 0			-> 0 + 0
+		  +	3: 1			-> 0 + 1
+		  +	4: 16			-> 0 + 16
+		  +	5: 20			-> 0 + 20
+ 1: 0			7: 0	
+ 2: 2			8: 2	
+ 3: 31			9: 31	
+ 4: 3			10: 3	
+		  +	11: 3			-> 4 + 3
+ 5: 20			12: 20	
+ 6: 9			13: 9	
+ 7: 2			14: 2	
+ 8: 7			15: 7	
+ 9: 7		  -				-> 9 -
+10: 0		  -				-> 10 -
+11: 2			16: 2	
+		  +	17: 33			-> 11 + 33
+```
+
+
 ## Useful commands
 
 #### Calculate Size of Diff
