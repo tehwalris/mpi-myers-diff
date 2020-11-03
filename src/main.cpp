@@ -74,7 +74,12 @@ void main_master()
     for (int i = 1; i < comm_size && min_k <= d; i++)
     {
       int max_k = std::min({min_k + target_chunk_size, d});
-      std::vector<int> msg{d, min_k, max_k};
+
+      int k_min_narrow = min_k + (min_k + d) % 2;
+      int k_max_narrow = max_k - (max_k + d) % 2;
+      assert(k_min_narrow <= k_max_narrow);
+
+      std::vector<int> msg{d, k_min_narrow, k_max_narrow};
       MPI_Send(msg.data(), msg.size(), MPI_INT, 1, Tag::AssignWork, MPI_COMM_WORLD);
 
       min_k = max_k + 1;
