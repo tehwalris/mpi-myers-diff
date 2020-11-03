@@ -49,9 +49,10 @@ void main_master()
   send_vector(in_2);
 
   int max_d = in_1.size() + in_2.size() + 1;
-  Results results(max_d, std::vector<int>(2 * max_d + 1));
+  MPI_Bcast(&max_d, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-  for (int d = 0; d < 1; d++)
+  Results results(max_d, std::vector<int>(2 * max_d + 1));
+  for (int d = 0; d < 2; d++)
   {
     std::cout << "calculating layer " << d << std::endl;
 
@@ -91,6 +92,12 @@ void main_worker()
   std::vector<int> in_1 = receive_vector();
   std::vector<int> in_2 = receive_vector();
 
+  int max_d;
+  MPI_Bcast(&max_d, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+  std::vector<int> V(max_d * 2 + 1);
+  auto V_at = [&V, max_d](int k) -> int & { return V.at(max_d + k); };
+
   while (true)
   {
     int d, k_min, k_max;
@@ -110,7 +117,18 @@ void main_worker()
 
     for (int k = k_min; k <= k_max; k += 2)
     {
-      int x = 0, y = 0;
+      int x;
+      if (k == -d || k != d && V_at(k - 1) < V_at(k + 1))
+      {
+        x = V_at(k + 1);
+      }
+      else
+      {
+        x = V_at(k - 1) + 1;
+      }
+
+      int y = x - k;
+
       while (x < in_1.size() && y < in_2.size() && in_1.at(x) == in_2.at(y))
       {
         x++;
@@ -118,6 +136,7 @@ void main_worker()
       }
 
       std::cout << "x: " << x << std::endl;
+      V_at(k) = x;
       {
         std::vector<int> msg{d, k, x};
         MPI_Send(msg.data(), msg.size(), MPI_INT, 0, Tag::ReportWork, MPI_COMM_WORLD);
