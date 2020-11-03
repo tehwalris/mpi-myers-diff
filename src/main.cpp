@@ -2,6 +2,7 @@
 #include <iostream>
 #include <assert.h>
 #include <vector>
+#include <algorithm>
 
 const int shutdown_sentinel = -1;
 const int unknown_len = -1;
@@ -33,12 +34,22 @@ void print_vector(const std::vector<int> &vec)
   std::cout << std::endl;
 }
 
+inline int div_ceil(int a, int b)
+{
+  assert(b > 0);
+  return (a + b - 1) / b;
+}
+
 void main_master()
 {
-  std::cout << "started master" << std::endl;
-
   std::vector<int> in_1{2, 4, 1, 3, 3};
   std::vector<int> in_2{2, 4, 7, 1, 3, 3, 3};
+
+  std::cout << "started master" << std::endl;
+
+  int comm_size;
+  MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+  assert(comm_size > 1);
 
   std::cout << "sending inputs" << std::endl;
   auto send_vector = [](const std::vector<int> &vec) {
@@ -56,11 +67,17 @@ void main_master()
   Results results(max_d, std::vector<int>(2 * max_d + 1));
   for (int d = 0; d < max_d; d++)
   {
-    std::cout << "calculating layer " << d << std::endl;
+    int target_chunk_size = div_ceil((d + 1), (comm_size - 1));
+    std::cout << "calculating layer " << d << " with chunk size " << target_chunk_size << std::endl;
 
+    int min_k = -d;
+    for (int i = 1; i < comm_size && min_k <= d; i++)
     {
-      std::vector<int> msg{d, -d, d};
+      int max_k = std::min({min_k + target_chunk_size, d});
+      std::vector<int> msg{d, min_k, max_k};
       MPI_Send(msg.data(), msg.size(), MPI_INT, 1, Tag::AssignWork, MPI_COMM_WORLD);
+
+      min_k = max_k + 1;
     }
 
     for (int i = 0; i < d + 1; i++)
@@ -91,8 +108,6 @@ done:
   std::cout << "shutting down workers" << std::endl;
   {
     std::vector<int> msg{shutdown_sentinel, 0, 0};
-    int comm_size;
-    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
     for (int i = 1; i < comm_size; i++)
     {
       MPI_Send(msg.data(), msg.size(), MPI_INT, i, Tag::AssignWork, MPI_COMM_WORLD);
@@ -138,8 +153,10 @@ void main_worker()
 
     std::cout << "\"working\" " << d << " " << k_min << " " << k_max << std::endl;
 
-    for (int k = k_min; k <= k_max; k += 2)
+    for (int k = k_min + (k_min + d) % 2; k <= k_max; k += 2)
     {
+      assert((k + d) % 2 == 0);
+
       int x;
       if (k == -d || k != d && V_at(k - 1) < V_at(k + 1))
       {
