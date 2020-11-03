@@ -61,7 +61,7 @@ folder names..:    only validate the provided tests
 
 ## Output Formats for Tests
 
-## Input Files
+### Input Files
 Labeled with `in_1.txt` and `in_2.txt`. They contain a number on every line. No empty line at the end.
 
 ### Edit Script
