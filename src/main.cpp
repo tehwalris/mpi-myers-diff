@@ -6,6 +6,7 @@
 
 const int shutdown_sentinel = -1;
 const int unknown_len = -1;
+const int no_worker_rank = 0;
 
 enum Tag
 {
@@ -50,6 +51,7 @@ void main_master()
   int comm_size;
   MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
   assert(comm_size > 1);
+  int num_workers = comm_size - 1;
 
   std::cout << "sending inputs" << std::endl;
   auto send_vector = [](const std::vector<int> &vec) {
@@ -65,24 +67,58 @@ void main_master()
 
   int edit_len = unknown_len;
   Results results(d_max, std::vector<int>(2 * d_max + 1));
+  std::vector<int> size_by_worker(num_workers, 0);
+  int next_worker_to_extend = 0;
   for (int d = 0; d < d_max; d++)
   {
-    int target_chunk_size = div_ceil((d + 1), (comm_size - 1));
-    std::cout << "calculating layer " << d << " with chunk size " << target_chunk_size << std::endl;
+    std::cout << "calculating layer " << d << std::endl;
+
+    size_by_worker.at(next_worker_to_extend)++;
+    next_worker_to_extend = (next_worker_to_extend + 1) % num_workers;
 
     int k_min = -d;
-    for (int i = 1; i < comm_size && k_min <= d; i++)
+    for (int i = 0; i < num_workers && k_min <= d; i++)
     {
-      int k_max = std::min({k_min + target_chunk_size, d});
+      if (size_by_worker.at(i) == 0)
+      {
+        break;
+      }
+      int k_max = k_min + 2 * (size_by_worker.at(i) - 1);
 
-      int k_min_narrow = k_min + (k_min + d) % 2;
-      int k_max_narrow = k_max - (k_max + d) % 2;
-      assert(k_min_narrow <= k_max_narrow);
+      int down_receiver = no_worker_rank, up_receiver = no_worker_rank;
+      int num_to_receive = 1;
 
-      std::vector<int> msg{d, k_min_narrow, k_max_narrow};
-      MPI_Send(msg.data(), msg.size(), MPI_INT, 1, Tag::AssignWork, MPI_COMM_WORLD);
+      if (i > next_worker_to_extend)
+      {
+        // will be extended below, send down
+        down_receiver = (i + 1) - 1;
+      }
+      else if (i < next_worker_to_extend)
+      {
+        // will be extended above, send up
+        up_receiver = (i + 1) + 1;
+      }
+      else
+      { // i == next_worker_to_extend
+        num_to_receive++;
+      }
 
-      k_min = k_max + 1;
+      if (i == 0 || i + 1 == num_workers)
+      {
+        num_to_receive--;
+      }
+
+      std::vector<int> msg{d, k_min, k_max, down_receiver, up_receiver, num_to_receive};
+      MPI_Send(msg.data(), msg.size(), MPI_INT, i + 1, Tag::AssignWork, MPI_COMM_WORLD);
+
+      k_min = k_max + 2;
+    }
+
+    if (size_by_worker.at(next_worker_to_extend) == 0)
+    {
+      // HACK Special values that mean the worker should only receive
+      std::vector<int> msg{d, 1, 0, no_worker_rank, no_worker_rank, 1};
+      MPI_Send(msg.data(), msg.size(), MPI_INT, next_worker_to_extend + 1, Tag::AssignWork, MPI_COMM_WORLD);
     }
 
     for (int i = 0; i < d + 1; i++)
@@ -122,9 +158,14 @@ done:
 
 void main_worker()
 {
-  std::cout << "started worker" << std::endl;
+  int own_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &own_rank);
 
-  std::cout << "receiving inputs" << std::endl;
+  std::cout << own_rank << " | "
+            << "started worker" << std::endl;
+
+  std::cout << own_rank << " | "
+            << "receiving inputs" << std::endl;
   auto receive_vector = []() {
     int temp_size;
     MPI_Bcast(&temp_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -143,9 +184,9 @@ void main_worker()
 
   while (true)
   {
-    int d, k_min, k_max;
+    int d, k_min, k_max, down_receiver, up_receiver, num_to_receive;
     {
-      std::vector<int> msg(3);
+      std::vector<int> msg(6);
       MPI_Recv(msg.data(), msg.size(), MPI_INT, 0, Tag::AssignWork, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       if (msg.at(0) == shutdown_sentinel)
       {
@@ -154,11 +195,21 @@ void main_worker()
       d = msg.at(0);
       k_min = msg.at(1);
       k_max = msg.at(2);
+      down_receiver = msg.at(3);
+      up_receiver = msg.at(4);
+      num_to_receive = msg.at(5);
     }
 
-    std::cout << "\"working\" " << d << " " << k_min << " " << k_max << std::endl;
+    std::cout << own_rank << " | "
+              << "working " << d << " " << k_min << " " << k_max << std::endl;
 
-    for (int k = k_min + (k_min + d) % 2; k <= k_max; k += 2)
+    if (k_min > k_max)
+    {
+      // HACK Special values that mean we should only receive
+      assert(k_min == 1 && k_max == 0);
+    }
+
+    for (int k = k_min; k <= k_max; k += 2)
     {
       assert((k + d) % 2 == 0);
 
@@ -180,16 +231,40 @@ void main_worker()
         y++;
       }
 
-      std::cout << "x: " << x << std::endl;
+      std::cout << own_rank << " | "
+                << "x: " << x << std::endl;
       V_at(k) = x;
       {
         std::vector<int> msg{d, k, x};
         MPI_Send(msg.data(), msg.size(), MPI_INT, 0, Tag::ReportWork, MPI_COMM_WORLD);
+
+        if (k == k_min && down_receiver != no_worker_rank)
+        {
+          MPI_Send(msg.data(), msg.size(), MPI_INT, down_receiver, Tag::ReportWork, MPI_COMM_WORLD);
+        }
+        else if (k == k_max && up_receiver != no_worker_rank)
+        {
+          MPI_Send(msg.data(), msg.size(), MPI_INT, up_receiver, Tag::ReportWork, MPI_COMM_WORLD);
+        }
       }
+    }
+
+    std::cout << own_rank << " | "
+              << "receiving " << num_to_receive << " in d " << d << std::endl;
+    for (int i = 0; i < num_to_receive; i++)
+    {
+      std::vector<int> msg(3);
+      MPI_Recv(msg.data(), msg.size(), MPI_INT, MPI_ANY_SOURCE, Tag::ReportWork, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      std::cout << own_rank << " | "
+                << "received " << msg.at(0) << " " << msg.at(1) << " " << msg.at(2) << " in d " << d << std::endl;
+      assert(msg.at(0) == d);
+      assert((msg.at(1) < k_min || msg.at(1) > k_max));
+      V_at(msg.at(1)) = msg.at(2);
     }
   }
 
-  std::cout << "worker exiting" << std::endl;
+  std::cout << own_rank << " | "
+            << "worker exiting" << std::endl;
 }
 
 int main()
