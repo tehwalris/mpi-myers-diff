@@ -12,6 +12,8 @@ edit_filename = "edit_script.txt"
 diff_filename = "diff_size.txt"
 
 
+
+
 def apply_edit_script(in1, in2, edit, out):
     output_lines = []
     current_in1_index = 0
@@ -78,12 +80,24 @@ def validate_test(folder):
             print(f"{folder.name:<20}{colored('Failed', 'red')}")
 
 
+##
+# Input Arguments
+# default:           apply the edit scripts and validate that the output matches
+# folder names..:    only validate the test case #name#
+
 def main():
+
+    use_arg_folders = False
+    if len(sys.argv) > 1:
+        arg_folder = sys.argv[1]
+        use_arg_folders = True
 
     # go trough all test cases
     print(f"{'Folder':<20}{'Output correct':<18}\t{'Diff size correct':<18}")
     for folder in os.scandir(test_case_folder):
         if folder.is_dir():
+            if use_arg_folders and not folder.name in sys.argv[1:]:
+                continue
 
             edit_path = folder.path + "/" + edit_filename
             edit_exists = os.path.isfile(edit_path)
