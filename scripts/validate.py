@@ -1,8 +1,6 @@
 import os
-import os.path
 import sys
 import subprocess
-from pathlib import Path
 from termcolor import colored
 from subprocess import check_call
 
