@@ -35,12 +35,12 @@ void print_vector(const std::vector<int> &vec)
 
 void main_master()
 {
-  std::cout << "started master\n";
+  std::cout << "started master" << std::endl;
 
   std::vector<int> in_1{2, 4, 1, 3, 3};
   std::vector<int> in_2{2, 4, 7, 1, 3, 3, 3};
 
-  std::cout << "sending inputs\n";
+  std::cout << "sending inputs" << std::endl;
   auto send_vector = [](const std::vector<int> &vec) {
     int temp_size = vec.size();
     MPI_Bcast(&temp_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -78,7 +78,7 @@ void main_master()
       int y = x - k;
       if (x >= in_1.size() && y >= in_2.size())
       {
-        std::cout << "found lcs\n";
+        std::cout << "found lcs" << std::endl;
         edit_len = d;
         goto done;
       }
@@ -86,9 +86,9 @@ void main_master()
   }
 
 done:
-  std::cout << "min edit length " << edit_len << "\n";
+  std::cout << "min edit length " << edit_len << "" << std::endl;
 
-  std::cout << "shutting down workers\n";
+  std::cout << "shutting down workers" << std::endl;
   // TODO send to all workers
   {
     std::vector<int> msg{shutdown_sentinel, 0, 0};
@@ -98,9 +98,9 @@ done:
 
 void main_worker()
 {
-  std::cout << "started worker\n";
+  std::cout << "started worker" << std::endl;
 
-  std::cout << "receiving inputs\n";
+  std::cout << "receiving inputs" << std::endl;
   auto receive_vector = []() {
     int temp_size;
     MPI_Bcast(&temp_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -132,7 +132,7 @@ void main_worker()
       k_max = msg.at(2);
     }
 
-    std::cout << "\"working\" " << d << " " << k_min << " " << k_max << "\n";
+    std::cout << "\"working\" " << d << " " << k_min << " " << k_max << "" << std::endl;
 
     for (int k = k_min; k <= k_max; k += 2)
     {
@@ -163,7 +163,7 @@ void main_worker()
     }
   }
 
-  std::cout << "worker exiting\n";
+  std::cout << "worker exiting" << std::endl;
 }
 
 int main()
