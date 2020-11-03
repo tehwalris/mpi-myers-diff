@@ -89,10 +89,14 @@ done:
   std::cout << "min edit length " << edit_len << "" << std::endl;
 
   std::cout << "shutting down workers" << std::endl;
-  // TODO send to all workers
   {
     std::vector<int> msg{shutdown_sentinel, 0, 0};
-    MPI_Send(msg.data(), msg.size(), MPI_INT, 1, Tag::AssignWork, MPI_COMM_WORLD);
+    int comm_size;
+    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+    for (int i = 1; i < comm_size; i++)
+    {
+      MPI_Send(msg.data(), msg.size(), MPI_INT, i, Tag::AssignWork, MPI_COMM_WORLD);
+    }
   }
 }
 
@@ -132,7 +136,7 @@ void main_worker()
       k_max = msg.at(2);
     }
 
-    std::cout << "\"working\" " << d << " " << k_min << " " << k_max << "" << std::endl;
+    std::cout << "\"working\" " << d << " " << k_min << " " << k_max << std::endl;
 
     for (int k = k_min; k <= k_max; k += 2)
     {
