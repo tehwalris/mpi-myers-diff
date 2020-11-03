@@ -35,12 +35,6 @@ void print_vector(const std::vector<int> &vec)
   std::cout << std::endl;
 }
 
-inline int div_ceil(int a, int b)
-{
-  assert(b > 0);
-  return (a + b - 1) / b;
-}
-
 void main_master()
 {
   std::vector<int> in_1{2, 4, 1, 3, 3};
