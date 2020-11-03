@@ -1,7 +1,10 @@
-/test_cases/temp_*
-
 # Created by https://www.toptal.com/developers/gitignore/api/python,vscode,intellij,pycharm,c++
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,vscode,intellij,pycharm,c++
+
+# Test cases
+/test_cases/temp_*
+/test_cases/*/out.txt
+
 
 ### C++ ###
 # Prerequisites

@@ -14,6 +14,9 @@
 
 
 // output
+// should correspond to same content as
+// diff -e --minimal in_1.txt in_2.txt
+// NO Empty line at end
 123 -
 123 + 134561
 123 + 8923

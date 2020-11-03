@@ -25,7 +25,7 @@ if len(sys.argv) > 1:
 
 # go through test_case folders
 counter = 0
-print("Folder\t\tEdit Distance")
+print(f"{'Folder':<18}Edit Distance")
 for folder in os.scandir(test_case_folder):
     if folder.is_dir():
 
@@ -40,11 +40,11 @@ for folder in os.scandir(test_case_folder):
                 result = f.read().rstrip()
                 f.close()
                 counter += 1
-                print(f"{folder.name}\t\t{result}")
+                print(f"{folder.name:<18}{result}")
 
             # delete incorrect file and show error
             except subprocess.CalledProcessError as e:
                 os.remove(diff_path)
-                print(f"{folder.name}\t\t{colored('Failed', 'red')} to generate diff")
+                print(f"{folder.name:<18}{colored('Failed', 'red')} to generate diff")
 
 print(f"\nGenerated {counter} Files")
