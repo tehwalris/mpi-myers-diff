@@ -267,9 +267,6 @@ int main()
 
   MPI_Init(nullptr, nullptr);
 
-  int world_size;
-  assert(world_size > 1);
-
   int world_rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
   if (world_rank == 0)
