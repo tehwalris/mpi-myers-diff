@@ -1,6 +1,7 @@
 from typing import Dict, Literal, Optional, Sequence
 import numpy as np
 from pathlib import Path
+import os
 import math
 import random
 import itertools
@@ -190,6 +191,8 @@ def generate_and_save_test_case(
         with (test_case_dir / f"in_{i + 1}.txt").open("w", encoding="utf8") as f:
             for v in values:
                 f.write(f"{v}\n")
+    os.remove(test_case_dir / "diff_size.txt")
+
 
 
 if __name__ == "__main__":

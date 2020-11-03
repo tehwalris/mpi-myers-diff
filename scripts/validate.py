@@ -70,18 +70,18 @@ def validate_test(folder):
 
         # compare output
         try:
-            result = check_call("cmp out.txt in_2.txt", shell=True, cwd=folder.path)
-            print(f"{folder.name:<18}{colored('OK', 'green'):<25}\t", end='')
+            result = check_call("cmp --silent out.txt in_2.txt", shell=True, cwd=folder.path)
+            print(f"{folder.name:<20}{colored('OK', 'green'):<25}\t", end='')
             validate_diff_size(folder, diff)
 
         except subprocess.CalledProcessError as e:
-            print(f"{folder.name:<18}{colored('Failed', 'red')}")
+            print(f"{folder.name:<20}{colored('Failed', 'red')}")
 
 
 def main():
 
     # go trough all test cases
-    print(f"{'Folder':<18}{'Output correct':<20}\t{'Diff size correct':<18}")
+    print(f"{'Folder':<20}{'Output correct':<18}\t{'Diff size correct':<18}")
     for folder in os.scandir(test_case_folder):
         if folder.is_dir():
 
@@ -92,7 +92,7 @@ def main():
             if edit_exists:
                 validate_test(folder)
             else:
-                print(f"{folder.name:<18}No edit script")
+                print(f"{folder.name:<20}No edit script")
 
 if __name__ == "__main__":
     main()
