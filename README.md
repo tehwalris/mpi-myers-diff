@@ -33,7 +33,7 @@ Here is roughly what the different options do:
 
 ### Generating Size of Diff (Edit Distance)
 
-The script `diff_sizes.py` will automatically go through all test cases and generate the diff size files for them.
+The script [`diff_sizes.py`](./scripts/diff_sizes.py) will automatically go through all test cases and generate the diff size files for them.
 
 ```shell
 cd scripts
@@ -46,7 +46,7 @@ all:      generate all diffs again
 
 ### Validation
 
-The script `validate.py` goes through the test cases and applies the edit script `edit_script.txt`. After applying it to the first input file, it validates that the output matches the second input file. Next, it checks that the size of the diff matches what `diff --minimal` provides.
+The script [`validate.py`](./scripts/validate.py) goes through the test cases and applies the edit script `edit_script.txt`. After applying it to the first input file, it validates that the output matches the second input file. Next, it checks that the size of the diff matches what `diff --minimal` provides.
 
 ```shell
 cd scripts
