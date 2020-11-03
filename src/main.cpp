@@ -4,6 +4,7 @@
 #include <vector>
 
 const int shutdown_sentinel = -1;
+const int unknown_len = -1;
 
 enum Tag
 {
@@ -51,8 +52,9 @@ void main_master()
   int max_d = in_1.size() + in_2.size() + 1;
   MPI_Bcast(&max_d, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
+  int edit_len = unknown_len;
   Results results(max_d, std::vector<int>(2 * max_d + 1));
-  for (int d = 0; d < 2; d++)
+  for (int d = 0; d < max_d; d++)
   {
     std::cout << "calculating layer " << d << std::endl;
 
@@ -63,11 +65,28 @@ void main_master()
 
     for (int i = 0; i < d + 1; i++)
     {
-      std::vector<int> msg(3);
-      MPI_Recv(msg.data(), msg.size(), MPI_INT, MPI_ANY_SOURCE, Tag::ReportWork, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-      result_at(msg.at(0), msg.at(1), results) = msg.at(2);
+      int d, k, x;
+      {
+        std::vector<int> msg(3);
+        MPI_Recv(msg.data(), msg.size(), MPI_INT, MPI_ANY_SOURCE, Tag::ReportWork, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        d = msg.at(0);
+        k = msg.at(1);
+        x = msg.at(2);
+      }
+      result_at(d, k, results) = x;
+
+      int y = x - k;
+      if (x >= in_1.size() && y >= in_2.size())
+      {
+        std::cout << "found lcs\n";
+        edit_len = d;
+        goto done;
+      }
     }
   }
+
+done:
+  std::cout << "min edit length " << edit_len << "\n";
 
   std::cout << "shutting down workers\n";
   // TODO send to all workers
