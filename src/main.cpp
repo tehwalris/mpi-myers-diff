@@ -29,7 +29,7 @@ void print_vector(const std::vector<int> &vec)
     }
     std::cout << vec.at(i);
   }
-  std::cout << "\n";
+  std::cout << std::endl;
 }
 
 void main_master()
@@ -53,14 +53,27 @@ void main_master()
 
   for (int d = 0; d < 1; d++)
   {
-    std::vector<int> msg{d, -d, d};
-    MPI_Send(msg.data(), msg.size(), MPI_INT, 1, Tag::AssignWork, MPI_COMM_WORLD);
+    std::cout << "calculating layer " << d << std::endl;
+
+    {
+      std::vector<int> msg{d, -d, d};
+      MPI_Send(msg.data(), msg.size(), MPI_INT, 1, Tag::AssignWork, MPI_COMM_WORLD);
+    }
+
+    for (int i = 0; i < d + 1; i++)
+    {
+      std::vector<int> msg(3);
+      MPI_Recv(msg.data(), msg.size(), MPI_INT, MPI_ANY_SOURCE, Tag::ReportWork, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      result_at(msg.at(0), msg.at(1), results) = msg.at(2);
+    }
   }
 
   std::cout << "shutting down workers\n";
   // TODO send to all workers
-  std::vector<int> msg{shutdown_sentinel, 0, 0};
-  MPI_Send(msg.data(), msg.size(), MPI_INT, 1, Tag::AssignWork, MPI_COMM_WORLD);
+  {
+    std::vector<int> msg{shutdown_sentinel, 0, 0};
+    MPI_Send(msg.data(), msg.size(), MPI_INT, 1, Tag::AssignWork, MPI_COMM_WORLD);
+  }
 }
 
 void main_worker()
@@ -80,23 +93,36 @@ void main_worker()
 
   while (true)
   {
-    std::vector<int> msg(3);
-    MPI_Recv(msg.data(), msg.size(), MPI_INT, 0, Tag::AssignWork, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    if (msg.at(0) == shutdown_sentinel)
+    int d, k_min, k_max;
     {
-      break;
+      std::vector<int> msg(3);
+      MPI_Recv(msg.data(), msg.size(), MPI_INT, 0, Tag::AssignWork, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      if (msg.at(0) == shutdown_sentinel)
+      {
+        break;
+      }
+      d = msg.at(0);
+      k_min = msg.at(1);
+      k_max = msg.at(2);
     }
 
-    std::cout << "\"working\" " << msg.at(0) << " " << msg.at(1) << " " << msg.at(2) << "\n";
+    std::cout << "\"working\" " << d << " " << k_min << " " << k_max << "\n";
 
-    int x = 0, y = 0;
-    for (int k = msg.at(1); k <= msg.at(2); k += 2)
+    for (int k = k_min; k <= k_max; k += 2)
     {
-      x++;
-      y++;
-    }
+      int x = 0, y = 0;
+      while (x < in_1.size() && y < in_2.size() && in_1.at(x) == in_2.at(y))
+      {
+        x++;
+        y++;
+      }
 
-    std::cout << x << "\n";
+      std::cout << "x: " << x << std::endl;
+      {
+        std::vector<int> msg{d, k, x};
+        MPI_Send(msg.data(), msg.size(), MPI_INT, 0, Tag::ReportWork, MPI_COMM_WORLD);
+      }
+    }
   }
 
   std::cout << "worker exiting\n";
