@@ -60,29 +60,29 @@ void main_master()
   send_vector(in_1);
   send_vector(in_2);
 
-  int max_d = in_1.size() + in_2.size() + 1;
-  MPI_Bcast(&max_d, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  int d_max = in_1.size() + in_2.size() + 1;
+  MPI_Bcast(&d_max, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
   int edit_len = unknown_len;
-  Results results(max_d, std::vector<int>(2 * max_d + 1));
-  for (int d = 0; d < max_d; d++)
+  Results results(d_max, std::vector<int>(2 * d_max + 1));
+  for (int d = 0; d < d_max; d++)
   {
     int target_chunk_size = div_ceil((d + 1), (comm_size - 1));
     std::cout << "calculating layer " << d << " with chunk size " << target_chunk_size << std::endl;
 
-    int min_k = -d;
-    for (int i = 1; i < comm_size && min_k <= d; i++)
+    int k_min = -d;
+    for (int i = 1; i < comm_size && k_min <= d; i++)
     {
-      int max_k = std::min({min_k + target_chunk_size, d});
+      int k_max = std::min({k_min + target_chunk_size, d});
 
-      int k_min_narrow = min_k + (min_k + d) % 2;
-      int k_max_narrow = max_k - (max_k + d) % 2;
+      int k_min_narrow = k_min + (k_min + d) % 2;
+      int k_max_narrow = k_max - (k_max + d) % 2;
       assert(k_min_narrow <= k_max_narrow);
 
       std::vector<int> msg{d, k_min_narrow, k_max_narrow};
       MPI_Send(msg.data(), msg.size(), MPI_INT, 1, Tag::AssignWork, MPI_COMM_WORLD);
 
-      min_k = max_k + 1;
+      k_min = k_max + 1;
     }
 
     for (int i = 0; i < d + 1; i++)
