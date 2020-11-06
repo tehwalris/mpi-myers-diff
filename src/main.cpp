@@ -5,6 +5,14 @@
 #include <vector>
 #include <algorithm>
 
+const int debug_level = 0;
+
+#define DEBUG(level, x)          \
+  if (debug_level >= level)      \
+  {                              \
+    std::cerr << x << std::endl; \
+  }
+
 const int shutdown_sentinel = -1;
 const int unknown_len = -1;
 const int no_worker_rank = 0;
@@ -29,33 +37,32 @@ void print_vector(const std::vector<int> &vec)
   {
     if (i != 0)
     {
-      std::cout << " ";
+      DEBUG(2, " ");
     }
-    std::cout << vec.at(i);
+    DEBUG(2, vec.at(i));
   }
-  std::cout << std::endl;
+  DEBUG(2, std::endl);
 }
 
 void read_file(const std::string path, std::vector<int> &output_vec)
 {
-    std::ifstream file(path);
-    if (!file.is_open()) {
-        std::cerr << "Could not open file " << path << std::endl;
-        exit(1);
-    }
+  std::ifstream file(path);
+  if (!file.is_open())
+  {
+    std::cerr << "Could not open file " << path;
+    exit(1);
+  }
 
-    //std::cout << "reading " << path << ":\n";
-    int tmp;
-    while(file >> tmp) {
-        output_vec.push_back(tmp);
-        //std::cout << tmp << " ";
-    }
-    //std::cout << std::endl;
+  int tmp;
+  while (file >> tmp)
+  {
+    output_vec.push_back(tmp);
+  }
 }
 
 void main_master(const std::string path_1, const std::string path_2)
 {
-  std::cout << "started master" << std::endl;
+  DEBUG(2, "started master");
 
   std::vector<int> in_1, in_2;
   read_file(path_1, in_1);
@@ -66,7 +73,7 @@ void main_master(const std::string path_1, const std::string path_2)
   assert(comm_size > 1);
   int num_workers = comm_size - 1;
 
-  std::cout << "sending inputs" << std::endl;
+  DEBUG(2, "sending inputs");
   auto send_vector = [](const std::vector<int> &vec) {
     int temp_size = vec.size();
     MPI_Bcast(&temp_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -84,7 +91,7 @@ void main_master(const std::string path_1, const std::string path_2)
   int next_worker_to_extend = 0;
   for (int d = 0; d < d_max; d++)
   {
-    std::cout << "calculating layer " << d << std::endl;
+    DEBUG(2, "calculating layer " << d);
 
     size_by_worker.at(next_worker_to_extend)++;
     next_worker_to_extend = (next_worker_to_extend + 1) % num_workers;
@@ -149,7 +156,7 @@ void main_master(const std::string path_1, const std::string path_2)
       int y = x - k;
       if (x >= in_1.size() && y >= in_2.size())
       {
-        std::cout << "found lcs" << std::endl;
+        DEBUG(2, "found lcs");
         edit_len = d;
         goto done;
       }
@@ -157,9 +164,9 @@ void main_master(const std::string path_1, const std::string path_2)
   }
 
 done:
-  std::cout << "min edit length " << edit_len << "" << std::endl;
+  std::cout << "min edit length " << edit_len << std::endl;
 
-  std::cout << "shutting down workers" << std::endl;
+  DEBUG(2, "shutting down workers");
   {
     std::vector<int> msg{shutdown_sentinel, 0, 0};
     for (int i = 1; i < comm_size; i++)
@@ -174,11 +181,11 @@ void main_worker()
   int own_rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &own_rank);
 
-  std::cout << own_rank << " | "
-            << "started worker" << std::endl;
+  DEBUG(2, own_rank << " | "
+                    << "started worker");
 
-  std::cout << own_rank << " | "
-            << "receiving inputs" << std::endl;
+  DEBUG(2, own_rank << " | "
+                    << "receiving inputs");
   auto receive_vector = []() {
     int temp_size;
     MPI_Bcast(&temp_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -213,8 +220,8 @@ void main_worker()
       num_to_receive = msg.at(5);
     }
 
-    std::cout << own_rank << " | "
-              << "working " << d << " " << k_min << " " << k_max << std::endl;
+    DEBUG(2, own_rank << " | "
+                      << "working " << d << " " << k_min << " " << k_max);
 
     if (k_min > k_max)
     {
@@ -244,8 +251,8 @@ void main_worker()
         y++;
       }
 
-      std::cout << own_rank << " | "
-                << "x: " << x << std::endl;
+      DEBUG(2, own_rank << " | "
+                        << "x: " << x);
       V_at(k) = x;
       {
         std::vector<int> msg{d, k, x};
@@ -262,22 +269,22 @@ void main_worker()
       }
     }
 
-    std::cout << own_rank << " | "
-              << "receiving " << num_to_receive << " in d " << d << std::endl;
+    DEBUG(2, own_rank << " | "
+                      << "receiving " << num_to_receive << " in d " << d);
     for (int i = 0; i < num_to_receive; i++)
     {
       std::vector<int> msg(3);
       MPI_Recv(msg.data(), msg.size(), MPI_INT, MPI_ANY_SOURCE, Tag::ReportWork, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-      std::cout << own_rank << " | "
-                << "received " << msg.at(0) << " " << msg.at(1) << " " << msg.at(2) << " in d " << d << std::endl;
+      DEBUG(2, own_rank << " | "
+                        << "received " << msg.at(0) << " " << msg.at(1) << " " << msg.at(2) << " in d " << d);
       assert(msg.at(0) == d);
       assert((msg.at(1) < k_min || msg.at(1) > k_max));
       V_at(msg.at(1)) = msg.at(2);
     }
   }
 
-  std::cout << own_rank << " | "
-            << "worker exiting" << std::endl;
+  DEBUG(2, own_rank << " | "
+                    << "worker exiting");
 }
 
 int main(int argc, char *argv[])
@@ -288,7 +295,7 @@ int main(int argc, char *argv[])
 
   if (argc < 3)
   {
-    std::cerr << "You must provide two paths to files to be compared as arguments" << std::endl;
+    std::cerr << "You must provide two paths to files to be compared as arguments";
     exit(1);
   }
   else
