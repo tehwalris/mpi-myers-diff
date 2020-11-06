@@ -25,7 +25,7 @@ enum Tag
 
 typedef std::vector<std::vector<int>> Results;
 
-int &result_at(int d, int k, Results results)
+int &result_at(int d, int k, Results &results)
 {
   auto &row = results.at(d);
   return row.at(row.size() / 2 + k);
