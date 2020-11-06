@@ -1,5 +1,6 @@
 #include <mpi.h>
 #include <iostream>
+#include <fstream>
 #include <assert.h>
 #include <vector>
 #include <algorithm>
@@ -35,16 +36,8 @@ void print_vector(const std::vector<int> &vec)
   std::cout << std::endl;
 }
 
-inline int div_ceil(int a, int b)
+void main_master(const std::string path_1, const std::string path_2)
 {
-  assert(b > 0);
-  return (a + b - 1) / b;
-}
-
-void main_master()
-{
-  std::vector<int> in_1{2, 4, 1, 3, 3};
-  std::vector<int> in_2{2, 4, 7, 1, 3, 3, 3};
 
   std::cout << "started master" << std::endl;
 
@@ -267,9 +260,21 @@ void main_worker()
             << "worker exiting" << std::endl;
 }
 
-int main()
+int main(int argc, char *argv[])
 {
   std::ios_base::sync_with_stdio(false);
+
+  std::string file, file_2;
+
+  if (argc < 3)
+  {
+    exit(1);
+  }
+  else
+  {
+    file = argv[1];
+    file_2 = argv[2];
+  }
 
   MPI_Init(nullptr, nullptr);
 
@@ -280,7 +285,7 @@ int main()
   MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
   if (world_rank == 0)
   {
-    main_master();
+    main_master(file, file_2);
   }
   else
   {
