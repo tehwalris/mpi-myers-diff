@@ -5,6 +5,7 @@ import subprocess
 import multiprocessing
 import re
 from termcolor import colored
+import numpy as np
 
 own_diff_executable = Path(__file__).parent / "../a.out"
 mpi_processes = multiprocessing.cpu_count()
@@ -32,17 +33,28 @@ def run_own_diff_algorithm(file_1_path, file_2_path):
     return min_edit_len
 
 
+def gen_random_generation_config():
+    config = {
+        "strategy": np.random.choice(
+            ["independent", "add", "remove", "addremove"], p=[0.1, 0.2, 0.2, 0.5]
+        ),
+        "length_1": np.random.randint(1, 10 ** np.random.randint(2, 5)),
+        "change_strength": np.random.rand()
+        * np.random.choice([0.3, 1], p=[0.75, 0.25]),
+        "chunkiness": np.random.rand(),
+        "distribution": np.random.choice(["uniform", "zipf"], p=[0.25, 0.75]),
+    }
+    if config["strategy"] == "independent":
+        config["change_strength"] = 1
+        config["chunkiness"] = 0
+    return config
+
+
 if __name__ == "__main__":
     for i in range(3):
         print(i, end=" ", flush=True)
 
-        config = {
-            "strategy": "addremove",
-            "length_1": 50,
-            "change_strength": 0.2,
-            "chunkiness": 0.5,
-            "distribution": "zipf",
-        }
+        config = gen_random_generation_config()
         test_case_dir = generate_and_save_test_case(
             config, temporary=True, detailed_name=False
         )

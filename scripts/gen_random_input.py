@@ -85,7 +85,9 @@ def random_chunky_mask(size: int, p_true: float, chunkiness: float):
     )
     assert 0 <= chunkiness <= 1
 
-    base_mask = np.random.rand(size) < p_true
+    base_mask = None
+    while base_mask is None or base_mask.sum() == 0:
+        base_mask = np.random.rand(size) < p_true
     chunk_count = int(math.floor(base_mask.sum() ** (1 - chunkiness)))
     chunk_sizes = random_positive_integers_to_sum(base_mask.sum(), chunk_count)
 
