@@ -186,13 +186,14 @@ def generate_and_save_test_case(
     test_case_dir.mkdir(exist_ok=True)
     for path in test_case_dir.glob("in_*.txt"):
         path.unlink()
+    (test_case_dir / "diff_size.txt").unlink(missing_ok=True)
 
     for i, values in enumerate(generate_input_pair(**config)):
         with (test_case_dir / f"in_{i + 1}.txt").open("w", encoding="utf8") as f:
             for v in values:
                 f.write(f"{v}\n")
-    os.remove(test_case_dir / "diff_size.txt")
 
+    return test_case_dir
 
 
 if __name__ == "__main__":

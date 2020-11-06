@@ -17,20 +17,26 @@ all:      generate all diffs again
 
 
 def update_test_case_diff(test_case_folder_path, always_create_diff=True):
-    diff_path = test_case_folder_path + "/" + diff_filename
+    diff_path = Path(test_case_folder_path) / diff_filename
     diff_exists = os.path.isfile(diff_path)
 
     if diff_exists and not always_create_diff:
         return None
 
     try:
-        check_call(diff_command, shell=True, cwd=folder.path)
+        check_call(diff_command, shell=True, cwd=test_case_folder_path)
     except subprocess.CalledProcessError as e:
         os.remove(diff_path)
         raise e
 
     with open(diff_path, "r") as f:
         return int(f.read().rstrip())
+
+
+def get_test_case_dirs():
+    for folder in os.scandir(test_case_folder):
+        if folder.is_dir():
+            yield folder
 
 
 if __name__ == "__main__":
@@ -45,10 +51,7 @@ if __name__ == "__main__":
 
     counter = 0
     print(f"{'Folder':<50}Edit Distance")
-    for folder in os.scandir(test_case_folder):
-        if not folder.is_dir():
-            continue
-
+    for folder in get_test_case_dirs():
         try:
             result = update_test_case_diff(folder.path, always_create_diff)
         except Exception:
