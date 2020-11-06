@@ -36,10 +36,30 @@ void print_vector(const std::vector<int> &vec)
   std::cout << std::endl;
 }
 
+void read_file(const std::string path, std::vector<int> &output_vec)
+{
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        std::cerr << "Could not open file " << path << std::endl;
+        exit(1);
+    }
+
+    //std::cout << "reading " << path << ":\n";
+    int tmp;
+    while(file >> tmp) {
+        output_vec.push_back(tmp);
+        //std::cout << tmp << " ";
+    }
+    //std::cout << std::endl;
+}
+
 void main_master(const std::string path_1, const std::string path_2)
 {
-
   std::cout << "started master" << std::endl;
+
+  std::vector<int> in_1, in_2;
+  read_file(path_1, in_1);
+  read_file(path_2, in_2);
 
   int comm_size;
   MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
@@ -264,28 +284,26 @@ int main(int argc, char *argv[])
 {
   std::ios_base::sync_with_stdio(false);
 
-  std::string file, file_2;
+  std::string path_1, path_2;
 
   if (argc < 3)
   {
+    std::cerr << "You must provide two paths to files to be compared as arguments" << std::endl;
     exit(1);
   }
   else
   {
-    file = argv[1];
-    file_2 = argv[2];
+    path_1 = argv[1];
+    path_2 = argv[2];
   }
 
   MPI_Init(nullptr, nullptr);
-
-  int world_size;
-  assert(world_size > 1);
 
   int world_rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
   if (world_rank == 0)
   {
-    main_master(file, file_2);
+    main_master(path_1, path_2);
   }
   else
   {
