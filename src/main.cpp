@@ -256,8 +256,6 @@ void main_worker()
       V_at(k) = x;
       {
         std::vector<int> msg{d, k, x};
-        MPI_Send(msg.data(), msg.size(), MPI_INT, 0, Tag::ReportWork, MPI_COMM_WORLD);
-
         if (k == k_min && down_receiver != no_worker_rank)
         {
           MPI_Send(msg.data(), msg.size(), MPI_INT, down_receiver, Tag::ReportWork, MPI_COMM_WORLD);
@@ -280,6 +278,14 @@ void main_worker()
       assert(msg.at(0) == d);
       assert((msg.at(1) < k_min || msg.at(1) > k_max));
       V_at(msg.at(1)) = msg.at(2);
+    }
+
+    // IMPORTANT Only send the results to the master now, so that the next round is not started before
+    // we have received all values from other workers from the current round.
+    for (int k = k_min; k <= k_max; k += 2)
+    {
+      std::vector<int> msg{d, k, V_at(k)};
+      MPI_Send(msg.data(), msg.size(), MPI_INT, 0, Tag::ReportWork, MPI_COMM_WORLD);
     }
   }
 
