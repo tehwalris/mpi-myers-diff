@@ -1,7 +1,6 @@
 import os
 import sys
 import subprocess
-from subprocess import check_call
 from termcolor import colored
 import traceback
 from pathlib import Path
@@ -24,7 +23,14 @@ def update_test_case_diff(test_case_folder_path, always_create_diff=True):
         return None
 
     try:
-        check_call(diff_command, shell=True, cwd=test_case_folder_path)
+        result = subprocess.run(
+            diff_command,
+            shell=True,
+            cwd=test_case_folder_path,
+            stdout=subprocess.DEVNULL,
+        )
+        if result.returncode not in [0, 1]:
+            raise RuntimeError(f"diff command returned {result.returncode}")
     except subprocess.CalledProcessError as e:
         os.remove(diff_path)
         raise e

@@ -57,7 +57,7 @@ def gen_random_generation_config():
         "strategy": np.random.choice(
             ["independent", "add", "remove", "addremove"], p=[0.1, 0.2, 0.2, 0.5]
         ),
-        "length_1": np.random.randint(1, 10 ** np.random.randint(2, 5)),
+        "length_1": np.random.randint(1, 10 ** np.random.randint(1, 3)),
         "change_strength": np.random.rand()
         * np.random.choice([0.3, 1], p=[0.75, 0.25]),
         "chunkiness": np.random.rand(),
@@ -80,9 +80,11 @@ if __name__ == "__main__":
         test_case_dir = generate_and_save_test_case(
             config, temporary=True, detailed_name=False
         )
-        print(test_case_dir.name, end=" ", flush=True)
+        print(test_case_dir.name, config, flush=True)
 
+        print("Running golden implementation", flush=True)
         golden_diff_size = update_test_case_diff(test_case_dir)
+        print("Running own implementation", flush=True)
         own_diff_size = run_own_diff_algorithm(
             test_case_dir / "in_1.txt",
             test_case_dir / "in_2.txt",
@@ -95,7 +97,6 @@ if __name__ == "__main__":
             print(
                 f'{colored("FAIL", "red")} want {golden_diff_size} got {own_diff_size}'
             )
-            print(config)
             some_tests_failed = True
             if args.early_stop:
                 break

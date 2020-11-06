@@ -33,6 +33,7 @@ def random_interleaving(a: Sequence[int], b: Sequence[int], chunkiness: float):
     assert 0 <= chunkiness <= 1
 
     def chunks_from_sequence(seq: Sequence[int], chunk_count: int):
+        assert len(seq) >= 1
         chunk_count = min(len(seq), chunk_count)
         chunk_sizes = random_positive_integers_to_sum(len(seq), chunk_count)
         chunk_ends = np.cumsum(chunk_sizes)
@@ -142,6 +143,8 @@ def generate_input_pair(
             return values_1[~random_chunky_mask(length_1, change_strength, chunkiness)]
         elif strategy == "add":
             addition_count = int(math.floor(length_1 * change_strength))
+            if addition_count == 0:
+                return values_1
             added_values = generate_input_1(
                 addition_count, distribution, values_range=length_1
             )
@@ -202,7 +205,7 @@ if __name__ == "__main__":
     generate_and_save_test_case(
         {
             "strategy": "addremove",
-            "length_1": 50,
+            "length_1": 100,
             "change_strength": 0.2,
             "chunkiness": 0.5,
             "distribution": "zipf",
