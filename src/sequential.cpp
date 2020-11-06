@@ -4,27 +4,21 @@
 #include <vector>
 #include <algorithm>
 
-const int debug_level = 0;
+const int debug_level = 2;
 
-#define DEBUG(level, x)          \
-  if (debug_level >= level)      \
-  {                              \
-    std::cerr << x << std::endl; \
-  }
+#define DEBUG(level, x)              \
+    if (debug_level >= level)        \
+    {                                \
+        std::cerr << x << std::endl; \
+    }
 
 const int shutdown_sentinel = -1;
 const int unknown_len = -1;
 const int no_worker_rank = 0;
 
-enum Tag
-{
-    AssignWork,
-    ReportWork,
-};
-
 typedef std::vector<std::vector<int>> Results;
 
-int &result_at(int d, int k, Results results)
+int &result_at(int d, int k, Results &results)
 {
     auto &row = results.at(d);
     return row.at(row.size() / 2 + k);
@@ -92,14 +86,20 @@ int main(int argc, char *argv[])
 
         for (int k = -d; k <= d; k += 2)
         {
+            DEBUG(2, "d " << d << " k " << k);
+
             int x;
-            if (k == -d || k != d && result_at(d-1, k - 1, results) < result_at(d-1, k + 1, results))
+            if (d == 0)
             {
-                x = result_at(d-1, k + 1, results);
+                x = 0;
+            }
+            else if (k == -d || k != d && result_at(d - 1, k - 1, results) < result_at(d - 1, k + 1, results))
+            {
+                x = result_at(d - 1, k + 1, results);
             }
             else
             {
-                x = result_at(d-1, k - 1, results) + 1;
+                x = result_at(d - 1, k - 1, results) + 1;
             }
 
             int y = x - k;
@@ -110,8 +110,8 @@ int main(int argc, char *argv[])
                 y++;
             }
 
-            DEBUG(2,"x: " << x);
-            result_at(d ,k, results) = x;
+            DEBUG(2, "x: " << x);
+            result_at(d, k, results) = x;
 
             if (x >= in_1.size() && y >= in_2.size())
             {
@@ -122,7 +122,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    done:
+done:
     std::cout << "min edit length " << edit_len << std::endl;
 
     return 0;
