@@ -23,13 +23,30 @@ enum Tag
   ReportWork,
 };
 
-typedef std::vector<std::vector<int>> Results;
+struct Results{
 
-int &result_at(int d, int k, Results &results)
-{
-  auto &row = results.at(d);
-  return row.at(row.size() / 2 + k);
-}
+    std::vector<int> m_data;
+
+    Results(int d_max){
+        m_data = std::vector<int>(d_max);
+    }
+
+    int &result_at(int d, int k){
+        int start = d*d;
+        int access = k+d;
+        std::cout << "DEBUG:" << "d:" << d << "k:" << k << " start:" << start << " access:" << access << std::endl;
+        assert(access >= 0 && access <= d*2);
+        return m_data.at(start+access);
+    }
+};
+
+//typedef std::vector<std::vector<int>> Results;
+
+//int &result_at(int d, int k, Results results)
+//{
+//  auto &row = results.at(d);
+//  return row.at(row.size() / 2 + k);
+//}
 
 void print_vector(const std::vector<int> &vec)
 {
@@ -86,7 +103,8 @@ void main_master(const std::string path_1, const std::string path_2)
   MPI_Bcast(&d_max, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
   int edit_len = unknown_len;
-  Results results(d_max, std::vector<int>(2 * d_max + 1));
+  Results results(d_max);
+  std::cout << "s:" << sizeof(Results) << std::endl;
   std::vector<int> size_by_worker(num_workers, 0);
   int next_worker_to_extend = 0;
   for (int d = 0; d < d_max; d++)
@@ -151,7 +169,7 @@ void main_master(const std::string path_1, const std::string path_2)
         k = msg.at(1);
         x = msg.at(2);
       }
-      result_at(d, k, results) = x;
+      results.result_at(d, k) = x;
 
       int y = x - k;
       if (x >= in_1.size() && y >= in_2.size())
