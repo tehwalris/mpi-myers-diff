@@ -28,17 +28,27 @@ struct Results{
     std::vector<int> m_data;
 
     Results(int d_max){
-        int size = d_max+1;
-        m_data = std::vector<int>(size*size);
+        //int size = d_max+1;
+        //m_data = std::vector<int>(size*size);
+        int size = (d_max*d_max+3*d_max+2)/3;
+        m_data = std::vector<int>(size);
     }
 
     int &result_at(int d, int k){
-        int start = d*d;
-        int access = k+d;
+        int start = (d*(d+1))/2;
+        int access = (k+d)/2;
         std::cout << "DEBUG:" << "d:" << d << "k:" << k << " start:" << start << " access:" << access << std::endl;
-        assert(access >= 0 && access <= d*2);
+        assert(access >= 0 && access <= d+1);
         return m_data.at(start+access);
     }
+
+    //int &result_at(int d, int k){
+    //    int start = d*d;
+    //    int access = k+d;
+    //    std::cout << "DEBUG:" << "d:" << d << "k:" << k << " start:" << start << " access:" << access << std::endl;
+    //    assert(access >= 0 && access <= d*2);
+    //    return m_data.at(start+access);
+    //}
 };
 
 //typedef std::vector<std::vector<int>> Results;
