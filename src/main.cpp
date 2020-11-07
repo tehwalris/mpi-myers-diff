@@ -28,8 +28,6 @@ struct Results{
     std::vector<int> m_data;
 
     Results(int d_max){
-        //int size = d_max+1;
-        //m_data = std::vector<int>(size*size);
         int size = (d_max*d_max+3*d_max+2)/3;
         m_data = std::vector<int>(size);
     }
@@ -42,22 +40,8 @@ struct Results{
         return m_data.at(start+access);
     }
 
-    //int &result_at(int d, int k){
-    //    int start = d*d;
-    //    int access = k+d;
-    //    std::cout << "DEBUG:" << "d:" << d << "k:" << k << " start:" << start << " access:" << access << std::endl;
-    //    assert(access >= 0 && access <= d*2);
-    //    return m_data.at(start+access);
-    //}
 };
 
-//typedef std::vector<std::vector<int>> Results;
-
-//int &result_at(int d, int k, Results results)
-//{
-//  auto &row = results.at(d);
-//  return row.at(row.size() / 2 + k);
-//}
 
 void print_vector(const std::vector<int> &vec)
 {
