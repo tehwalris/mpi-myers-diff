@@ -28,7 +28,8 @@ struct Results{
     std::vector<int> m_data;
 
     Results(int d_max){
-        m_data = std::vector<int>(d_max);
+        int size = d_max+1;
+        m_data = std::vector<int>(size*size);
     }
 
     int &result_at(int d, int k){
@@ -104,7 +105,6 @@ void main_master(const std::string path_1, const std::string path_2)
 
   int edit_len = unknown_len;
   Results results(d_max);
-  std::cout << "s:" << sizeof(Results) << std::endl;
   std::vector<int> size_by_worker(num_workers, 0);
   int next_worker_to_extend = 0;
   for (int d = 0; d < d_max; d++)
