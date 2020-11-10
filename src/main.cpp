@@ -5,13 +5,20 @@
 #include <vector>
 #include <algorithm>
 
+// Uncomment this line when performance is measured
+//#define NDEBUG
+
 const int debug_level = 0;
 
+#ifndef NDEBUG
 #define DEBUG(level, x)          \
   if (debug_level >= level)      \
   {                              \
     std::cerr << x << std::endl; \
   }
+#else
+#define DEBUG(level, x)
+#endif
 
 const int shutdown_sentinel = -1;
 const int unknown_len = -1;
@@ -35,7 +42,7 @@ struct Results{
     int &result_at(int d, int k){
         int start = (d*(d+1))/2;
         int access = (k+d)/2;
-        std::cout << "DEBUG:" << "d:" << d << "k:" << k << " start:" << start << " access:" << access << std::endl;
+        DEBUG(2, "PYRAMID: d:" << d << " k:" << k << " start:" << start << " access:" << access);
         assert(access >= 0 && access <= d+1);
         return m_data.at(start+access);
     }
@@ -61,7 +68,7 @@ void read_file(const std::string path, std::vector<int> &output_vec)
   std::ifstream file(path);
   if (!file.is_open())
   {
-    std::cerr << "Could not open file " << path;
+    std::cerr << "Could not open file " << path << std::endl;
     exit(1);
   }
 
@@ -313,7 +320,7 @@ int main(int argc, char *argv[])
 
   if (argc < 3)
   {
-    std::cerr << "You must provide two paths to files to be compared as arguments";
+    std::cerr << "You must provide two paths to files to be compared as arguments" << std::endl;
     exit(1);
   }
   else
