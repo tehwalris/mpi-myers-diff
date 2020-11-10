@@ -33,17 +33,22 @@ enum Tag
 struct Results{
 
     std::vector<int> m_data;
+    int m_d_max;
 
     Results(int d_max){
-        int size = (d_max*d_max+3*d_max+2)/3;
+        m_d_max = d_max;
+        int size = (d_max*d_max+3*d_max+2)/2;
         m_data = std::vector<int>(size);
     }
 
     int &result_at(int d, int k){
+        assert(d < m_d_max);
         int start = (d*(d+1))/2;
         int access = (k+d)/2;
-        DEBUG(2, "PYRAMID: d:" << d << " k:" << k << " start:" << start << " access:" << access);
+        DEBUG(2, "PYRAMID: d_max:" << m_d_max << " d:" << d << " k:" << k << " start:" << start << " access:" << access);
         assert(access >= 0 && access <= d+1);
+        assert(start+access < m_data.size());
+
         return m_data.at(start+access);
     }
 
