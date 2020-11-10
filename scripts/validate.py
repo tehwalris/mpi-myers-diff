@@ -1,15 +1,13 @@
 import os
 import sys
 import subprocess
+from pathlib import Path
 from termcolor import colored
 from subprocess import check_call
 
-
-test_case_folder = "../test_cases/"
+test_case_folder = Path(__file__).parent / "../test_cases"
 edit_filename = "edit_script.txt"
 diff_filename = "diff_size.txt"
-
-
 
 
 def apply_edit_script(in1, in2, edit, out):
@@ -55,10 +53,15 @@ def validate_diff_size(folder, diff):
         expected = int(diff.readline().strip())
         if actual == expected:
             print(f"{colored('OK', 'green'):<25}")
+            return True
         else:
             print(f"Expected {expected} but got {colored(actual, 'red'):<25}")
+            return False
 
 
+
+# return 2 booleans:
+# edit_script corrent?, diff size correct?
 def validate_test(folder):
     with open(folder.path + "/in_1.txt", "r") as in1, \
         open(folder.path + "/in_2.txt", "r") as in2, \
@@ -69,13 +72,18 @@ def validate_test(folder):
         apply_edit_script(in1, in2, edit, out)
 
         # compare output
+        diff_size_correct = False
+        output_correct = False
         try:
             result = check_call("cmp --silent out.txt in_2.txt", shell=True, cwd=folder.path)
             print(f"{folder.name:<20}{colored('OK', 'green'):<25}\t", end='')
-            validate_diff_size(folder, diff)
+            output_correct = True
+            diff_size_correct = validate_diff_size(folder, diff)
 
         except subprocess.CalledProcessError as e:
             print(f"{folder.name:<20}{colored('Failed', 'red')}")
+        
+        return output_correct, diff_size_correct
 
 
 ##

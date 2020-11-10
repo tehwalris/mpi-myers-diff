@@ -92,10 +92,10 @@ if __name__ == "__main__":
         )
 
         if own_diff_size == golden_diff_size:
-            print(colored("PASS", "green"))
+            print(colored("PASS\n", "green"))
         else:
             print(
-                f'{colored("FAIL", "red")} want {golden_diff_size} got {own_diff_size}'
+                f'{colored("FAIL", "red")} want {golden_diff_size} got {own_diff_size}\n'
             )
             some_tests_failed = True
             if args.early_stop:
