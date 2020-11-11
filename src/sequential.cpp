@@ -177,12 +177,10 @@ done:
             int y = x - k;
             int val = in_2.at(y);
             DEBUG(2, "y: " << y << " in_2: " << val);
-            //std::cout << x << " + "<< val << std::endl;
             steps[d-1] = {x, val, true};
         } else {
             k = k - 1;
-            int x = results.result_at(d - 1, k);
-            //std::cout << x+1 << " - " << std::endl;
+            int x = results.result_at(d - 1, k) + 1;
             steps[d-1] = {x, -1, false};
         }
     }
