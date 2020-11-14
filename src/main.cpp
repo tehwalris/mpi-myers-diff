@@ -5,13 +5,20 @@
 #include <vector>
 #include <algorithm>
 
+// Uncomment this line when performance is measured
+//#define NDEBUG
+
 const int debug_level = 0;
 
+#ifndef NDEBUG
 #define DEBUG(level, x)          \
   if (debug_level >= level)      \
   {                              \
     std::cerr << x << std::endl; \
   }
+#else
+#define DEBUG(level, x)
+#endif
 
 const int shutdown_sentinel = -1;
 const int unknown_len = -1;
@@ -23,13 +30,25 @@ enum Tag
   ReportWork,
 };
 
-typedef std::vector<std::vector<int>> Results;
+struct Results{
 
-int &result_at(int d, int k, Results &results)
-{
-  auto &row = results.at(d);
-  return row.at(row.size() / 2 + k);
-}
+    std::vector<int> m_data;
+
+    Results(int d_max){
+        int size = (d_max*d_max+3*d_max+2)/3;
+        m_data = std::vector<int>(size);
+    }
+
+    int &result_at(int d, int k){
+        int start = (d*(d+1))/2;
+        int access = (k+d)/2;
+        DEBUG(2, "PYRAMID: d:" << d << " k:" << k << " start:" << start << " access:" << access);
+        assert(access >= 0 && access <= d+1);
+        return m_data.at(start+access);
+    }
+
+};
+
 
 void print_vector(const std::vector<int> &vec)
 {
@@ -49,7 +68,7 @@ void read_file(const std::string path, std::vector<int> &output_vec)
   std::ifstream file(path);
   if (!file.is_open())
   {
-    std::cerr << "Could not open file " << path;
+    std::cerr << "Could not open file " << path << std::endl;
     exit(1);
   }
 
@@ -86,7 +105,7 @@ void main_master(const std::string path_1, const std::string path_2)
   MPI_Bcast(&d_max, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
   int edit_len = unknown_len;
-  Results results(d_max, std::vector<int>(2 * d_max + 1));
+  Results results(d_max);
   std::vector<int> size_by_worker(num_workers, 0);
   int next_worker_to_extend = 0;
   for (int d = 0; d < d_max; d++)
@@ -151,7 +170,7 @@ void main_master(const std::string path_1, const std::string path_2)
         k = msg.at(1);
         x = msg.at(2);
       }
-      result_at(d, k, results) = x;
+      results.result_at(d, k) = x;
 
       int y = x - k;
       if (x >= in_1.size() && y >= in_2.size())
@@ -301,7 +320,7 @@ int main(int argc, char *argv[])
 
   if (argc < 3)
   {
-    std::cerr << "You must provide two paths to files to be compared as arguments";
+    std::cerr << "You must provide two paths to files to be compared as arguments" << std::endl;
     exit(1);
   }
   else
