@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <vector>
 #include <algorithm>
+#include <chrono>
 
 // Uncomment this line when performance is measured
 //#define NDEBUG
@@ -82,6 +83,9 @@ void read_file(const std::string path, std::vector<int> &output_vec)
 void main_master(const std::string path_1, const std::string path_2)
 {
   DEBUG(2, "started master");
+
+  // start TIMER
+  auto chrono_start = std::chrono::high_resolution_clock::now();
 
   std::vector<int> in_1, in_2;
   read_file(path_1, in_1);
@@ -177,6 +181,12 @@ void main_master(const std::string path_1, const std::string path_2)
       {
         DEBUG(2, "found lcs");
         edit_len = d;
+
+        // stop TIMER
+        auto chrono_end = std::chrono::high_resolution_clock::now();
+        auto chrono_t = std::chrono::duration_cast<std::chrono::microseconds>(chrono_end - chrono_start).count();
+        std::cout << "chrono Time [μs]: \t" << chrono_t << std::endl << std::endl;
+        
         goto done;
       }
     }

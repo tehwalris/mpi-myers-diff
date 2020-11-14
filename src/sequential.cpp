@@ -3,8 +3,9 @@
 #include <assert.h>
 #include <vector>
 #include <algorithm>
+#include <chrono>                   // chrono::high_resolution_clock
 
-const int debug_level = 2;
+const int debug_level = 1;
 
 #define DEBUG(level, x)              \
     if (debug_level >= level)        \
@@ -71,6 +72,11 @@ int main(int argc, char *argv[])
     }
 
     // main_master
+
+    // start TIMER
+    auto chrono_start = std::chrono::high_resolution_clock::now();
+
+
     std::vector<int> in_1, in_2;
     read_file(path_1, in_1);
     read_file(path_2, in_2);
@@ -117,6 +123,12 @@ int main(int argc, char *argv[])
             {
                 DEBUG(2, "found lcs");
                 edit_len = d;
+
+                // stop TIMER
+                auto chrono_end = std::chrono::high_resolution_clock::now();
+                auto chrono_t = std::chrono::duration_cast<std::chrono::microseconds>(chrono_end - chrono_start).count();
+                std::cout << "chrono Time [μs]: \t" << chrono_t << std::endl << std::endl;
+
                 goto done;
             }
         }
