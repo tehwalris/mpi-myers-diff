@@ -101,6 +101,14 @@ void read_file(const std::string path, std::vector<int> &output_vec)
   }
 }
 
+inline void send_result(int d, int k, int x){
+
+}
+
+inline void stop_master(){
+
+}
+
 void main_master(const std::string path_1, const std::string path_2)
 {
   DEBUG(2, "started master");
