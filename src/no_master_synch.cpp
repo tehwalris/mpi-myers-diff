@@ -101,10 +101,17 @@ void read_file(const std::string path, std::vector<int> &output_vec)
   }
 }
 
+inline int compute_entry(int d, int k, Results &data){
+  int x = 0;
+  return x;
+}
+
+// send result entry to the master
 inline void send_result(int d, int k, int x){
 
 }
 
+// a worker has reached the end of the input and the master should stop waiting for additional messages.
 inline void stop_master(){
 
 }
@@ -175,15 +182,18 @@ done:
 
 void main_worker()
 {
-  const int MIN_ENTRIES = 3; // min. no. of initial entries to compute on one node before the next node is started
+  const int MIN_ENTRIES = 3; // min. number of initial entries to compute on one node per layer d before the next node is started
 
-  int own_rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &own_rank);
+  int worker_rank;
+  int worker_comm_size;
+  MPI_Comm_rank(MPI_COMM_WORLD, &worker_rank);
 
-  DEBUG(2, own_rank << " | "
-                    << "started worker");
+  int comm_size;
+  MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+  assert(comm_size > 1);
+  int num_workers = comm_size - 1; // without master
 
-  DEBUG(2, own_rank << " | "
+  DEBUG(2, worker_rank << " | "
                     << "receiving inputs");
   auto receive_vector = []() {
     int temp_size;
@@ -213,15 +223,58 @@ void main_worker()
   // start at d=(worker_rank-1)*MIN_ENTRIES, k = [(worker_rank-1)*MIN_ENTRIES, (worker_rank-1)*MIN_ENTRIES] = [d,d]
   // grow until d=worker_rank*MIN_ENTRIES-1: k=[-d + 2*((worker_rank-1)*MIN_ENTRIES), d]		// only need to receive from worker_rank-1, no need to send
 
-  // INITIAL PHASE
-  // first worker works alone until it reaches a point where one layer contains MIN_ENTRIES 
   
+  int d_start = (worker_rank-1)*MIN_ENTRIES;
+  int k_min = d_start;
+  int k_max = d_start;
+
+  // INITIAL PHASE
+  // first worker starts alone until it reaches point where one layer contains MIN_ENTRIES
+  if (worker_rank != 1) {
+    // Receive (d_start-1, k_min-1) from worker_rank-1
+  }
+  
+  
+
+  for(int d = d_start; d < worker_rank*MIN_ENTRIES; ++d) {
+    for (int k=k_min; k <= k_max; ++k) {
+      // compute entry (d,k) // Test for d=0 or add dummy entry for first worker!
+    }
+    if (worker_rank != 1){
+      // Receive entry (d, k_min-2) from worker_rank-1 for next round
+    }
+    k_min--;
+    k_max++;
+  }
 
   // GROW INDIVIDUAL WORKERS
   // after a worker has passed their initial phase, we add an additional worker
 
+  //then compute only k=[-d + 2*((worker_rank-1)*MIN_ENTRIES), -d + 2*((worker_rank-1)*MIN_ENTRIES) + 2*(MIN_ENTRIES-1)]			// #entries = MIN_ENTRIES
+  //			= [-d + 2*((worker_rank-1)*MIN_ENTRIES), -d + 2*(worker_rank*MIN_ENTRIES -1)]
+  // == third (else) case below
 
-  
+  // UNTIL: d = worker_comm_size*MIN_ENTRIES - 1 -> all nodes have MIN_ENTRIES to compute
+
+  int x;
+  for (int d = worker_rank*MIN_ENTRIES; d < worker_comm_size * MIN_ENTRIES; ++d) {
+    // compute (d, k_max)
+
+    // Send entry (d, k_max) to worker_rank+1
+    send_result(d, k_max, x);
+
+    for (int k = k_min; k < k_max-2; k++){
+      // compute (d,k)
+    }
+    // Receive entry (d, k_min-2) from worker_rank-1
+
+    // new range for next round d+1
+    k_min--;	//extend	// -d has decreased by 1, same number of entries on the left
+    k_max--;	//decrease	// -d has decreased by 1, same total number of entries at this node
+  }
+
+ 
+
   // ALL WORKERS ACTIVE
   // BALANCING
 
