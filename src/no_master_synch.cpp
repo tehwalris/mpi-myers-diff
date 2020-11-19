@@ -166,9 +166,13 @@ void main_worker()
   // grow until d=worker_rank*MIN_ENTRIES-1: k=[-d + 2*((worker_rank-1)*MIN_ENTRIES), d]		// only need to receive from worker_rank-1, no need to send
 
   // INITIAL PHASE
-
+  // first worker works alone until it reaches a point where one layer contains MIN_ENTRIES 
+  
 
   // GROW INDIVIDUAL WORKERS
+  // after a worker has passed their initial phase, we add an additional worker
+
+  // mine
 
   
   // ALL WORKERS ACTIVE
