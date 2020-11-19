@@ -253,6 +253,22 @@ done:
 
 void main_worker()
 {
+  const MIN_ENTRIES = 1 // min. no. of initial entries to compute on one node before the next node is started
+
+  // 2b) grow last workload 1-by-1 requiring less initial communication
+  // rank=1:
+  // start at d=0, k=0
+  // grow until d=MIN_ENTRIES: [-d, +d]
+  // then compute only k=[-d, -d + 2*(MIN_ENTRIES-1)]
+  // rank=2:
+  // start at d=MIN_ENTRIES, k = [MIN_ENTRIES, MIN_ENTRIES] = [d, d]
+  // grow until d=2*MIN_ENTRIES: k=[-d + 2*MIN_ENTRIES, d]
+  // then compute only k=[-d + 2*MIN_ENTRIES, -d + 2*MIN_ENTRIES + 2*(MIN_ENTRIES-1)]
+
+  // rank=worker_rank:
+  // start at d=(worker_rank-1)*MIN_ENTRIES, k = [(worker_rank-1)*MIN_ENTRIES, (worker_rank-1)*MIN_ENTRIES] = [d,d]
+  // grow until d=worker_rank*MIN_ENTRIES-1: k=[-d + 2*((worker_rank-1)*MIN_ENTRIES), d]		// only need to receive from worker_rank-1, no need to send
+
   int own_rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &own_rank);
 
@@ -276,6 +292,9 @@ void main_worker()
 
   std::vector<int> V(max_d * 2 + 1);
   auto V_at = [&V, max_d](int k) -> int & { return V.at(max_d + k); };
+
+  // Receive entry (d, k_min-2) from worker_rank-1 for next round
+
 
   while (true)
   {
