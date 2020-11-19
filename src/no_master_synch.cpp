@@ -196,6 +196,7 @@ void main_worker()
   std::vector<int> in_2 = receive_vector();
 
   int d_max = in_1.size() + in_2.size() + 1;
+  Results results(d_max);
 
 
   // 2b) grow last workload 1-by-1 requiring less initial communication
@@ -219,7 +220,6 @@ void main_worker()
   // GROW INDIVIDUAL WORKERS
   // after a worker has passed their initial phase, we add an additional worker
 
-  // mine
 
   
   // ALL WORKERS ACTIVE
