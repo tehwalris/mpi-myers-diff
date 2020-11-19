@@ -9,7 +9,7 @@
 // Uncomment this line when performance is measured
 //#define NDEBUG
 
-const int debug_level = 0;
+const int debug_level = 2;
 
 #ifndef NDEBUG
 #define DEBUG(level, x)          \
@@ -116,6 +116,24 @@ void main_master(const std::string path_1, const std::string path_2)
   // start TIMER
   auto chrono_start = std::chrono::high_resolution_clock::now();
 
+  std::vector<int> in_1, in_2;
+  read_file(path_1, in_1);
+  read_file(path_2, in_2);
+
+  int comm_size;
+  MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+  assert(comm_size > 1);
+  int num_workers = comm_size - 1;
+
+  DEBUG(2, "sending inputs");
+  auto send_vector = [](const std::vector<int> &vec) {
+    int temp_size = vec.size();
+    MPI_Bcast(&temp_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast((void *)(vec.data()), vec.size(), MPI_INT, 0, MPI_COMM_WORLD);
+  };
+  send_vector(in_1);
+  send_vector(in_2);
+
 
 done:
   std::cout << "min edit length " << edit_len << std::endl;
@@ -159,6 +177,27 @@ void main_worker()
 {
   const int MIN_ENTRIES = 3; // min. no. of initial entries to compute on one node before the next node is started
 
+  int own_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &own_rank);
+
+  DEBUG(2, own_rank << " | "
+                    << "started worker");
+
+  DEBUG(2, own_rank << " | "
+                    << "receiving inputs");
+  auto receive_vector = []() {
+    int temp_size;
+    MPI_Bcast(&temp_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    std::vector<int> vec(temp_size);
+    MPI_Bcast((void *)(vec.data()), vec.size(), MPI_INT, 0, MPI_COMM_WORLD);
+    return vec;
+  };
+  std::vector<int> in_1 = receive_vector();
+  std::vector<int> in_2 = receive_vector();
+
+  int d_max = in_1.size() + in_2.size() + 1;
+
+
   // 2b) grow last workload 1-by-1 requiring less initial communication
   // rank=1:
   // start at d=0, k=0
@@ -187,8 +226,6 @@ void main_worker()
   // BALANCING
 
   
-  int own_rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &own_rank);
 
   DEBUG(2, own_rank << " | "
                     << "worker exiting");
