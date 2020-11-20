@@ -34,8 +34,9 @@ const int no_worker_rank = 0;
 
 enum Tag
 {
-  AssignWork,
-  ReportWork,
+  // ResultEntry = d for layer {d, k, x}
+  StopMaster = -1,
+  StopWorkers = -2,
 };
 
 struct Results{
@@ -101,9 +102,39 @@ void read_file(const std::string path, std::vector<int> &output_vec)
   }
 }
 
-inline int compute_entry(int d, int k, Results &data){
-  int x = 0;
-  return x;
+// compute entry x and add it to the data structure
+// returns true if it found the solution
+inline bool compute_entry(int d, int k, Results &data, std::vector<int> &in_1, std::vector<int> &in_2){
+  int x;
+  if (d == 0){
+      x = 0;
+  } else if (k == -d || k != d && data.result_at(d - 1, k - 1) < data.result_at(d - 1, k + 1)){
+      x = data.result_at(d - 1, k + 1);
+  } else {
+      x = data.result_at(d - 1, k - 1) + 1;
+  }
+
+  int y = x - k;
+
+  while (x < in_1.size() && y < in_2.size() && in_1.at(x) == in_2.at(y)){
+      x++;
+      y++;
+  }
+
+
+  DEBUG(2, "(" << d << ", " << k << "): ");
+  DEBUG(2, "x: " << x);
+  DEBUG(2, "y; " << y);
+
+  data.result_at(d, k) = x;
+
+  // LCS found
+  if (x >= in_1.size() && y >= in_2.size()){
+    return true; 
+  }
+
+
+  return false;
 }
 
 // send result entry to the master
@@ -112,8 +143,8 @@ inline void send_result(int d, int k, int x){
 }
 
 // a worker has reached the end of the input and the master should stop waiting for additional messages.
-inline void stop_master(){
-
+inline void stop_master(int edit_len){
+  std::cout << "min edit length " << edit_len << std::endl;
 }
 
 void main_master(const std::string path_1, const std::string path_2)
@@ -142,6 +173,8 @@ void main_master(const std::string path_1, const std::string path_2)
   send_vector(in_2);
 
 
+  int edit_len = 0;
+
 done:
   std::cout << "min edit length " << edit_len << std::endl;
 
@@ -150,34 +183,35 @@ done:
     std::vector<int> msg{shutdown_sentinel, 0, 0};
     for (int i = 1; i < comm_size; i++)
     {
-      MPI_Send(msg.data(), msg.size(), MPI_INT, i, Tag::AssignWork, MPI_COMM_WORLD);
+      MPI_Send(msg.data(), msg.size(), MPI_INT, i, Tag::StopWorkers, MPI_COMM_WORLD);
+      MPI_Abort(MPI_COMM_WORLD, 0);
     }
   }
-    std::vector<struct Edit_step> steps(edit_len);
-    int k = in_1.size() - in_2.size();
-    for(int d = edit_len; d > 0; d--){
-        if (k == -d || k != d && results.result_at(d - 1, k - 1) < results.result_at(d - 1, k + 1))
-        {
-            k = k + 1;
-            int x = results.result_at(d - 1, k);
-            int y = x - k;
-            int val = in_2.at(y);
-            DEBUG(2, "y: " << y << " in_2: " << val);
-            steps[d-1] = {x, val, true};
-        } else {
-            k = k - 1;
-            int x = results.result_at(d - 1, k) + 1;
-            steps[d-1] = {x, -1, false};
-        }
-    }
-    for(int i=0; i < steps.size(); i++){
-        struct Edit_step step = steps.at(i);
-        if(step.mode){
-            std::cout << step.x << " + " << step.insert_val << std::endl;
-        } else  {
-            std::cout << step.x << " -" << std::endl;
-        }
-    }
+    // std::vector<struct Edit_step> steps(edit_len);
+    // int k = in_1.size() - in_2.size();
+    // for(int d = edit_len; d > 0; d--){
+    //     if (k == -d || k != d && results.result_at(d - 1, k - 1) < results.result_at(d - 1, k + 1))
+    //     {
+    //         k = k + 1;
+    //         int x = results.result_at(d - 1, k);
+    //         int y = x - k;
+    //         int val = in_2.at(y);
+    //         DEBUG(2, "y: " << y << " in_2: " << val);
+    //         steps[d-1] = {x, val, true};
+    //     } else {
+    //         k = k - 1;
+    //         int x = results.result_at(d - 1, k) + 1;
+    //         steps[d-1] = {x, -1, false};
+    //     }
+    // }
+    // for(int i=0; i < steps.size(); i++){
+    //     struct Edit_step step = steps.at(i);
+    //     if(step.mode){
+    //         std::cout << step.x << " + " << step.insert_val << std::endl;
+    //     } else  {
+    //         std::cout << step.x << " -" << std::endl;
+    //     }
+    // }
 }
 
 void main_worker()
@@ -230,8 +264,18 @@ void main_worker()
 
   // INITIAL PHASE
   // first worker starts alone until it reaches point where one layer contains MIN_ENTRIES
+  int x, d_rcv, k_rcv;
   if (worker_rank != 1) {
     // Receive (d_start-1, k_min-1) from worker_rank-1
+    std::vector<int> msg(3);
+    MPI_Recv(msg.data(), msg.size(), MPI_INT, worker_rank-1, d_start-1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    d_rcv = msg.at(0);
+    k_rcv = msg.at(1);
+    x = msg.at(2);
+
+    results.result_at(d_rcv, k_rcv) = x;
+    DEBUG(2, worker_rank << " | "
+      << "receiving msg (D,K): x " << d_rcv <<" "<< k_rcv <<" "<< x);
   }
   
   
@@ -239,10 +283,22 @@ void main_worker()
   for(int d = d_start; d < worker_rank*MIN_ENTRIES; ++d) {
     for (int k=k_min; k <= k_max; ++k) {
       // compute entry (d,k) // Test for d=0 or add dummy entry for first worker!
+      bool done = compute_entry(d, k, results, in_1, in_2);
+      if (done) stop_master(d);
+
     }
     if (worker_rank != 1){
       // Receive entry (d, k_min-2) from worker_rank-1 for next round
+      std::vector<int> msg(3);
+      MPI_Recv(msg.data(), msg.size(), MPI_INT, worker_rank-1, d, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      d_rcv = msg.at(0);
+      k_rcv = msg.at(1);
+      x = msg.at(2);
+
+      assert(k_rcv == k_min-2);
+      results.result_at(d_rcv, k_rcv) = x;
     }
+
     k_min--;
     k_max++;
   }
@@ -256,17 +312,32 @@ void main_worker()
 
   // UNTIL: d = worker_comm_size*MIN_ENTRIES - 1 -> all nodes have MIN_ENTRIES to compute
 
-  int x;
   for (int d = worker_rank*MIN_ENTRIES; d < worker_comm_size * MIN_ENTRIES; ++d) {
     // compute (d, k_max)
+    bool done = compute_entry(d, k_max, results, in_1, in_2);
+    if (done) stop_master(d);
+    x = results.result_at(d, k_max);
 
     // Send entry (d, k_max) to worker_rank+1
-    send_result(d, k_max, x);
+    std::vector<int> msg{d, k_max, x};
+    MPI_Send(msg.data(), msg.size(), MPI_INT, worker_rank+1, d, MPI_COMM_WORLD);
 
     for (int k = k_min; k < k_max-2; k++){
       // compute (d,k)
+      bool done = compute_entry(d, k, results, in_1, in_2);
+      if (done) stop_master(d);
+      x = results.result_at(d, k);
     }
-    // Receive entry (d, k_min-2) from worker_rank-1
+    if (worker_rank != 1){
+      // Receive entry (d, k_min-2) from worker_rank-1
+      std::vector<int> msg(3);
+      MPI_Recv(msg.data(), msg.size(), MPI_INT, worker_rank-1, k_min-2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      d_rcv = msg.at(0);
+      k_rcv = msg.at(1);
+      x = msg.at(2);
+
+      results.result_at(d_rcv, k_rcv) = x;
+    }
 
     // new range for next round d+1
     k_min--;	//extend	// -d has decreased by 1, same number of entries on the left
@@ -280,7 +351,8 @@ void main_worker()
 
   
 
-  DEBUG(2, own_rank << " | "
+worker_done:
+  DEBUG(2, worker_rank << " | "
                     << "worker exiting");
 }
 
