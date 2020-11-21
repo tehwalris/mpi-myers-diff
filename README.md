@@ -71,6 +71,20 @@ python -m scripts.test_algorithm
 
 To get info about arguments pass `--help`.
 
+### Run benchmarks
+
+The script [`bench_algorithm.py`](./scripts/bench_algorithm.py) benchmarks out diff programs on generated inputs.
+
+To run with default settings:
+
+```shell
+mpic++ src/main.cpp -O3 -DNDEBUG -o own-diff-mpi.out
+g++ src/sequential.cpp -O3 -DNDEBUG -o own-diff-sequential.out
+python -m scripts.bench_algorithm --output-csv temp-bench.csv
+```
+
+To get info about arguments pass `--help`.
+
 ## Output Formats for Tests
 
 ### Input Files
