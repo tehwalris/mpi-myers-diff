@@ -34,7 +34,12 @@ own_diff_output_fields = [
         "key": "min_edit_len",
         "regex": re.compile(r"^min edit length (\d+)$"),
         "extract": lambda m: int(m[1]),
-    }
+    },
+    {
+        "key": "micros_until_len",
+        "regex": re.compile(r"^chrono Time \[μs\]:\s*(\d+)$"),
+        "extract": lambda m: int(m[1]),
+    },
 ]
 
 
@@ -48,4 +53,11 @@ class OwnDiffOutput:
                     assert field["key"] not in found_fields
                     setattr(self, field["key"], field["extract"](m))
                     found_fields.add(field["key"])
-        assert len(found_fields) == len(own_diff_output_fields)
+
+        missing_fields = {
+            field["key"] for field in own_diff_output_fields
+        } - found_fields
+        if missing_fields:
+            raise ValueError(
+                f"Fields not found in output: {', '.join(sorted(missing_fields))}"
+            )
