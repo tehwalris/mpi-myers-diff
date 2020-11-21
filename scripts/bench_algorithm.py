@@ -4,6 +4,8 @@ import multiprocessing
 import numpy as np
 import argparse
 import csv
+import random
+from tqdm import tqdm
 
 parser = argparse.ArgumentParser(
     description="Benchmark our diff algorithm with random test cases"
@@ -23,14 +25,8 @@ parser.add_argument(
 parser.add_argument(
     "--max-file-size",
     type=int,
-    default=100000,
+    default=5000,
     help="maximum length of a single generated input sequence",
-)
-parser.add_argument(
-    "--case-timeout-secs",
-    type=float,
-    default=10,
-    help="if a single test case takes this long, stop it and don't test the same program with larger inputs",
 )
 parser.add_argument(
     "--target-file-size-steps",
@@ -145,20 +141,25 @@ if __name__ == "__main__":
     )
     print(f"{len(diff_programs)} diff programs")
 
-    multiplied_values = [
+    test_combination_factors = [
         len(all_generation_configs),
         len(diff_programs),
         args.num_repetitions,
         args.num_regens,
     ]
+    total_test_combinations = np.prod(test_combination_factors)
     print(
-        f'{" * ".join(str(v) for v in multiplied_values)} = {np.prod(multiplied_values)} total test combinations'
+        f'{" * ".join(str(v) for v in test_combination_factors)} = {total_test_combinations} total test combinations'
     )
 
     csv_output_file = open(args.output_csv, "w", newline="")
     csv_output_writer = CSVOutputWriter(csv_output_file)
 
-    for generation_config in all_generation_configs:
+    progress_bar = tqdm(total=total_test_combinations, smoothing=0.1)
+
+    shuffled_generation_configs = all_generation_configs.copy()
+    random.shuffle(shuffled_generation_configs)
+    for generation_config in shuffled_generation_configs:
         for regen_i in range(args.num_regens):
             verbose_print("generation_config", generation_config)
             test_case_dir = generate_and_save_test_case(
@@ -168,7 +169,7 @@ if __name__ == "__main__":
             for diff_program in diff_programs:
                 for repetition_i in range(args.num_repetitions):
                     verbose_print("  diff_program", diff_program["name"])
-                    # TODO Enforce the timeout
+                    # TODO Enforce a timeout
                     program_result = diff_program["run"](
                         test_case_dir / "in_1.txt",
                         test_case_dir / "in_2.txt",
@@ -176,6 +177,8 @@ if __name__ == "__main__":
                     verbose_print(
                         "    micros_until_len", program_result.micros_until_len
                     )
+
+                    progress_bar.update()
 
                     output_data = {
                         **{f"input_{k}": v for k, v in generation_config.items()},
@@ -190,4 +193,5 @@ if __name__ == "__main__":
                     }
                     csv_output_writer.write_row(output_data)
 
+    progress_bar.close()
     csv_output_file.close()
