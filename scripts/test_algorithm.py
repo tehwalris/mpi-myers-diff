@@ -1,6 +1,6 @@
 from .diff_sizes import update_test_case_diff
 from .gen_random_input import generate_and_save_test_case
-from .run_algorithm import run_own_diff_algorithm_mpi
+from .run_algorithm import run_own_diff_algorithm_mpi, run_own_diff_algorithm_sequential
 import multiprocessing
 from termcolor import colored
 import numpy as np
@@ -58,18 +58,26 @@ if __name__ == "__main__":
 
         print("Running golden implementation", flush=True)
         golden_diff_size = update_test_case_diff(test_case_dir)
-        print("Running own implementation", flush=True)
-        own_diff_size = run_own_diff_algorithm_mpi(
+        print("Running own MPI implementation", flush=True)
+        own_diff_size_mpi = run_own_diff_algorithm_mpi(
             test_case_dir / "in_1.txt",
             test_case_dir / "in_2.txt",
             args.mpi_procs,
         )
+        print("Running own sequential implementation", flush=True)
+        own_diff_size_sequential = run_own_diff_algorithm_sequential(
+            test_case_dir / "in_1.txt",
+            test_case_dir / "in_2.txt",
+        )
 
-        if own_diff_size == golden_diff_size:
+        if (
+            own_diff_size_mpi == golden_diff_size
+            and own_diff_size_sequential == golden_diff_size
+        ):
             print(colored("PASS\n", "green"))
         else:
             print(
-                f'{colored("FAIL", "red")} want {golden_diff_size} got {own_diff_size}\n'
+                f'{colored("FAIL", "red")} want {golden_diff_size} got {own_diff_size_mpi} (MPI) and {own_diff_size_sequential} (sequential) \n'
             )
             some_tests_failed = True
             if args.early_stop:
