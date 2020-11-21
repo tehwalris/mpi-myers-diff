@@ -157,9 +157,9 @@ if __name__ == "__main__":
 
     progress_bar = tqdm(total=total_test_combinations, smoothing=0)
 
-    shuffled_generation_configs = all_generation_configs.copy()
+    shuffled_generation_configs = list(enumerate(all_generation_configs.copy()))
     random.shuffle(shuffled_generation_configs)
-    for generation_config in shuffled_generation_configs:
+    for generation_config_i, generation_config in shuffled_generation_configs:
         for regen_i in range(args.num_regens):
             verbose_print("generation_config", generation_config)
             test_case_dir = generate_and_save_test_case(
@@ -181,6 +181,7 @@ if __name__ == "__main__":
                     progress_bar.update()
 
                     output_data = {
+                        "generation_config_i": generation_config_i,
                         **{f"input_{k}": v for k, v in generation_config.items()},
                         "regen_i": regen_i,
                         "repetition_i": repetition_i,
