@@ -73,7 +73,7 @@ To get info about arguments pass `--help`.
 
 ### Run benchmarks
 
-The script [`bench_algorithm.py`](./scripts/bench_algorithm.py) benchmarks out diff programs on generated inputs.
+The script [`bench_algorithm.py`](./scripts/bench_algorithm.py) benchmarks our diff programs on generated inputs.
 
 To run with default settings:
 
