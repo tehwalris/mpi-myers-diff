@@ -155,7 +155,7 @@ if __name__ == "__main__":
     csv_output_file = open(args.output_csv, "w", newline="")
     csv_output_writer = CSVOutputWriter(csv_output_file)
 
-    progress_bar = tqdm(total=total_test_combinations, smoothing=0.1)
+    progress_bar = tqdm(total=total_test_combinations, smoothing=0)
 
     shuffled_generation_configs = all_generation_configs.copy()
     random.shuffle(shuffled_generation_configs)
