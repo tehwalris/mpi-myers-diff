@@ -4,7 +4,6 @@ import re
 
 own_diff_executable_mpi = Path(__file__).parent / "../own-diff-mpi.out"
 own_diff_executable_sequential = Path(__file__).parent / "../own-diff-sequential.out"
-min_edit_len_regex = re.compile(r"^min edit length (\d+)$")
 
 
 def run_own_diff_algorithm_mpi(file_1_path, file_2_path, mpi_processes):
@@ -19,7 +18,7 @@ def run_own_diff_algorithm_mpi(file_1_path, file_2_path, mpi_processes):
         ],
         text=True,
     )
-    return parse_own_diff_output(all_output)
+    return OwnDiffOutput(all_output)
 
 
 def run_own_diff_algorithm_sequential(file_1_path, file_2_path):
@@ -27,14 +26,26 @@ def run_own_diff_algorithm_sequential(file_1_path, file_2_path):
         [own_diff_executable_sequential, file_1_path, file_2_path],
         text=True,
     )
-    return parse_own_diff_output(all_output)
+    return OwnDiffOutput(all_output)
 
 
-def parse_own_diff_output(output: str):
-    min_edit_len = None
-    for line in output.splitlines():
-        m = min_edit_len_regex.fullmatch(line)
-        if m:
-            assert min_edit_len is None
-            min_edit_len = int(m[1])
-    return min_edit_len
+own_diff_output_fields = [
+    {
+        "key": "min_edit_len",
+        "regex": re.compile(r"^min edit length (\d+)$"),
+        "extract": lambda m: int(m[1]),
+    }
+]
+
+
+class OwnDiffOutput:
+    def __init__(self, output: str):
+        found_fields = set()
+        for line in output.splitlines():
+            for field in own_diff_output_fields:
+                m = field["regex"].fullmatch(line)
+                if m:
+                    assert field["key"] not in found_fields
+                    setattr(self, field["key"], field["extract"](m))
+                    found_fields.add(field["key"])
+        assert len(found_fields) == len(own_diff_output_fields)

@@ -59,25 +59,25 @@ if __name__ == "__main__":
         print("Running golden implementation", flush=True)
         golden_diff_size = update_test_case_diff(test_case_dir)
         print("Running own MPI implementation", flush=True)
-        own_diff_size_mpi = run_own_diff_algorithm_mpi(
+        own_diff_output_mpi = run_own_diff_algorithm_mpi(
             test_case_dir / "in_1.txt",
             test_case_dir / "in_2.txt",
             args.mpi_procs,
         )
         print("Running own sequential implementation", flush=True)
-        own_diff_size_sequential = run_own_diff_algorithm_sequential(
+        own_diff_output_sequential = run_own_diff_algorithm_sequential(
             test_case_dir / "in_1.txt",
             test_case_dir / "in_2.txt",
         )
 
         if (
-            own_diff_size_mpi == golden_diff_size
-            and own_diff_size_sequential == golden_diff_size
+            own_diff_output_mpi.min_edit_len == golden_diff_size
+            and own_diff_output_sequential.min_edit_len == golden_diff_size
         ):
             print(colored("PASS\n", "green"))
         else:
             print(
-                f'{colored("FAIL", "red")} want {golden_diff_size} got {own_diff_size_mpi} (MPI) and {own_diff_size_sequential} (sequential) \n'
+                f'{colored("FAIL", "red")} want {golden_diff_size} got {own_diff_output_mpi.min_edit_len} (MPI) and {own_diff_output_sequential.min_edit_len} (sequential) \n'
             )
             some_tests_failed = True
             if args.early_stop:
