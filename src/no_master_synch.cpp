@@ -400,17 +400,92 @@ void main_worker()
     }
 
     // new range for next round d+1
-    k_min--;	//extend	// -d has decreased by 1, same number of entries on the left
-    k_max--;	//decrease	// -d has decreased by 1, same total number of entries at this node
+    k_min--;    //extend    // -d has decreased by 1, same number of entries on the left
+    k_max--;    //decrease  // -d has decreased by 1, same total number of entries at this node
   }
-
  
+  // Correct range for new phase
+  int new_k_min = k_min+1;
+  int new_k_max = k_max+1;
 
   // ALL WORKERS ACTIVE
   // BALANCING
+  for(int d=num_workers * MIN_ENTRIES; d < d_max; ++d) {
+    k_min = new_k_min;
+    k_max = new_k_max;
+    if ((d) % num_workers + 1 < worker_rank) {
+      // Send entry (d, k_min) to worker_rank-1
+      std::vector<int> msg{d, k_max, x};
+      DEBUG(2, worker_rank << " | Send to " << worker_rank-1 << " ("<<d<<", "<<k_max<<")");
+      MPI_Send(msg.data(), msg.size(), MPI_INT, worker_rank-1, tag(d), MPI_COMM_WORLD);
 
-  
+      if(worker_rank != num_workers){
+        // Receive entry (d, k_max+2) from worker_rank+1  //TODO: receive later, only when needed?
+        DEBUG(2, worker_rank << " | WAIT for " << worker_rank+1 << " ("<<d<<", "<<k_max+2<<")");
+        MPI_Recv(msg.data(), msg.size(), MPI_INT, worker_rank+1, tag(d), MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        d_rcv = msg.at(0);
+        k_rcv = msg.at(1);
+        x = msg.at(2);
+        results.result_at(d_rcv, k_rcv) = x;
+      }
 
+      // new range for next round d+1
+      new_k_min = k_min+1;  //decrease  // -d has decreased by 1, but one more entry on the left -> +2
+      new_k_max = k_max+1;  //extend
+    } else if ((d) % num_workers == worker_rank) {
+      std::vector<int> msg(3);
+      if(worker_rank > 1){
+        // Receive entry (d, k_min-2) from worker_rank-1
+        DEBUG(2, worker_rank << " | WAIT for " << worker_rank-1 << " ("<<d<<", "<<k_min-2<<")");
+        MPI_Recv(msg.data(), msg.size(), MPI_INT, worker_rank-1, tag(d), MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        d_rcv = msg.at(0);
+        k_rcv = msg.at(1);
+        x = msg.at(2);
+        results.result_at(d_rcv, k_rcv) = x;
+      }
+      // Receive entry (d, k_max+2) from worker_rank+1
+      DEBUG(2, worker_rank << " | WAIT for " << worker_rank+1 << " ("<<d<<", "<<k_max+2<<")");
+      MPI_Recv(msg.data(), msg.size(), MPI_INT, worker_rank+1, tag(d), MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      d_rcv = msg.at(0);
+      k_rcv = msg.at(1);
+      x = msg.at(2);
+      results.result_at(d_rcv, k_rcv) = x;
+
+      // new range for next round d+1
+      new_k_min = k_min-1;  //extend    // -d has decreased by 1, same number of entries on the left
+      new_k_max = k_max+1;  //extend    // 1 additional entry -> += 2
+    } else {
+
+      // Send entry (d, k_max) to worker_rank+1
+      std::vector<int> msg{d, k_max, x};
+      DEBUG(2, worker_rank << " | Send to " << worker_rank-1 << " ("<<d<<", "<<k_max<<")");
+      MPI_Send(msg.data(), msg.size(), MPI_INT, worker_rank-1, tag(d), MPI_COMM_WORLD);
+
+      // Receive entry (d, k_min-2) from worker_rank-1
+      if(worker_rank > 1){
+        DEBUG(2, worker_rank << " | WAIT for " << worker_rank-1 << " ("<<d<<", "<<k_min-2<<")");
+        MPI_Recv(msg.data(), msg.size(), MPI_INT, worker_rank-1, tag(d), MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        d_rcv = msg.at(0);
+        k_rcv = msg.at(1);
+        x = msg.at(2);
+        results.result_at(d_rcv, k_rcv) = x;
+      }
+
+      // new range for next round d+1
+      new_k_min = k_min-1;  //extend    // -d has decreased by 1, same number of entries on the left
+      new_k_max = k_max-1;  //decrease  // -d has decreased by 1, no additional entry
+    }
+    // TODO: Priorize entries
+    for (int k=k_min; k < k_max; k+=2) {
+      DEBUG_NO_LINE(2, worker_rank << " | ");
+      bool done = compute_entry(d, k, results, in_1, in_2);
+      if (done) {
+        stop_master(d);
+        return;
+      }
+    }
+
+  }
 
   DEBUG(2, worker_rank << " | "
                     << "EXITING");
