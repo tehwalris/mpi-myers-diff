@@ -1,15 +1,10 @@
-from .diff_sizes import update_test_case_diff, get_test_case_dirs
+from .diff_sizes import update_test_case_diff
 from .gen_random_input import generate_and_save_test_case
-from pathlib import Path
-import subprocess
+from .run_algorithm import run_own_diff_algorithm_mpi, run_own_diff_algorithm_sequential
 import multiprocessing
-import re
 from termcolor import colored
 import numpy as np
 import argparse
-
-own_diff_executable = Path(__file__).parent / "../a.out"
-min_edit_len_regex = re.compile(r"^min edit length (\d+)$")
 
 parser = argparse.ArgumentParser(
     description="Test our diff algorithm with random test cases"
@@ -29,27 +24,6 @@ parser.add_argument(
     default=multiprocessing.cpu_count(),
     help="number of processes to run our distributed algorithm with",
 )
-
-
-def run_own_diff_algorithm(file_1_path, file_2_path, mpi_processes):
-    all_output = subprocess.check_output(
-        [
-            "mpiexec",
-            "-np",
-            str(mpi_processes),
-            own_diff_executable,
-            file_1_path,
-            file_2_path,
-        ],
-        text=True,
-    )
-    min_edit_len = None
-    for line in all_output.splitlines():
-        m = min_edit_len_regex.fullmatch(line)
-        if m:
-            assert min_edit_len is None
-            min_edit_len = int(m[1])
-    return min_edit_len
 
 
 def gen_random_generation_config():
@@ -84,18 +58,28 @@ if __name__ == "__main__":
 
         print("Running golden implementation", flush=True)
         golden_diff_size = update_test_case_diff(test_case_dir)
-        print("Running own implementation", flush=True)
-        own_diff_size = run_own_diff_algorithm(
+        print("Running own MPI implementation", flush=True, end="")
+        own_diff_output_mpi = run_own_diff_algorithm_mpi(
             test_case_dir / "in_1.txt",
             test_case_dir / "in_2.txt",
             args.mpi_procs,
         )
+        print(f" ({own_diff_output_mpi.micros_until_len}μs)", flush=True)
+        print("Running own sequential implementation", flush=True, end="")
+        own_diff_output_sequential = run_own_diff_algorithm_sequential(
+            test_case_dir / "in_1.txt",
+            test_case_dir / "in_2.txt",
+        )
+        print(f" ({own_diff_output_sequential.micros_until_len}μs)", flush=True)
 
-        if own_diff_size == golden_diff_size:
+        if (
+            own_diff_output_mpi.min_edit_len == golden_diff_size
+            and own_diff_output_sequential.min_edit_len == golden_diff_size
+        ):
             print(colored("PASS\n", "green"))
         else:
             print(
-                f'{colored("FAIL", "red")} want {golden_diff_size} got {own_diff_size}\n'
+                f'{colored("FAIL", "red")} want {golden_diff_size} got {own_diff_output_mpi.min_edit_len} (MPI) and {own_diff_output_sequential.min_edit_len} (sequential) \n'
             )
             some_tests_failed = True
             if args.early_stop:

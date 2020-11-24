@@ -1,9 +1,10 @@
+#include "common.hpp"
 #include <iostream>
 #include <fstream>
 #include <assert.h>
-#include <vector>
 #include <algorithm>
 #include <chrono>                   // chrono::high_resolution_clock
+#include <optional>                 // requires C++17
 
 // Uncomment this line when performance is measured
 //#define NDEBUG
@@ -96,7 +97,8 @@ int main(int argc, char *argv[])
 {
     std::ios_base::sync_with_stdio(false);
 
-    std::string path_1, path_2;
+    std::string path_1, path_2, edit_script_path;
+    bool edit_script_to_file = false;
 
     if (argc < 3)
     {
@@ -107,6 +109,10 @@ int main(int argc, char *argv[])
     {
         path_1 = argv[1];
         path_2 = argv[2];
+        if (argc == 4) {
+            edit_script_path = argv[3];
+            edit_script_to_file = true;
+        }
     }
 
     // start TIMER
@@ -119,6 +125,23 @@ int main(int argc, char *argv[])
 
     DEBUG(2, "in_1.size(): " << in_1.size());
     DEBUG(2, "in_2.size(): " << in_2.size());
+
+
+    size_t real_in_1_size = in_1.size();
+    size_t real_in_2_size = in_2.size();
+
+    std::vector<bool> deletions(in_1.size());
+    std::vector<std::pair<size_t, int>> trivial_insertions;
+
+    std::vector<size_t> real_indices_1;
+    std::vector<size_t> real_indices_2;
+    discard_lines_without_match_seq(in_1, in_2, deletions, trivial_insertions, real_indices_1, real_indices_2);
+
+    DEBUG(2, "Remaining in in_1 after discard: " << in_1.size());
+    DEBUG(2, "Remaining in in_2 after discard: " << in_2.size());
+
+    int trivial_edits = (real_in_1_size - in_1.size()) + (real_in_2_size - in_2.size());
+
 
     int d_max = in_1.size() + in_2.size() + 1;
 
@@ -175,9 +198,11 @@ int main(int argc, char *argv[])
     }
 
 done:
-    std::cout << "min edit length " << edit_len << std::endl;
+    int actual_edit_len = edit_len == unknown_len ? unknown_len : (edit_len + trivial_edits);
+    std::cout << "min edit length " << actual_edit_len << std::endl;
 
-    std::vector<struct Edit_step> steps(edit_len);
+    std::vector<std::pair<size_t, int>> lcs_insertions;
+
     int k = in_1.size() - in_2.size();
     for(int d = edit_len; d > 0; d--){
         if (k == -d || k != d && results.result_at(d - 1, k - 1) < results.result_at(d - 1, k + 1))
@@ -186,21 +211,88 @@ done:
             int x = results.result_at(d - 1, k);
             int y = x - k;
             int val = in_2.at(y);
-            DEBUG(2, "y: " << y << " in_2: " << val);
-            steps[d-1] = {x, val, true};
+            size_t real_y = real_indices_2.at(y);
+            lcs_insertions.push_back(std::make_pair(real_y, val));
+            DEBUG(2, "real_y: " << real_y << " in_2: " << val);
         } else {
             k = k - 1;
-            int x = results.result_at(d - 1, k) + 1;
-            steps[d-1] = {x, -1, false};
+            int x = results.result_at(d - 1, k);
+            deletions.at(real_indices_1.at(x)) = true;
         }
     }
-    for(int i=0; i < steps.size(); i++){
-        struct Edit_step step = steps.at(i);
-        if(step.mode){
-            std::cout << step.x << " + " << step.insert_val << std::endl;
-        } else  {
-            std::cout << step.x << " -" << std::endl;
+
+    std::ofstream edit_script_file;
+    if (edit_script_to_file) {
+        edit_script_file.open(edit_script_path);
+        if (!edit_script_file.is_open())
+        {
+            std::cerr << "Could not open file " << edit_script_path << std::endl;
+            exit(1);
         }
     }
+    
+    auto matching_y = [](const std::vector<std::pair<size_t, int>> &insertions, size_t idx, size_t y) -> bool { 
+        return idx < insertions.size() && insertions.at(idx).first == y;
+    };
+
+    
+
+    size_t x = 0, y = 0;
+    size_t trivial_idx = 0;
+    int lcs_idx = lcs_insertions.size()-1;  // lcs_insertions are ordered in reverse
+
+    auto get_next_insertion = [&trivial_insertions, &lcs_insertions, &trivial_idx, &lcs_idx]() -> std::optional<std::pair<size_t, int>> { 
+        if (trivial_idx >= trivial_insertions.size()) {     // no more trivial insertions
+            if (lcs_idx >= 0) 
+                return lcs_insertions[lcs_idx--];
+            else    // reached the end of both insertion queues
+                return std::nullopt;
+        }
+        else {
+            if (lcs_idx < 0)       // no more lcs insertions
+                return trivial_insertions[trivial_idx++];
+            else {
+                // select insertion with smaller y index
+                if (trivial_insertions[trivial_idx].first < lcs_insertions[lcs_idx].first) 
+                    return trivial_insertions[trivial_idx++];
+                else
+                    return lcs_insertions[lcs_idx--];
+            }
+        }
+    };
+
+    std::optional<std::pair<size_t, int>> next_insertion = get_next_insertion();
+    while (x < real_in_1_size || y < real_in_2_size) {
+        if (!deletions[x] && (!next_insertion.has_value() || next_insertion->first != y)) {
+            // no change
+            x++;
+            y++;
+        }
+        else {
+            // Insertions
+            while (next_insertion.has_value() && next_insertion->first == y) {
+                if (edit_script_to_file)
+                    edit_script_file << x << " + " << next_insertion->second << std::endl;
+                else
+                    std::cout << x << " + " << next_insertion->second << std::endl;       // after x -> no need to adjust x
+                
+                y++;
+                next_insertion = get_next_insertion();
+            }
+            // Deletions
+            while (deletions[x]) {      // insertions cannot happen, since y isn't incremented
+                if (edit_script_to_file)
+                    edit_script_file << x+1 << " -" << std::endl;
+                else
+                    std::cout << x+1 << " -" << std::endl;      // 1-based indices in output
+                x++;
+            }
+        }
+    }
+
+    if (edit_script_to_file) {
+        edit_script_file.close();
+    }
+
     return 0;
 }

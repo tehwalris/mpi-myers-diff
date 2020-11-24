@@ -71,6 +71,20 @@ python -m scripts.test_algorithm
 
 To get info about arguments pass `--help`.
 
+### Run benchmarks
+
+The script [`bench_algorithm.py`](./scripts/bench_algorithm.py) benchmarks our diff programs on generated inputs.
+
+To run with default settings:
+
+```shell
+mpic++ src/main.cpp -O3 -DNDEBUG -o own-diff-mpi.out
+g++ src/sequential.cpp -O3 -DNDEBUG -o own-diff-sequential.out
+python -m scripts.bench_algorithm --output-csv temp-bench.csv
+```
+
+To get info about arguments pass `--help`.
+
 ## Output Formats for Tests
 
 ### Input Files
@@ -112,6 +126,10 @@ in_1                    in_2                    Edit Script
 11: 2			16: 2
 		  +	17: 33			-> 11 + 33
 ```
+
+## Jupyter notebooks
+
+To view and edit Jupyter notebooks, activate your Python virtual environment and run `jupyter-lab`. For information about setting up the virtual environment, see the "Scripts" section above.
 
 ## Useful commands
 
