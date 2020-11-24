@@ -47,7 +47,7 @@ struct Results{
     Results(int d_max){
         m_d_max = d_max;
         int size = (d_max*d_max+3*d_max+2)/2;
-        m_data = std::vector<int>(size, -1);
+        m_data = std::vector<int>(size);
     }
 
     int &result_at(int d, int k){
@@ -161,7 +161,7 @@ bool Recv(int source_rank, int d, int k, Results &results, int worker_rank /*onl
 
     // check if already received
     x = results.result_at(d, k);
-    if (x != -1) return false;
+    if (x > 0) return false;
 
     DEBUG(2, worker_rank << " | WAIT for " << source_rank << " ("<< d << ", "<< k << ")");
     int d_rcv = -1;
