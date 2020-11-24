@@ -39,11 +39,6 @@ enum Tag
   StopWorkers = 2,
 };
 
-// tag for layer d
-int tag(int d){
-  return d + 2;
-}
-
 struct Results{
 
     std::vector<int> m_data;
@@ -162,7 +157,9 @@ void stop_master(int edit_len){
 bool Recv(int source_rank, int d, Results &results){
     MPI_Status status;
     std::vector<int> msg(3);
+    int k_rcv, x;
 
+    DEBUG(2, source_rank+1 << " | WAIT for " << source_rank << " ("<< d << ", k)");
     int d_rcv = -1;
     while (d_rcv != d){ // epxected value
       MPI_Recv(msg.data(), msg.size(), MPI_INT, source_rank, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
@@ -176,6 +173,8 @@ bool Recv(int source_rank, int d, Results &results){
       k_rcv = msg.at(1);
       x = msg.at(2);
       results.result_at(d_rcv, k_rcv) = x;
+
+      DEBUG(2, source_rank+1 << " | " << "receiving (" << d_rcv <<", "<< k_rcv <<"): "<< x);
     }
 
     return false;
@@ -218,7 +217,8 @@ void main_master(const std::string path_1, const std::string path_2)
   {
     for (int i = 1; i < comm_size; i++)
     {
-      MPI_Send(&shutdown_sentinel, 1, MPI_INT, i, Tag::StopWorkers, MPI_COMM_WORLD);
+      std::vector<int> msg{shutdown_sentinel, -1, -1};
+      MPI_Send(msg.data(), msg.size(), MPI_INT, i, Tag::StopWorkers, MPI_COMM_WORLD);
     }
   }
     // std::vector<struct Edit_step> steps(edit_len);
@@ -280,13 +280,6 @@ void main_worker()
    * initial message to start computation. How does the shutdown message reach them?
    **/
 
-
-  // listen for shutdown message
-  int buffer;
-  int shutdown_flag = 0;
-  MPI_Request shutdown_request;
-  MPI_Status status;
-  MPI_Irecv(&buffer, 1, MPI_INT, 0, Tag::StopWorkers, MPI_COMM_WORLD, &shutdown_request);
   
   int d_start = (worker_rank-1)*MIN_ENTRIES; // first included layer
   int d_end = num_workers * MIN_ENTRIES - 1; // last included layer
@@ -295,19 +288,9 @@ void main_worker()
 
 
   // WAITING on first required input
-  int x, d_rcv, k_rcv;
   if (worker_rank != 1) {
     // Receive (d_start-1, k_min-1) from worker_rank-1
-    std::vector<int> msg(3);
-    DEBUG(2, worker_rank << " | WAIT for " << worker_rank-1 << " ("<<d_start-1<<", "<<k_min-1<<")");
-    MPI_Recv(msg.data(), msg.size(), MPI_INT, worker_rank-1, tag(d_start-1), MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    d_rcv = msg.at(0);
-    k_rcv = msg.at(1);
-    x = msg.at(2);
-
-    results.result_at(d_rcv, k_rcv) = x;
-    DEBUG(2, worker_rank << " | "
-      << "receiving (" << d_rcv <<", "<< k_rcv <<"): "<< x);
+    if (Recv(worker_rank-1, d_start-1, results)) return;
   }
   
   // INITIAL PHASE
@@ -328,14 +311,7 @@ void main_worker()
 
     // Receive entry (d, k_min-2) from worker_rank-1 for next round
     if (worker_rank != 1 && d < d_end){
-      std::vector<int> msg(3);
-      DEBUG(2, worker_rank << " | WAIT for " << worker_rank-1 << " ("<<d<<", "<<k_min-2<<")");
-      MPI_Recv(msg.data(), msg.size(), MPI_INT, worker_rank-1, tag(d), MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-      d_rcv = msg.at(0);
-      k_rcv = msg.at(1);
-      x = msg.at(2);
-      assert(k_rcv == k_min-2);
-      results.result_at(d_rcv, k_rcv) = x;
+      if (Recv(worker_rank-1, d, results)) return;
     }
 
     k_min--;
@@ -344,12 +320,13 @@ void main_worker()
 
 
   // send bottom right edge node to next worker
+  int x;
   int d_bot_right = worker_rank*(MIN_ENTRIES) - 1;
   if (worker_rank != num_workers){
     x = results.result_at(d_bot_right, d_bot_right);
     std::vector<int> msg{d_bot_right, d_bot_right, x};
     DEBUG(2, worker_rank << " | Send to " << worker_rank+1 << " ("<<d_bot_right<<", "<<d_bot_right<<")");
-    MPI_Send(msg.data(), msg.size(), MPI_INT, worker_rank+1, tag(d_bot_right), MPI_COMM_WORLD);
+    MPI_Send(msg.data(), msg.size(), MPI_INT, worker_rank+1, Tag::ResultEntry, MPI_COMM_WORLD);
   }
 
   // GROW INDIVIDUAL WORKERS
@@ -370,9 +347,9 @@ void main_worker()
     // Send right entry (d, k_max) to worker_rank+1
     // except right-most worker never sends and we are not in the last layer of the growth phase.
     if (worker_rank != num_workers && d < d_end){
-      std::vector<int> msg{d, k_max, x};
       DEBUG(2, worker_rank << " | Send to " << worker_rank+1 << " ("<<d<<", "<<k_max<<")");
-      MPI_Send(msg.data(), msg.size(), MPI_INT, worker_rank+1, tag(d), MPI_COMM_WORLD);
+      std::vector<int> msg{d, k_max, x};
+      MPI_Send(msg.data(), msg.size(), MPI_INT, worker_rank+1, Tag::ResultEntry, MPI_COMM_WORLD);
     }
 
     for (int k = k_min; k < k_max; k+= 2){
@@ -390,13 +367,7 @@ void main_worker()
     // Receive entry on left of row (d, k_min-2) from worker_rank-1
     // except worker 1 never receives and doesn't apply to very last row of growth phase.
     if (worker_rank != 1 && d < d_end){
-      std::vector<int> msg(3);
-      DEBUG(2, worker_rank << " | WAIT for " << worker_rank-1 << " ("<<d<<", "<<k_min-2<<")");
-      MPI_Recv(msg.data(), msg.size(), MPI_INT, worker_rank-1, tag(d), MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-      d_rcv = msg.at(0);
-      k_rcv = msg.at(1);
-      x = msg.at(2);
-      results.result_at(d_rcv, k_rcv) = x;
+      if (Recv(worker_rank-1, d, results)) return;
     }
 
     // new range for next round d+1
@@ -412,8 +383,6 @@ void main_worker()
   
 
 
-  DEBUG(2, worker_rank << " | "
-                    << "EXITING");
 }
 
 int main(int argc, char *argv[])
@@ -446,6 +415,7 @@ int main(int argc, char *argv[])
     main_worker();
   }
 
+  DEBUG(2, world_rank << " | " << "EXITING");
   MPI_Finalize();
   return 0;
 }
