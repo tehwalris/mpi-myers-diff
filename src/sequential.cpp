@@ -96,7 +96,8 @@ int main(int argc, char *argv[])
 {
     std::ios_base::sync_with_stdio(false);
 
-    std::string path_1, path_2;
+    std::string path_1, path_2, edit_script_path;
+    bool edit_script_to_file = false;
 
     if (argc < 3)
     {
@@ -107,6 +108,10 @@ int main(int argc, char *argv[])
     {
         path_1 = argv[1];
         path_2 = argv[2];
+        if (argc >= 4) {
+            edit_script_path = argv[3];
+            edit_script_to_file = true;
+        }
     }
 
     // start TIMER
@@ -194,6 +199,19 @@ done:
             steps[d-1] = {x, -1, false};
         }
     }
+
+    std::ofstream edit_script_file;
+    if (edit_script_to_file) {
+        edit_script_file.open(edit_script_path);
+        if (!edit_script_file.is_open())
+        {
+            std::cerr << "Could not open edit script file " << edit_script_path << std::endl;
+            exit(1);
+        }
+
+        std::cout.rdbuf(edit_script_file.rdbuf()); //redirect std::cout to file
+    }
+
     for(int i=0; i < steps.size(); i++){
         struct Edit_step step = steps.at(i);
         if(step.mode){
@@ -202,5 +220,10 @@ done:
             std::cout << step.x << " -" << std::endl;
         }
     }
+
+    if (edit_script_to_file) {
+        edit_script_file.close();
+    }
+    
     return 0;
 }

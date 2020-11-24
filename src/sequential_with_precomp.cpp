@@ -109,7 +109,7 @@ int main(int argc, char *argv[])
     {
         path_1 = argv[1];
         path_2 = argv[2];
-        if (argc == 4) {
+        if (argc >= 4) {
             edit_script_path = argv[3];
             edit_script_to_file = true;
         }
@@ -226,7 +226,7 @@ done:
         edit_script_file.open(edit_script_path);
         if (!edit_script_file.is_open())
         {
-            std::cerr << "Could not open file " << edit_script_path << std::endl;
+            std::cerr << "Could not open edit script file " << edit_script_path << std::endl;
             exit(1);
         }
 
