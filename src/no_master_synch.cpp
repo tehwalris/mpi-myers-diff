@@ -9,7 +9,7 @@
 // Uncomment this line when performance is measured
 //#define NDEBUG
 
-const int debug_level = 2;
+const int debug_level = 0;
 
 #ifndef NDEBUG
 #define DEBUG(level, x)          \
@@ -102,6 +102,21 @@ void read_file(const std::string path, std::vector<int> &output_vec)
   }
 }
 
+// send result entry to the master
+void send_result(int d, int k, int x){
+    std::vector<int> msg_sol{d, k, x};
+    MPI_Send(msg_sol.data(), msg_sol.size(), MPI_INT, 0, Tag::ResultEntry, MPI_COMM_WORLD);
+}
+
+// a worker has reached the end of the input and the master should stop waiting for additional messages.
+void stop_master(int edit_len){
+  DEBUG(2, "Sending stop to master.");
+
+  // send edit_len to master
+  std::vector<int> msg_sol{edit_len};
+  MPI_Send(msg_sol.data(), msg_sol.size(), MPI_INT, 0, Tag::StopMaster, MPI_COMM_WORLD);
+}
+
 // compute entry x and add it to the data structure
 // returns true if it found the solution
 inline bool compute_entry(int d, int k, Results &data, std::vector<int> &in_1, std::vector<int> &in_2){
@@ -127,6 +142,7 @@ inline bool compute_entry(int d, int k, Results &data, std::vector<int> &in_1, s
   DEBUG(2, ", y; " << y);
 
   data.result_at(d, k) = x;
+  send_result(d,k,x);
 
   // LCS found
   if (x >= in_1.size() && y >= in_2.size()){
@@ -135,20 +151,6 @@ inline bool compute_entry(int d, int k, Results &data, std::vector<int> &in_1, s
 
 
   return false;
-}
-
-// send result entry to the master
-void send_result(int d, int k, int x){
-
-}
-
-// a worker has reached the end of the input and the master should stop waiting for additional messages.
-void stop_master(int edit_len){
-  DEBUG(2, "Sending stop to master.");
-
-  // send edit_len to master
-  std::vector<int> msg_sol{edit_len};
-  MPI_Send(msg_sol.data(), msg_sol.size(), MPI_INT, 0, Tag::StopMaster, MPI_COMM_WORLD);
 }
 
 // blocking wait to receive a message from worker_rank-1 for layer d
@@ -209,11 +211,24 @@ void main_master(const std::string path_1, const std::string path_2)
   send_vector(in_1);
   send_vector(in_2);
 
-
+  int d_max = in_1.size() + in_2.size() + 1;
+  Results results(d_max);
+  std::vector<int> msg_buffer(3);
+  MPI_Status msg_status;
+  int edit_len = -1;
   // receive solution
-  std::vector<int> msg(1);
-  MPI_Recv(msg.data(), msg.size(), MPI_INT, MPI_ANY_SOURCE, Tag::StopMaster, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-  int edit_len = msg.at(0);
+  while(true){
+    MPI_Recv(msg_buffer.data(), msg_buffer.size(), MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &msg_status);
+    if(msg_status.MPI_TAG == Tag::StopMaster){
+      edit_len = msg_buffer.at(0);
+      break;
+    }
+    int d_rcv = msg_buffer.at(0);
+    int k_rcv = msg_buffer.at(1);
+    int x = msg_buffer.at(2);
+    DEBUG(2,  "MASTER | Received from " << msg_status.MPI_SOURCE << " (d:"<<d_rcv<<", k:"<<k_rcv<<", x:"<<x<<")");
+    results.result_at(d_rcv, k_rcv) = x;
+  }
 
   std::cout << "min edit length " << edit_len << std::endl;
 
@@ -225,31 +240,31 @@ void main_master(const std::string path_1, const std::string path_2)
       MPI_Send(msg.data(), msg.size(), MPI_INT, i, Tag::StopWorkers, MPI_COMM_WORLD);
     }
   }
-    // std::vector<struct Edit_step> steps(edit_len);
-    // int k = in_1.size() - in_2.size();
-    // for(int d = edit_len; d > 0; d--){
-    //     if (k == -d || k != d && results.result_at(d - 1, k - 1) < results.result_at(d - 1, k + 1))
-    //     {
-    //         k = k + 1;
-    //         int x = results.result_at(d - 1, k);
-    //         int y = x - k;
-    //         int val = in_2.at(y);
-    //         DEBUG(2, "y: " << y << " in_2: " << val);
-    //         steps[d-1] = {x, val, true};
-    //     } else {
-    //         k = k - 1;
-    //         int x = results.result_at(d - 1, k) + 1;
-    //         steps[d-1] = {x, -1, false};
-    //     }
-    // }
-    // for(int i=0; i < steps.size(); i++){
-    //     struct Edit_step step = steps.at(i);
-    //     if(step.mode){
-    //         std::cout << step.x << " + " << step.insert_val << std::endl;
-    //     } else  {
-    //         std::cout << step.x << " -" << std::endl;
-    //     }
-    // }
+  std::vector<struct Edit_step> steps(edit_len);
+  int k = in_1.size() - in_2.size();
+  for(int d = edit_len; d > 0; d--){
+    if (k == -d || k != d && results.result_at(d - 1, k - 1) < results.result_at(d - 1, k + 1))
+    {
+      k = k + 1;
+      int x = results.result_at(d - 1, k);
+      int y = x - k;
+      int val = in_2.at(y);
+      DEBUG(2, "y: " << y << " in_2: " << val);
+      steps[d-1] = {x, val, true};
+    } else {
+      k = k - 1;
+      int x = results.result_at(d - 1, k) + 1;
+      steps[d-1] = {x, -1, false};
+    }
+  }
+  for(int i=0; i < steps.size(); i++){
+    struct Edit_step step = steps.at(i);
+    if(step.mode){
+      std::cout << step.x << " + " << step.insert_val << std::endl;
+    } else  {
+      std::cout << step.x << " -" << std::endl;
+    }
+  }
 }
 
 void main_worker()
@@ -383,6 +398,8 @@ void main_worker()
   int new_k_min = k_min+1;
   int new_k_max = k_max+1;
 
+  DEBUG(2, worker_rank << " | All workers active");
+
   // ALL WORKERS ACTIVE
   // BALANCING
   for(int d=num_workers * MIN_ENTRIES; d < d_max; ++d) {
@@ -390,30 +407,31 @@ void main_worker()
     k_max = new_k_max;
     if ((d) % num_workers + 1 < worker_rank) {
       // Send entry (d, k_min) to worker_rank-1
-      x = results.result_at(d, k_min);
-      std::vector<int> msg{d, k_min, x};
-      DEBUG(2, worker_rank << " | Send to " << worker_rank-1 << " ("<<d<<", "<<k_min<<")");
+      x = results.result_at(d-1, k_min);
+      std::vector<int> msg{d-1, k_min, x};
+      DEBUG(2, worker_rank << " | Send to " << worker_rank-1 << " ("<<d-1<<", "<<k_min<<")");
       MPI_Send(msg.data(), msg.size(), MPI_INT, worker_rank-1, Tag::ResultEntry, MPI_COMM_WORLD);
-
+      assert(worker_rank != 1);
       if(worker_rank != num_workers){
         // Receive entry (d, k_max+2) from worker_rank+1  //TODO: receive later, only when needed?
-        if (Recv(worker_rank+1, d, k_max+2, results, worker_rank)) return;
+        if (Recv(worker_rank+1, d-1, k_max+2, results, worker_rank)) return;
 
       }
 
       // new range for next round d+1
       new_k_min = k_min+1;  //decrease  // -d has decreased by 1, but one more entry on the left -> +2
       new_k_max = k_max+1;  //extend
-    } else if ((d) % num_workers == worker_rank) {
+    } else if ((d) % num_workers + 1 == worker_rank) {
       std::vector<int> msg(3);
       if(worker_rank > 1){
         // Receive entry (d, k_min-2) from worker_rank-1
-        if (Recv(worker_rank-1, d, k_min-2, results, worker_rank)) return;
+        if (Recv(worker_rank-1, d-1, k_min-2, results, worker_rank)) return;
 
       }
-      // Receive entry (d, k_max+2) from worker_rank+1
-      if (Recv(worker_rank+1, d, k_max+2, results, worker_rank)) return;
-
+      if(worker_rank != num_workers){
+        // Receive entry (d, k_max+2) from worker_rank+1
+        if (Recv(worker_rank+1, d-1, k_max+2, results, worker_rank)) return;
+      }
 
       // new range for next round d+1
       new_k_min = k_min-1;  //extend    // -d has decreased by 1, same number of entries on the left
@@ -421,14 +439,16 @@ void main_worker()
     } else {
 
       // Send entry (d, k_max) to worker_rank+1
-      x = results.result_at(d, k_max);
-      std::vector<int> msg{d, k_max, x};
-      DEBUG(2, worker_rank << " | Send to " << worker_rank-1 << " ("<<d<<", "<<k_max<<")");
-      MPI_Send(msg.data(), msg.size(), MPI_INT, worker_rank-1, Tag::ResultEntry, MPI_COMM_WORLD);
+      if(worker_rank != num_workers){
+        x = results.result_at(d-1, k_max);
+        std::vector<int> msg{d-1, k_max, x};
+        DEBUG(2, worker_rank << " | Send to " << worker_rank+1 << " ("<<d<<", "<<k_max<<")");
+        MPI_Send(msg.data(), msg.size(), MPI_INT, worker_rank+1, Tag::ResultEntry, MPI_COMM_WORLD);
+      }
 
       // Receive entry (d, k_min-2) from worker_rank-1
       if(worker_rank > 1){
-        if (Recv(worker_rank-1, d, k_min-2, results, worker_rank)) return;
+        if (Recv(worker_rank-1, d-1, k_min-2, results, worker_rank)) return;
       }
 
       // new range for next round d+1
