@@ -34,9 +34,9 @@ const int no_worker_rank = 0;
 
 enum Tag
 {
-  // ResultEntry = (d+2) for layer {d, k, x} -> use function tag(d), since Tags can only be positive.
-  StopMaster = 0,
-  StopWorkers = 1,
+  ResultEntry = 0,
+  StopMaster = 1,
+  StopWorkers = 2,
 };
 
 // tag for layer d
@@ -156,6 +156,31 @@ void stop_master(int edit_len){
   MPI_Send(msg_sol.data(), msg_sol.size(), MPI_INT, 0, Tag::StopMaster, MPI_COMM_WORLD);
 }
 
+// blocking wait to receive a message from worker_rank-1 for layer d
+// updates the entires in Results
+// returns true if StopWorkers received
+bool Recv(int source_rank, int d, Results &results){
+    MPI_Status status;
+    std::vector<int> msg(3);
+
+    int d_rcv = -1;
+    while (d_rcv != d){ // epxected value
+      MPI_Recv(msg.data(), msg.size(), MPI_INT, source_rank, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+
+      if (status.MPI_TAG == Tag::StopWorkers){
+        return true;
+      }
+
+      // save result
+      d_rcv = msg.at(0);
+      k_rcv = msg.at(1);
+      x = msg.at(2);
+      results.result_at(d_rcv, k_rcv) = x;
+    }
+
+    return false;
+}
+
 void main_master(const std::string path_1, const std::string path_2)
 {
   DEBUG(2, "started master");
@@ -260,6 +285,7 @@ void main_worker()
   int buffer;
   int shutdown_flag = 0;
   MPI_Request shutdown_request;
+  MPI_Status status;
   MPI_Irecv(&buffer, 1, MPI_INT, 0, Tag::StopWorkers, MPI_COMM_WORLD, &shutdown_request);
   
   int d_start = (worker_rank-1)*MIN_ENTRIES; // first included layer
