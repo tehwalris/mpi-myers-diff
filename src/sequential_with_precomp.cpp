@@ -229,14 +229,11 @@ done:
             std::cerr << "Could not open file " << edit_script_path << std::endl;
             exit(1);
         }
+
+        std::cout.rdbuf(edit_script_file.rdbuf()); //redirect std::cout to file
     }
-    
-    auto matching_y = [](const std::vector<std::pair<size_t, int>> &insertions, size_t idx, size_t y) -> bool { 
-        return idx < insertions.size() && insertions.at(idx).first == y;
-    };
 
     
-
     size_t x = 0, y = 0;
     size_t trivial_idx = 0;
     int lcs_idx = lcs_insertions.size()-1;  // lcs_insertions are ordered in reverse
@@ -271,20 +268,13 @@ done:
         else {
             // Insertions
             while (next_insertion.has_value() && next_insertion->first == y) {
-                if (edit_script_to_file)
-                    edit_script_file << x << " + " << next_insertion->second << std::endl;
-                else
-                    std::cout << x << " + " << next_insertion->second << std::endl;       // after x -> no need to adjust x
-                
+                std::cout << x << " + " << next_insertion->second << std::endl;       // after x -> no need to adjust x
                 y++;
                 next_insertion = get_next_insertion();
             }
             // Deletions
             while (deletions[x]) {      // insertions cannot happen, since y isn't incremented
-                if (edit_script_to_file)
-                    edit_script_file << x+1 << " -" << std::endl;
-                else
-                    std::cout << x+1 << " -" << std::endl;      // 1-based indices in output
+                std::cout << x+1 << " -" << std::endl;      // 1-based indices in output
                 x++;
             }
         }
