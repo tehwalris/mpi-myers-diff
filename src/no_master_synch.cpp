@@ -123,7 +123,7 @@ inline bool compute_entry(int d, int k, Results &data, std::vector<int> &in_1, s
   int x;
   if (d == 0){
       x = 0;
-  } else if (k == -d || k != d && data.result_at(d - 1, k - 1) < data.result_at(d - 1, k + 1)){
+  } else if (k == -d || (k != d && data.result_at(d - 1, k - 1) < data.result_at(d - 1, k + 1))){
       x = data.result_at(d - 1, k + 1);
   } else {
       x = data.result_at(d - 1, k - 1) + 1;
@@ -169,7 +169,7 @@ bool Recv(int source_rank, int d, int k, Results &results, int worker_rank /*onl
     int d_rcv = -1;
     while (d_rcv != d){ // epxected value
 
-      MPI_Recv(msg.data(), msg.size(), MPI_INT, source_rank, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+      MPI_Recv(msg.data(), msg.size(), MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
       if (status.MPI_TAG == Tag::StopWorkers){
         return true;
       }
@@ -243,7 +243,7 @@ void main_master(const std::string path_1, const std::string path_2)
   std::vector<struct Edit_step> steps(edit_len);
   int k = in_1.size() - in_2.size();
   for(int d = edit_len; d > 0; d--){
-    if (k == -d || k != d && results.result_at(d - 1, k - 1) < results.result_at(d - 1, k + 1))
+    if (k == -d || (k != d && results.result_at(d - 1, k - 1) < results.result_at(d - 1, k + 1)))
     {
       k = k + 1;
       int x = results.result_at(d - 1, k);
@@ -395,16 +395,14 @@ void main_worker()
   }
  
   // Correct range for new phase
-  int new_k_min = k_min+1;
-  int new_k_max = k_max+1;
+  k_min++;
+  k_max++;
 
   DEBUG(2, worker_rank << " | All workers active");
 
   // ALL WORKERS ACTIVE
   // BALANCING
   for(int d=num_workers * MIN_ENTRIES; d < d_max; ++d) {
-    k_min = new_k_min;
-    k_max = new_k_max;
     if ((d) % num_workers + 1 < worker_rank) {
       // Send entry (d, k_min) to worker_rank-1
       x = results.result_at(d-1, k_min);
@@ -419,8 +417,8 @@ void main_worker()
       }
 
       // new range for next round d+1
-      new_k_min = k_min+1;  //decrease  // -d has decreased by 1, but one more entry on the left -> +2
-      new_k_max = k_max+1;  //extend
+      k_min++;  //decrease  // -d has decreased by 1, but one more entry on the left -> +2
+      k_max++;  //extend
     } else if ((d) % num_workers + 1 == worker_rank) {
       std::vector<int> msg(3);
       if(worker_rank > 1){
@@ -434,8 +432,8 @@ void main_worker()
       }
 
       // new range for next round d+1
-      new_k_min = k_min-1;  //extend    // -d has decreased by 1, same number of entries on the left
-      new_k_max = k_max+1;  //extend    // 1 additional entry -> += 2
+      k_min--;  //extend    // -d has decreased by 1, same number of entries on the left
+      k_max++;  //extend    // 1 additional entry -> += 2
     } else {
 
       // Send entry (d, k_max) to worker_rank+1
@@ -452,8 +450,8 @@ void main_worker()
       }
 
       // new range for next round d+1
-      new_k_min = k_min-1;  //extend    // -d has decreased by 1, same number of entries on the left
-      new_k_max = k_max-1;  //decrease  // -d has decreased by 1, no additional entry
+      k_min--;  //extend    // -d has decreased by 1, same number of entries on the left
+      k_max--;  //decrease  // -d has decreased by 1, no additional entry
     }
     // TODO: Priorize entries
     for (int k=k_min; k < k_max; k+=2) {
