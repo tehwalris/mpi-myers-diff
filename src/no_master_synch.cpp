@@ -1,10 +1,12 @@
 #include <mpi.h>
 #include <iostream>
+#include <sstream>
 #include <fstream>
 #include <assert.h>
 #include <vector>
 #include <algorithm>
 #include <chrono>
+#include <cstring>
 
 // Uncomment this line when performance is measured
 //#define NDEBUG
@@ -35,6 +37,7 @@ const int no_worker_rank = 0;
 enum Tag
 {
   ResultEntry = 0,
+  ResultEntryData = 3,
   StopMaster = 1,
   StopWorkers = 2,
 };
@@ -47,14 +50,14 @@ struct Results{
     Results(int d_max){
         m_d_max = d_max;
         int size = (d_max*d_max+3*d_max+2)/2;
-        m_data = std::vector<int>(size);
+        m_data = std::vector<int>(size, -1);
     }
 
     int &result_at(int d, int k){
-        assert(d < m_d_max);
         int start = (d*(d+1))/2;
         int access = (k+d)/2;
         DEBUG(3, "PYRAMID: d_max:" << m_d_max << " d:" << d << " k:" << k << " start:" << start << " access:" << access);
+        assert(d < m_d_max);
         assert(access >= 0 && access <= d+1);
         assert(start+access < m_data.size());
 
@@ -86,6 +89,25 @@ void print_vector(const std::vector<int> &vec)
 }
 
 
+void print_vector_colored(const std::vector<int> &vec, int color_index)
+{
+    std::ostringstream oss;
+    oss << "\33[9" << color_index << "m";
+    for (int i = 0; i < vec.size(); i++)
+    {
+        if (i != 0)
+        {
+            oss << " ";
+        }
+        oss << vec.at(i);
+    }
+    oss << "\33[0m";
+    std::string s = oss.str();
+    DEBUG(2, s);
+}
+
+
+
 void read_file(const std::string path, std::vector<int> &output_vec)
 {
   std::ifstream file(path);
@@ -102,10 +124,22 @@ void read_file(const std::string path, std::vector<int> &output_vec)
   }
 }
 
-// send result entry to the master
-void send_result(int d, int k, int x){
-    std::vector<int> msg_sol{d, k, x};
+// send result data row to the master
+// Sends the whole layer
+// returns true if the message can not be delivered, as master is no longer receiving data
+bool send_result(int d, int k_min, int k_max, Results &results){
+    // Prevent deadlocking on send when master already stopped receiving
+    // Still does not work...
+    int has_message = false;
+    MPI_Iprobe(0, Tag::StopWorkers, MPI_COMM_WORLD, &has_message, MPI_STATUS_IGNORE);
+    if(has_message){
+        return true;
+    }
+    std::vector<int> msg_sol{d, k_min, k_max};
+    DEBUG(2, "Sending results");
     MPI_Send(msg_sol.data(), msg_sol.size(), MPI_INT, 0, Tag::ResultEntry, MPI_COMM_WORLD);
+    MPI_Send(results.m_data.data()+(d*(d+1))/2+(k_min+d)/2, (k_max - k_min)/2+1, MPI_INT, 0, Tag::ResultEntryData, MPI_COMM_WORLD);
+    return false;
 }
 
 // a worker has reached the end of the input and the master should stop waiting for additional messages.
@@ -142,7 +176,6 @@ inline bool compute_entry(int d, int k, Results &data, std::vector<int> &in_1, s
   DEBUG(2, ", y; " << y);
 
   data.result_at(d, k) = x;
-  send_result(d,k,x);
 
   // LCS found
   if (x >= in_1.size() && y >= in_2.size()){
@@ -161,6 +194,11 @@ bool Recv(int source_rank, int d, int k, Results &results, int worker_rank /*onl
     std::vector<int> msg(3);
     int k_rcv, x;
 
+    if(d >= results.m_d_max){
+        // This worker will not be needed as its d is bigger than the maximum allowed one
+        return true;
+    }
+    DEBUG(2, worker_rank << " tried to receive. d:" << d << " (d_max)" << results.m_d_max);
     // check if already received
     x = results.result_at(d, k);
     if (x > 0) return false;
@@ -180,7 +218,8 @@ bool Recv(int source_rank, int d, int k, Results &results, int worker_rank /*onl
       x = msg.at(2);
       results.result_at(d_rcv, k_rcv) = x;
 
-      DEBUG(2, worker_rank << " | " << "receiving from "<< source_rank <<": (" << d_rcv <<", "<< k_rcv <<"): "<< x);
+      DEBUG(2, worker_rank << " | " << "receiving from "<< status.MPI_SOURCE <<": (" << d_rcv <<", "<< k_rcv <<"): "<< x);
+      assert(x > 0);
     }
 
     return false;
@@ -224,11 +263,23 @@ void main_master(const std::string path_1, const std::string path_2)
       break;
     }
     int d_rcv = msg_buffer.at(0);
-    int k_rcv = msg_buffer.at(1);
-    int x = msg_buffer.at(2);
-    DEBUG(2,  "MASTER | Received from " << msg_status.MPI_SOURCE << " (d:"<<d_rcv<<", k:"<<k_rcv<<", x:"<<x<<")");
-    results.result_at(d_rcv, k_rcv) = x;
+    int k_min_rcv = msg_buffer.at(1);
+    int k_max_rcv = msg_buffer.at(2);
+    std::vector<int> rcv_buf((k_max_rcv - k_min_rcv)/2+1);
+    MPI_Recv(rcv_buf.data(), rcv_buf.size(), MPI_INT, msg_status.MPI_SOURCE, Tag::ResultEntryData, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+    //print_vector_colored(rcv_buf, 4);
+    std::copy(rcv_buf.data(), rcv_buf.data()+rcv_buf.size(), results.m_data.begin()+(d_rcv*(d_rcv+1))/2+(k_min_rcv+d_rcv)/2);
+    std::ostringstream oss;
+    oss << "\33[94m" << "MASTER | Received from " << msg_status.MPI_SOURCE << " (d:"<<d_rcv<<", k_min:"<<k_min_rcv<<", k_max:"<<k_max_rcv<<")" << "\33[0m";
+    std::string s = oss.str();
+    DEBUG(2, s);
   }
+
+  // stop TIMER
+  auto chrono_end = std::chrono::high_resolution_clock::now();
+  auto chrono_t = std::chrono::duration_cast<std::chrono::microseconds>(chrono_end - chrono_start).count();
+  std::cout << "chrono Time [μs]: \t" << chrono_t << std::endl << std::endl;
 
   std::cout << "min edit length " << edit_len << std::endl;
 
@@ -265,11 +316,13 @@ void main_master(const std::string path_1, const std::string path_2)
       std::cout << step.x << " -" << std::endl;
     }
   }
+  //print_vector(results.m_data);
 }
 
 void main_worker()
 {
-  const int MIN_ENTRIES = 3; // min. number of initial entries to compute on one node per layer d before the next node is started
+  // This number must be greater or equal to 2
+  const int MIN_ENTRIES = 100; // min. number of initial entries to compute on one node per layer d before the next node is started
 
   int worker_rank;
   int comm_size;
@@ -304,6 +357,7 @@ void main_worker()
   int d_end = num_workers * MIN_ENTRIES - 1; // last included layer
   int k_min = d_start;                       // left included k index
   int k_max = d_start;                       // right included k index
+  int d_bot_right = worker_rank*(MIN_ENTRIES) - 1;
 
 
   // WAITING on first required input
@@ -314,16 +368,20 @@ void main_worker()
   
   // INITIAL PHASE
   // first worker starts alone on its pyramid until it reaches point where one layer contains MIN_ENTRIES
-  for(int d = d_start; d < worker_rank*MIN_ENTRIES; ++d) {
+  for(int d = d_start; d < std::min(worker_rank*MIN_ENTRIES, d_max); ++d) {
     for (int k=k_min; k <= k_max; k+=2) {
       // compute entry (d,k) // Test for d=0 or add dummy entry for first worker!
       DEBUG_NO_LINE(2, worker_rank << " | ");
       bool done = compute_entry(d, k, results, in_1, in_2);
       if (done) {
+        send_result(d, k_min, k_max, results);
         stop_master(d);
         return;
       }
     }
+    bool done = send_result(d, k_min, k_max, results);
+    if(done)
+        return;
     // // check for shutdown
     // MPI_Test(&shutdown_request, &shutdown_flag, MPI_STATUS_IGNORE);
     // if (shutdown_flag) return;
@@ -340,25 +398,25 @@ void main_worker()
 
   // send bottom right edge node to next worker
   int x;
-  int d_bot_right = worker_rank*(MIN_ENTRIES) - 1;
   if (worker_rank != num_workers){
     x = results.result_at(d_bot_right, d_bot_right);
     std::vector<int> msg{d_bot_right, d_bot_right, x};
     DEBUG(2, worker_rank << " | Send to " << worker_rank+1 << " ("<<d_bot_right<<", "<<d_bot_right<<")");
     MPI_Send(msg.data(), msg.size(), MPI_INT, worker_rank+1, Tag::ResultEntry, MPI_COMM_WORLD);
   }
-
+  DEBUG(2, worker_rank << " | spawned new worker");
   // GROW INDIVIDUAL WORKERS
   // after a worker has passed their initial phase, we add additional workers
   // Each worker computes MIN_ENTRIES nodes per layer and shifts to the left with every additional layer.
   k_max = worker_rank*(MIN_ENTRIES) - 2;
-  for (int d = worker_rank*MIN_ENTRIES; d < num_workers * MIN_ENTRIES; ++d) {
+  for (int d = worker_rank*MIN_ENTRIES; d < std::min(num_workers * MIN_ENTRIES, d_max); ++d) {
 
     // compute (d, k_max)
     DEBUG_NO_LINE(2, worker_rank << " | ");
     bool done = compute_entry(d, k_max, results, in_1, in_2);
     x = results.result_at(d, k_max);
     if (done) {
+      send_result(d, k_min, k_max, results);
       stop_master(d);
       return;
     }    
@@ -378,11 +436,14 @@ void main_worker()
       bool done = compute_entry(d, k, results, in_1, in_2);
       x = results.result_at(d, k);
       if (done) {
+        send_result(d, k_min, k_max, results);
         stop_master(d);
         return;
       }      
     }
-
+    done = send_result(d, k_min, k_max, results);
+    if(done)
+        return;
     // Receive entry on left of row (d, k_min-2) from worker_rank-1
     // except worker 1 never receives and doesn't apply to very last row of growth phase.
     if (worker_rank != 1 && d < d_end){
@@ -407,13 +468,12 @@ void main_worker()
       // Send entry (d, k_min) to worker_rank-1
       x = results.result_at(d-1, k_min);
       std::vector<int> msg{d-1, k_min, x};
-      DEBUG(2, worker_rank << " | Send to " << worker_rank-1 << " ("<<d-1<<", "<<k_min<<")");
+      DEBUG(2, worker_rank << " | Send to " << worker_rank-1 << " ("<<d-1<<", "<<k_min<<", "<<x<<")");
       MPI_Send(msg.data(), msg.size(), MPI_INT, worker_rank-1, Tag::ResultEntry, MPI_COMM_WORLD);
       assert(worker_rank != 1);
       if(worker_rank != num_workers){
         // Receive entry (d, k_max+2) from worker_rank+1  //TODO: receive later, only when needed?
         if (Recv(worker_rank+1, d-1, k_max+2, results, worker_rank)) return;
-
       }
 
       // new range for next round d+1
@@ -440,7 +500,7 @@ void main_worker()
       if(worker_rank != num_workers){
         x = results.result_at(d-1, k_max);
         std::vector<int> msg{d-1, k_max, x};
-        DEBUG(2, worker_rank << " | Send to " << worker_rank+1 << " ("<<d<<", "<<k_max<<")");
+        DEBUG(2, worker_rank << " | Send to " << worker_rank+1 << " ("<<d-1<<", "<<k_max<<", "<<x<<")");
         MPI_Send(msg.data(), msg.size(), MPI_INT, worker_rank+1, Tag::ResultEntry, MPI_COMM_WORLD);
       }
 
@@ -454,17 +514,19 @@ void main_worker()
       k_max--;  //decrease  // -d has decreased by 1, no additional entry
     }
     // TODO: Priorize entries
-    for (int k=k_min; k < k_max; k+=2) {
+    for (int k=k_min; k <= k_max; k+=2) {
       DEBUG_NO_LINE(2, worker_rank << " | ");
       bool done = compute_entry(d, k, results, in_1, in_2);
       if (done) {
+        send_result(d, k_min, k_max, results);
         stop_master(d);
         return;
       }
     }
-
+    bool done = send_result(d, k_min, k_max, results);
+    if(done)
+        return;
   }
-
 }
 
 int main(int argc, char *argv[])
