@@ -1,0 +1,100 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "shell",
+			"label": "mpicc build active file",
+			"command": "/usr/bin/mpic++",
+			"args": [
+				//"-std=gnu++17",
+				"-g",
+				"${file}",
+				"-o",
+				"${workspaceFolder}/bin/${fileBasenameNoExtension}"
+			],
+			"options": {
+				"cwd": "/usr/bin"
+			},
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"detail": "compiler: /usr/bin/mpicc"
+		},
+		{
+			"type": "shell",
+			"label": "mpicc build active file release",
+			"command": "/usr/bin/mpic++",
+			"args": [
+				//"-std=gnu++17",
+				"-O3",
+				"${file}",
+				"-o",
+				"${workspaceFolder}/bin/${fileBasenameNoExtension}_rel"
+			],
+			"options": {
+				"cwd": "/usr/bin"
+			},
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"detail": "compiler: /usr/bin/mpicc"
+		},
+		{
+			"type": "shell",
+			"label": "g++ build active file",
+			"command": "/usr/bin/g++",
+			"args": [
+				"-std=gnu++17",
+				"-g",
+				"${file}",
+				"${workspaceFolder}/src/precomputation_seq.cpp",
+				"-o",
+				"${workspaceFolder}/bin/${fileBasenameNoExtension}"
+			],
+			"options": {
+				"cwd": "/usr/bin"
+			},
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": "build"
+		},
+
+
+		{
+			"type": "shell",
+			"label": "test algorithm",
+			"command": "${config:python.pythonPath}",
+			"args": [
+				"-m",
+				"scripts.test_algorithm",
+			],
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": "test",
+			"dependsOn": "mpicc build active file",
+		},
+		{
+			"type": "shell",
+			"label": "validate",
+			"command": "${config:python.pythonPath}",
+			"args": [
+				"-m",
+				"scripts.validate",
+			],
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": "test",
+		},
+	]
+}
