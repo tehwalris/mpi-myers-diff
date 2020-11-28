@@ -11,10 +11,14 @@ You only have to perform these steps once. After that, you can just perform the 
 First download `diffutils/gnulib`, which which is a dependency of `diffutils`. It is registered as a git submodule in _our_ repository. Run this from our repo root:
 
 ```bash
-git submodule update --init --recursive --progress # clone diffutils/gnulib
+git submodule update --init --recursive --progress
 ```
 
-Now **switch directory** with `cd diffutils`. All the following commands for "Initial setup" should be run in that directory.
+Now **switch directory**. All the following commands for "Initial setup" should be run in the `diffutils` directory.
+
+```bash
+cd diffutils
+```
 
 Download and prepare various build files for diffutils:
 
