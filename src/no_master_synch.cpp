@@ -10,7 +10,7 @@
 #include <new>
 
 // Uncomment this line when performance is measured
-//#define NDEBUG
+#define NDEBUG
 
 const int debug_level = 2;
 
@@ -85,22 +85,25 @@ public:
           data_pointers.at(block_idx) = allocate_block(block_idx*alloc_n_layers);
         }
 
-        int block_start = pyramid_size(block_idx*alloc_n_layers);
-        int start = pyramid_size(d) - block_start;
+        int start_d = pyramid_size(d) - pyramid_size(block_idx*alloc_n_layers);
         int offset = (k+d)/2;
 
-        DEBUG(3, "PYRAMID: ("<<d<<", "<<k<<")   block: "<<block_idx<<" start:" << start << " offset:" << offset);
+        DEBUG(3, "PYRAMID: ("<<d<<", "<<k<<")   block: "<<block_idx<<" start:" << start_d << " offset:" << offset);
         assert(d < this->m_d_max);
         assert(offset >= 0 && offset <= d+1);
 
-        return data_pointers[block_idx][start+offset];
+        return data_pointers[block_idx][start_d+offset];
     }
 
-    int* get_layer_data(int d){
+    // returns pointer to first that element.
+    // is guaranteed to continue for at least end of layer d.
+    // unlike result_at(d,k) does not perform allocation of next layers
+    int* get_pointer(int d, int k){
         int block_idx = d / alloc_n_layers;
-        int start = pyramid_size(d) - pyramid_size(block_idx*alloc_n_layers);
+        int start_d = pyramid_size(d) - pyramid_size(block_idx*alloc_n_layers);
+        int offset = (k+d) / 2;
 
-        return data_pointers[block_idx] + start;
+        return data_pointers[block_idx] + start_d + offset;
     }
 
 };
@@ -176,8 +179,10 @@ bool send_result(int d, int k_min, int k_max, Results &results){
     }
     std::vector<int> msg_sol{d, k_min, k_max};
     DEBUG(2, "Sending results");
+    int entries = (k_max - k_min)/2+1;
+    int* start = results.get_pointer(d,k_min);
     MPI_Send(msg_sol.data(), msg_sol.size(), MPI_INT, 0, Tag::ResultEntry, MPI_COMM_WORLD);
-    //MPI_Send(results.m_data.data()+(d*(d+1))/2+(k_min+d)/2, (k_max - k_min)/2+1, MPI_INT, 0, Tag::ResultEntryData, MPI_COMM_WORLD);
+    MPI_Send(start, entries, MPI_INT, 0, Tag::ResultEntryData, MPI_COMM_WORLD);
     return false;
 }
 
@@ -299,6 +304,7 @@ void main_master(const std::string path_1, const std::string path_2)
   int edit_len = -1;
   
   // receive solution
+  std::vector<int> rcv_buf;
   while(true){
     MPI_Recv(msg_buffer.data(), msg_buffer.size(), MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &msg_status);
     if(msg_status.MPI_TAG == Tag::StopMaster){
@@ -308,11 +314,11 @@ void main_master(const std::string path_1, const std::string path_2)
     int d_rcv = msg_buffer.at(0);
     int k_min_rcv = msg_buffer.at(1);
     int k_max_rcv = msg_buffer.at(2);
-    std::vector<int> rcv_buf((k_max_rcv - k_min_rcv)/2+1);
-    //MPI_Recv(rcv_buf.data(), rcv_buf.size(), MPI_INT, msg_status.MPI_SOURCE, Tag::ResultEntryData, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    rcv_buf.resize((k_max_rcv - k_min_rcv)/2+1);
+    MPI_Recv(rcv_buf.data(), rcv_buf.size(), MPI_INT, msg_status.MPI_SOURCE, Tag::ResultEntryData, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-    //print_vector_colored(rcv_buf, 4);
-    //std::copy(rcv_buf.data(), rcv_buf.data()+rcv_buf.size(), results.m_data.begin()+(d_rcv*(d_rcv+1))/2+(k_min_rcv+d_rcv)/2);
+    // print_vector_colored(rcv_buf, 4);
+    std::copy(rcv_buf.data(), rcv_buf.data()+rcv_buf.size(), &results.result_at(d_rcv, k_min_rcv));
     std::ostringstream oss;
     oss << "\33[94m" << "MASTER | Received from " << msg_status.MPI_SOURCE << " (d:"<<d_rcv<<", k_min:"<<k_min_rcv<<", k_max:"<<k_max_rcv<<")" << "\33[0m";
     std::string s = oss.str();
@@ -332,12 +338,6 @@ void main_master(const std::string path_1, const std::string path_2)
       MPI_Send(msg.data(), msg.size(), MPI_INT, i, Tag::StopWorkers, MPI_COMM_WORLD);
     }
   }
-
-  // TODO [pascalm] remove this after testing.
-  std::cout << "min edit length " << edit_len << std::endl;
-  std::cout << "chrono Time [μs]: \t\t" << time_sol << std::endl;
-
-  return;
 
   std::vector<struct Edit_step> steps(edit_len);
   int k = in_1.size() - in_2.size();
@@ -372,7 +372,8 @@ void main_master(const std::string path_1, const std::string path_2)
   //print_vector(results.m_data);
 
   std::cout << "Solution [μs]: \t\t" << time_sol << std::endl;
-  std::cout << "Edit Script [μs]: \t" << time_edit << std::endl;
+  std::cout << "Edit Script [μs]: \t" << time_edit << std::endl << std::endl;
+  std::cout << "min edit length " << edit_len << std::endl;
 
 }
 
