@@ -167,7 +167,7 @@ int main(int argc, char *argv[])
                 // stop TIMER
                 auto chrono_end = std::chrono::high_resolution_clock::now();
                 auto chrono_t = std::chrono::duration_cast<std::chrono::microseconds>(chrono_end - chrono_start).count();
-                std::cout << "chrono Time [μs]: \t" << chrono_t << std::endl << std::endl;
+                std::cout << "Solution [μs]: \t" << chrono_t << std::endl << std::endl;
 
                 goto done;
             }
