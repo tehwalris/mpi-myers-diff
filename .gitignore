@@ -1,5 +1,10 @@
 /temp-bench.csv
 
+/diffutils/lib/ctype.h
+/diffutils/lib/gthread
+/diffutils/lib/limits.h
+/diffutils/m4/pkg.m4
+
 # Created by https://www.toptal.com/developers/gitignore/api/python,vscode,intellij,pycharm,c++
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,vscode,intellij,pycharm,c++
 
