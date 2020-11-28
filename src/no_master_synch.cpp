@@ -10,7 +10,7 @@
 #include <new>
 
 // Uncomment this line when performance is measured
-#define NDEBUG
+//#define NDEBUG
 
 const int debug_level = 2;
 
@@ -297,6 +297,7 @@ void main_master(const std::string path_1, const std::string path_2)
   std::vector<int> msg_buffer(3);
   MPI_Status msg_status;
   int edit_len = -1;
+  
   // receive solution
   while(true){
     MPI_Recv(msg_buffer.data(), msg_buffer.size(), MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &msg_status);
