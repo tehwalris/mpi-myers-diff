@@ -116,7 +116,7 @@ struct Edit_step{
 
 void print_vector(const std::vector<int> &vec)
 {
-    for (int i = 0; i < vec.size(); i++)
+    for (size_t i = 0, size = vec.size(); i < size; i++)
     {
         if (i != 0)
         {
@@ -132,7 +132,7 @@ void print_vector_colored(const std::vector<int> &vec, int color_index)
 {
     std::ostringstream oss;
     oss << "\33[9" << color_index << "m";
-    for (int i = 0; i < vec.size(); i++)
+    for (size_t i = 0, size = vec.size(); i < size; i++)
     {
         if (i != 0)
         {
@@ -193,6 +193,10 @@ void stop_master(int edit_len){
 // compute entry x and add it to the data structure
 // returns true if it found the solution
 inline bool compute_entry(int d, int k, Results &data, std::vector<int> &in_1, std::vector<int> &in_2){
+
+  int in1_size = in_1.size();
+  int in2_size = in_2.size();
+
   int x;
   if (d == 0){
       x = 0;
@@ -204,7 +208,7 @@ inline bool compute_entry(int d, int k, Results &data, std::vector<int> &in_1, s
 
   int y = x - k;
 
-  while (x < in_1.size() && y < in_2.size() && in_1.at(x) == in_2.at(y)){
+  while (x < in1_size && y < in2_size && in_1.at(x) == in_2.at(y)){
       x++;
       y++;
   }
@@ -217,7 +221,7 @@ inline bool compute_entry(int d, int k, Results &data, std::vector<int> &in_1, s
   data.result_at(d, k) = x;
 
   // LCS found
-  if (x >= in_1.size() && y >= in_2.size()){
+  if (x >= in1_size && y >= in2_size){
     return true; 
   }
 
@@ -278,7 +282,6 @@ void main_master(const std::string path_1, const std::string path_2)
   int comm_size;
   MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
   assert(comm_size > 1);
-  int num_workers = comm_size - 1;
 
   DEBUG(2, "sending inputs");
   auto send_vector = [](const std::vector<int> &vec) {
@@ -357,7 +360,7 @@ void main_master(const std::string path_1, const std::string path_2)
   auto time_edit_start = std::chrono::high_resolution_clock::now();
   auto time_edit = std::chrono::duration_cast<std::chrono::microseconds>(time_edit_start - time_sol_start).count();
 
-  for(int i=0; i < steps.size(); i++){
+  for(int i=0, size = steps.size(); i < size; i++){
     struct Edit_step step = steps.at(i);
     if(step.mode){
       std::cout << step.x << " + " << step.insert_val << std::endl;
