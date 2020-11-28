@@ -1,5 +1,41 @@
 # 2020 DPHPC Project - Longest Common Subsequence
 
+## Building diffutils
+
+The build for diffutils is a little different than what their guide says, because diffutils is in a subdirectory inside our repo, not at the root.
+
+### Initial setup
+
+You only have to perform these steps once. After that, you can just perform the steps in the "Normal build" section.
+
+First download `diffutils/gnulib`, which which is a dependency of `diffutils`. It is registered as a git submodule in _our_ repository. Run this from our repo root:
+
+```bash
+git submodule update --init --recursive --progress # clone diffutils/gnulib
+```
+
+Now **switch directory** with `cd diffutils`. All the following commands for "Initial setup" should be run in that directory.
+
+Download and prepare various build files for diffutils:
+
+```bash
+./bootstrap --gnulib-srcdir=gnulib --no-git
+```
+
+You will see a few errors like `.git/hooks/applypatch-msg: No such file or directory` - that's expected since this script expects to be at the git repo root, which it isn't. You should see `./bootstrap: done. Now you can run './configure'.` which means that all the important stuff worked.
+
+Now you need to run `configure` (another build preparation step):
+
+```bash
+./configure CFLAGS="-w"
+```
+
+The `CFLAGS` option ignores warnings during compilation. It is necessary depending your gcc version, so just include it.
+
+### Normal build
+
+This section assumes that you have already followed the "Initial setup" section. To (re-)build diffutils run `make` from the `diffutils` directory. You may want to run `cp src/diff $DIR/../diffutils.out` to put diffutils next to our other executables.
+
 ## Scripts
 
 ### Setup
