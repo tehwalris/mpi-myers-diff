@@ -70,7 +70,7 @@ public:
         this->m_d_max = d_max;
 
         // allocate initial block 0
-        this->num_blocks = d_max / alloc_n_layers;
+        this->num_blocks = std::max(1, d_max / alloc_n_layers);
         data_pointers.resize(num_blocks, nullptr);
         data_pointers[0] = allocate_block(0); 
     }
