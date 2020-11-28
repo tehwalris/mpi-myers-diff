@@ -2,9 +2,19 @@
 
 ## Building diffutils
 
-The build for diffutils is a little different than what their guide says, because diffutils is in a subdirectory inside our repo, not at the root.
+### Automatic build
 
-### Initial setup
+Run [`./scripts/diffutils_compile.sh`](./scripts/diffutils_compile.sh). The compiled `diff` binary is [`diffutils.out`](./diffutils.out) in our repo root.
+
+If something goes wrong, try installing any missing tools and re-running the script. If that doesn't work, the explanations in "Manual build" might help you debug.
+
+### Manual build
+
+Here's a step-by-step guide for building diffutils. You probably want to use [`./scripts/diffutils_compile.sh`](./scripts/diffutils_compile.sh) instead of doing this manually.
+
+The build for diffutils is a little different than what their official guide says, because diffutils is in a subdirectory inside our repo, not at the root.
+
+#### Initial setup
 
 You only have to perform these steps once. After that, you can just perform the steps in the "Normal build" section.
 
@@ -36,7 +46,7 @@ Now you need to run `configure` (another build preparation step):
 
 The `CFLAGS` option ignores warnings during compilation. It is necessary depending your gcc version, so just include it.
 
-### Normal build
+#### Normal build
 
 This section assumes that you have already followed the "Initial setup" section. To (re-)build diffutils run `make` from the `diffutils` directory. You may want to run `cp src/diff ../diffutils.out` to put diffutils next to our other executables.
 
