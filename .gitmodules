@@ -1,0 +1,3 @@
+[submodule "diffutils/gnulib"]
+	path = diffutils/gnulib
+	url = git://git.savannah.gnu.org/gnulib.git
