@@ -7,11 +7,12 @@
 #include <algorithm>
 #include <chrono>
 #include <cstring>
+#include <new>
 
 // Uncomment this line when performance is measured
-//#define NDEBUG
+#define NDEBUG
 
-const int debug_level = 0;
+const int debug_level = 2;
 
 #ifndef NDEBUG
 #define DEBUG(level, x)          \
@@ -42,26 +43,64 @@ enum Tag
   StopWorkers = 2,
 };
 
-struct Results{
+class Results{
+private:
+    int alloc_n_layers = 10;
+    std::vector<int*> data_pointers;
 
-    std::vector<int> m_data;
+    // allocate the data block that begins at layer index d_begin
+    int* allocate_block(int d_begin){
+      int d_max = d_begin + alloc_n_layers;
+      int size = pyramid_size(d_max) - pyramid_size(d_begin);
+      DEBUG(3, "PYRAMID: allocate new blocks for layer "<<d_begin<<" to "<<d_max-1<<" of size "<< size);
+      
+      return new int[size](); // initialized to 0
+    }
+
+    // total number of elements in a pyramid with l layers
+    inline int pyramid_size(int l){
+      return (l*(l+1))/2;
+    }
+
+public:
     int m_d_max;
+    int num_blocks;
 
     Results(int d_max){
-        m_d_max = d_max;
-        int size = (d_max*d_max+3*d_max+2)/2;
-        m_data = std::vector<int>(size, -1);
+        this->m_d_max = d_max;
+
+        // allocate initial block 0
+        this->num_blocks = d_max / alloc_n_layers;
+        data_pointers.resize(num_blocks, nullptr);
+        data_pointers[0] = allocate_block(0); 
     }
 
     int &result_at(int d, int k){
-        int start = (d*(d+1))/2;
-        int access = (k+d)/2;
-        DEBUG(3, "PYRAMID: d_max:" << m_d_max << " d:" << d << " k:" << k << " start:" << start << " access:" << access);
-        assert(d < m_d_max);
-        assert(access >= 0 && access <= d+1);
-        assert(start+access < m_data.size());
+        DEBUG(3, "PYRAMID: ("<<d<<", "<<k<<")");
+        int block_idx = d / alloc_n_layers;
 
-        return m_data.at(start+access);
+        // allocate new block if needed
+        if (data_pointers.at(block_idx) == nullptr){
+          DEBUG(3, "PYRAMID: Block is null "<<block_idx);
+          data_pointers.at(block_idx) = allocate_block(block_idx*alloc_n_layers);
+        }
+
+        int block_start = pyramid_size(block_idx*alloc_n_layers);
+        int start = pyramid_size(d) - block_start;
+        int offset = (k+d)/2;
+
+        DEBUG(3, "PYRAMID: ("<<d<<", "<<k<<")   block: "<<block_idx<<" start:" << start << " offset:" << offset);
+        assert(d < this->m_d_max);
+        assert(offset >= 0 && offset <= d+1);
+
+        return data_pointers[block_idx][start+offset];
+    }
+
+    int* get_layer_data(int d){
+        int block_idx = d / alloc_n_layers;
+        int start = pyramid_size(d) - pyramid_size(block_idx*alloc_n_layers);
+
+        return data_pointers[block_idx] + start;
     }
 
 };
@@ -138,7 +177,7 @@ bool send_result(int d, int k_min, int k_max, Results &results){
     std::vector<int> msg_sol{d, k_min, k_max};
     DEBUG(2, "Sending results");
     MPI_Send(msg_sol.data(), msg_sol.size(), MPI_INT, 0, Tag::ResultEntry, MPI_COMM_WORLD);
-    MPI_Send(results.m_data.data()+(d*(d+1))/2+(k_min+d)/2, (k_max - k_min)/2+1, MPI_INT, 0, Tag::ResultEntryData, MPI_COMM_WORLD);
+    //MPI_Send(results.m_data.data()+(d*(d+1))/2+(k_min+d)/2, (k_max - k_min)/2+1, MPI_INT, 0, Tag::ResultEntryData, MPI_COMM_WORLD);
     return false;
 }
 
@@ -198,7 +237,7 @@ bool Recv(int source_rank, int d, int k, Results &results, int worker_rank /*onl
         // This worker will not be needed as its d is bigger than the maximum allowed one
         return true;
     }
-    DEBUG(2, worker_rank << " tried to receive. d:" << d << " (d_max)" << results.m_d_max);
+    
     // check if already received
     x = results.result_at(d, k);
     if (x > 0) return false;
@@ -230,7 +269,7 @@ void main_master(const std::string path_1, const std::string path_2)
   DEBUG(2, "started master");
 
   // start TIMER
-  auto chrono_start = std::chrono::high_resolution_clock::now();
+  auto time_start = std::chrono::high_resolution_clock::now();
 
   std::vector<int> in_1, in_2;
   read_file(path_1, in_1);
@@ -266,22 +305,20 @@ void main_master(const std::string path_1, const std::string path_2)
     int k_min_rcv = msg_buffer.at(1);
     int k_max_rcv = msg_buffer.at(2);
     std::vector<int> rcv_buf((k_max_rcv - k_min_rcv)/2+1);
-    MPI_Recv(rcv_buf.data(), rcv_buf.size(), MPI_INT, msg_status.MPI_SOURCE, Tag::ResultEntryData, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    //MPI_Recv(rcv_buf.data(), rcv_buf.size(), MPI_INT, msg_status.MPI_SOURCE, Tag::ResultEntryData, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
     //print_vector_colored(rcv_buf, 4);
-    std::copy(rcv_buf.data(), rcv_buf.data()+rcv_buf.size(), results.m_data.begin()+(d_rcv*(d_rcv+1))/2+(k_min_rcv+d_rcv)/2);
+    //std::copy(rcv_buf.data(), rcv_buf.data()+rcv_buf.size(), results.m_data.begin()+(d_rcv*(d_rcv+1))/2+(k_min_rcv+d_rcv)/2);
     std::ostringstream oss;
     oss << "\33[94m" << "MASTER | Received from " << msg_status.MPI_SOURCE << " (d:"<<d_rcv<<", k_min:"<<k_min_rcv<<", k_max:"<<k_max_rcv<<")" << "\33[0m";
     std::string s = oss.str();
     DEBUG(2, s);
   }
 
-  // stop TIMER
-  auto chrono_end = std::chrono::high_resolution_clock::now();
-  auto chrono_t = std::chrono::duration_cast<std::chrono::microseconds>(chrono_end - chrono_start).count();
-  std::cout << "chrono Time [μs]: \t" << chrono_t << std::endl << std::endl;
+  // TIMER for solution
+  auto time_sol_start = std::chrono::high_resolution_clock::now();
+  auto time_sol = std::chrono::duration_cast<std::chrono::microseconds>(time_sol_start - time_start).count();
 
-  std::cout << "min edit length " << edit_len << std::endl;
 
   DEBUG(2, "shutting down workers");
   {
@@ -291,6 +328,11 @@ void main_master(const std::string path_1, const std::string path_2)
       MPI_Send(msg.data(), msg.size(), MPI_INT, i, Tag::StopWorkers, MPI_COMM_WORLD);
     }
   }
+
+  // TODO [pascalm] remove this after testing.
+  std::cout << "min edit length " << edit_len << std::endl;
+  return;
+
   std::vector<struct Edit_step> steps(edit_len);
   int k = in_1.size() - in_2.size();
   for(int d = edit_len; d > 0; d--){
@@ -308,6 +350,11 @@ void main_master(const std::string path_1, const std::string path_2)
       steps[d-1] = {x, -1, false};
     }
   }
+
+  // TIMER edit script
+  auto time_edit_start = std::chrono::high_resolution_clock::now();
+  auto time_edit = std::chrono::duration_cast<std::chrono::microseconds>(time_edit_start - time_sol_start).count();
+
   for(int i=0; i < steps.size(); i++){
     struct Edit_step step = steps.at(i);
     if(step.mode){
@@ -317,12 +364,16 @@ void main_master(const std::string path_1, const std::string path_2)
     }
   }
   //print_vector(results.m_data);
+
+  std::cout << "Solution [μs]: \t\t" << time_sol << std::endl;
+  std::cout << "Edit Script [μs]: \t" << time_edit << std::endl;
+  std::cout << "min edit length " << edit_len << std::endl;
 }
 
 void main_worker()
 {
   // This number must be greater or equal to 2
-  const int MIN_ENTRIES = 100; // min. number of initial entries to compute on one node per layer d before the next node is started
+  const int MIN_ENTRIES = 20; // min. number of initial entries to compute on one node per layer d before the next node is started
 
   int worker_rank;
   int comm_size;
