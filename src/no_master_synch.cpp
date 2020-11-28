@@ -331,6 +331,8 @@ void main_master(const std::string path_1, const std::string path_2)
 
   // TODO [pascalm] remove this after testing.
   std::cout << "min edit length " << edit_len << std::endl;
+  std::cout << "chrono Time [μs]: \t\t" << time_sol << std::endl;
+
   return;
 
   std::vector<struct Edit_step> steps(edit_len);
@@ -367,13 +369,13 @@ void main_master(const std::string path_1, const std::string path_2)
 
   std::cout << "Solution [μs]: \t\t" << time_sol << std::endl;
   std::cout << "Edit Script [μs]: \t" << time_edit << std::endl;
-  std::cout << "min edit length " << edit_len << std::endl;
+
 }
 
 void main_worker()
 {
   // This number must be greater or equal to 2
-  const int MIN_ENTRIES = 20; // min. number of initial entries to compute on one node per layer d before the next node is started
+  const int MIN_ENTRIES = 100; // min. number of initial entries to compute on one node per layer d before the next node is started
 
   int worker_rank;
   int comm_size;
