@@ -71,6 +71,7 @@ if __name__ == "__main__":
             test_case_dir / "in_2.txt",
         )
         print(f" ({own_diff_output_sequential.micros_until_len}μs)", flush=True)
+        print(f"Speed-up: {own_diff_output_sequential.micros_until_len/own_diff_output_mpi.micros_until_len:.2f}x")
 
         if (
             own_diff_output_mpi.min_edit_len == golden_diff_size
