@@ -23,6 +23,7 @@
 #include <error.h>
 #include <file-type.h>
 #include <xalloc.h>
+#include <time.h>
 
 /* The core of the Diff algorithm.  */
 #define ELEMENT lin
@@ -466,12 +467,21 @@ diff_2_files (struct comparison *cmp)
   struct change *script;
   int changes;
 
+  double time_elapsed = -1.0;
+
 
   /* If we have detected that either file is binary,
      compare the two files as binary.  This can happen
      only when the first chunk is read.
      Also, --brief without any --ignore-* options means
      we can speed things up by treating the files as binary.  */
+
+	// START TIMER
+	struct timespec time_start, time_end; 
+	struct timeval t_begin, t_end;
+    gettimeofday(&t_begin, 0);
+    clock_gettime(CLOCK_REALTIME, &time_start);
+
 
   if (read_files (cmp->file, files_can_be_treated_as_binary))
     {
@@ -579,6 +589,12 @@ diff_2_files (struct comparison *cmp)
 
       compareseq (0, cmp->file[0].nondiscarded_lines,
                   0, cmp->file[1].nondiscarded_lines, minimal, &ctxt);
+
+	  // STOP TIMER
+      gettimeofday(&t_end, 0);
+      long seconds = t_end.tv_sec - t_begin.tv_sec;
+      long microseconds = t_end.tv_usec - t_begin.tv_usec;
+      time_elapsed = seconds*1e6 + microseconds;
 
       free (ctxt.fdiag - (cmp->file[1].nondiscarded_lines + 1));
 
@@ -712,5 +728,6 @@ diff_2_files (struct comparison *cmp)
     free (cmp->file[0].buffer);
   free (cmp->file[1].buffer);
 
+  printf("\nTime [µs]: \t%d\n", time_elapsed);
   return changes;
 }
