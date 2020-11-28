@@ -1,7 +1,7 @@
 /temp-bench.csv
 
 /diffutils/lib/ctype.h
-/diffutils/lib/gthread
+/diffutils/lib/glthread
 /diffutils/lib/limits.h
 /diffutils/m4/pkg.m4
 
