@@ -38,7 +38,7 @@ The `CFLAGS` option ignores warnings during compilation. It is necessary dependi
 
 ### Normal build
 
-This section assumes that you have already followed the "Initial setup" section. To (re-)build diffutils run `make` from the `diffutils` directory. You may want to run `cp src/diff $DIR/../diffutils.out` to put diffutils next to our other executables.
+This section assumes that you have already followed the "Initial setup" section. To (re-)build diffutils run `make` from the `diffutils` directory. You may want to run `cp src/diff ../diffutils.out` to put diffutils next to our other executables.
 
 ## Scripts
 
