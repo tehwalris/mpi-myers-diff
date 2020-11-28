@@ -1,4 +1,0 @@
-@set UPDATED 15 November 2020
-@set UPDATED-MONTH November 2020
-@set EDITION 3.3
-@set VERSION 3.3
