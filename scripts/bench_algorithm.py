@@ -65,6 +65,11 @@ parser.add_argument(
     help="number of times to re-generate an input using the same config",
 )
 parser.add_argument(
+    "--limit-programs",
+    type=str,
+    help="comma separated list of programs to benchmark",
+)
+parser.add_argument(
     "--verbose",
     default=False,
     action="store_true",
@@ -142,6 +147,20 @@ if __name__ == "__main__":
             "run": run_algorithm.run_diffutils,
         },
     ]
+
+    if args.limit_programs is not None:
+        possible_names = set(p["name"] for p in diff_programs)
+        selected_names = set(s.strip() for s in args.limit_programs.split(","))
+
+        unknown_names = selected_names - possible_names
+        if unknown_names:
+            raise ValueError(
+                f'unknown program names passed to --limit-programs: {", ".join(sorted(unknown_names))}'
+            )
+
+        diff_programs = [p for p in diff_programs if p["name"] in selected_names]
+        assert len(diff_programs) == len(selected_names)
+
     all_diff_program_extra_fields = sorted(
         {k for p in diff_programs for k in p.get("extra_fields", {}).keys()}
     )
