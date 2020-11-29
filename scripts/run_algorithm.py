@@ -33,7 +33,7 @@ def run_own_diff_algorithm_sequential(file_1_path, file_2_path):
 
 def run_diffutils(file_1_path, file_2_path):
     result = subprocess.run(
-        [diffutils_executable, file_1_path, file_2_path],
+        [diffutils_executable, "--minimal", file_1_path, file_2_path],
         capture_output=True,
         text=True,
     )
