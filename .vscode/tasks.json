@@ -91,10 +91,67 @@
 				"-m",
 				"scripts.validate",
 			],
-			"problemMatcher": [
-				"$gcc"
+			"group": "test",
+		},
+		{
+			"type": "shell",
+			"label": "validate regen g++",
+			"command": "${config:python.pythonPath}",
+			"args": [
+				"-m",
+				"scripts.validate",
+				"--regen-with",
+				"${workspaceFolder}/bin/${fileBasenameNoExtension}"
 			],
 			"group": "test",
+			"dependsOn": "g++ build active file",
+		},
+		{
+			"type": "shell",
+			"label": "validate regen mpi",
+			"command": "${config:python.pythonPath}",
+			"args": [
+				"-m",
+				"scripts.validate",
+				"--mpi-procs",
+				"4",
+				"--regen-with",
+				"${workspaceFolder}/bin/${fileBasenameNoExtension}"
+			],
+			"group": "test",
+			"dependsOn": "mpicc build active file",
+		},
+		{
+			"type": "shell",
+			"label": "validate regen g++ rand",
+			"command": "${config:python.pythonPath}",
+			"args": [
+				"-m",
+				"scripts.validate",
+				"--regen-with",
+				"${workspaceFolder}/bin/${fileBasenameNoExtension}",
+				"--num-rand-tests",
+				"20"
+			],
+			"group": "test",
+			"dependsOn": "g++ build active file",
+		},
+		{
+			"type": "shell",
+			"label": "validate regen mpi rand",
+			"command": "${config:python.pythonPath}",
+			"args": [
+				"-m",
+				"scripts.validate",
+				"--mpi-procs",
+				"4",
+				"--regen-with",
+				"${workspaceFolder}/bin/${fileBasenameNoExtension}",
+				"--num-rand-tests",
+				"20"
+			],
+			"group": "test",
+			"dependsOn": "mpicc build active file",
 		},
 	]
 }

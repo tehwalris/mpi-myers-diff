@@ -1,13 +1,59 @@
 import os
 import sys
 import subprocess
+import numpy as np
 from pathlib import Path
 from termcolor import colored
 from subprocess import check_call
+import argparse
+from .diff_sizes import update_test_case_diff
+from .gen_random_input import generate_and_save_test_case
 
 test_case_folder = Path(__file__).parent / "../test_cases"
 edit_filename = "edit_script.txt"
 diff_filename = "diff_size.txt"
+
+parser = argparse.ArgumentParser(
+    description="Applies the edit script of a test case to the first input file and then checks that the output matches the second input file. Additionally, it checks that the size of the diff matches what diff --minimal provides"
+)
+parser.add_argument(
+    "--num-rand-tests", type=int, default=0, help="number of randomized tests to run"
+)
+# parser.add_argument(
+#     "--early-stop",
+#     default=False,
+#     action="store_true",
+#     help="skip running further tests as soon as one fails",
+# )
+parser.add_argument(
+    "--mpi-procs",
+    help="number of processes to run a distributed algorithm with",
+)
+parser.add_argument(
+    "--regen-with",
+    help="Regenerates the edit scripts with the provided diff executable"
+)
+parser.add_argument(
+    "test_cases", 
+    nargs="*",
+    help="Provide a list of test_case folder names if only specific test cases should be checked. Otherwise all test cases are evaluated."
+)
+
+def gen_random_generation_config():
+    config = {
+        "strategy": np.random.choice(
+            ["independent", "add", "remove", "addremove"], p=[0.1, 0.2, 0.2, 0.5]
+        ),
+        "length_1": np.random.randint(1, 10 ** np.random.randint(1, 5)),
+        "change_strength": np.random.rand()
+        * np.random.choice([0.3, 1], p=[0.75, 0.25]),
+        "chunkiness": np.random.rand(),
+        "distribution": np.random.choice(["uniform", "zipf"], p=[0.25, 0.75]),
+    }
+    if config["strategy"] == "independent":
+        config["change_strength"] = 1
+        config["chunkiness"] = 0
+    return config
 
 
 def apply_edit_script(in1, in2, edit, out):
@@ -46,8 +92,8 @@ def apply_edit_script(in1, in2, edit, out):
     out.write("".join(output_lines))
     out.close()
 
-def validate_diff_size(folder, diff):
-    with open(folder.path + "/" + edit_filename, "rb") as edit:
+def validate_diff_size(path_str, diff):
+    with open(path_str + "/" + edit_filename, "rb") as edit:
         
         actual = sum(1 for i in edit)
         expected = int(diff.readline().strip())
@@ -62,12 +108,12 @@ def validate_diff_size(folder, diff):
 
 # return 2 booleans:
 # edit_script corrent?, diff size correct?
-def validate_test(folder):
-    with open(folder.path + "/in_1.txt", "r") as in1, \
-        open(folder.path + "/in_2.txt", "r") as in2, \
-        open(folder.path + "/out.txt", "w") as out, \
-        open(folder.path + "/" + diff_filename, "r") as diff, \
-        open(folder.path + "/" + edit_filename, "r") as edit:
+def validate_test(path_str, test_case):
+    with open(path_str + "/in_1.txt", "r") as in1, \
+        open(path_str + "/in_2.txt", "r") as in2, \
+        open(path_str + "/out.txt", "w") as out, \
+        open(path_str + "/" + diff_filename, "r") as diff, \
+        open(path_str + "/" + edit_filename, "r") as edit:
 
         apply_edit_script(in1, in2, edit, out)
 
@@ -75,44 +121,97 @@ def validate_test(folder):
         diff_size_correct = False
         output_correct = False
         try:
-            result = check_call("cmp --silent out.txt in_2.txt", shell=True, cwd=folder.path)
-            print(f"{folder.name:<20}{colored('OK', 'green'):<25}\t", end='')
+            result = check_call("cmp --silent out.txt in_2.txt", shell=True, cwd=path_str)
+            print(f"{test_case:<20}{colored('OK', 'green'):<25}\t", end='')
             output_correct = True
-            diff_size_correct = validate_diff_size(folder, diff)
+            diff_size_correct = validate_diff_size(path_str, diff)
 
         except subprocess.CalledProcessError as e:
-            print(f"{folder.name:<20}{colored('Failed', 'red')}")
+            print(f"{test_case:<20}{colored('Failed', 'red')}")
         
         return output_correct, diff_size_correct
 
 
-##
-# Input Arguments
-# default:           apply the edit scripts and validate that the output matches
-# folder names..:    only validate the test case #name#
-
 def main():
 
-    use_arg_folders = False
-    if len(sys.argv) > 1:
-        arg_folder = sys.argv[1]
-        use_arg_folders = True
+    args = parser.parse_args()
 
-    # go trough all test cases
+    # go through all test cases
     print(f"{'Folder':<20}{'Output correct':<18}\t{'Diff size correct':<18}")
     for folder in os.scandir(test_case_folder):
         if folder.is_dir():
-            if use_arg_folders and not folder.name in sys.argv[1:]:
+            if args.test_cases and not folder.name in args.test_cases:
+                continue
+            if args.num_rand_tests and folder.name == "temp_random":
                 continue
 
             edit_path = folder.path + "/" + edit_filename
+
+            if args.regen_with:
+                run_args = []
+                if args.mpi_procs:
+                    # run with MPI
+                    run_args += ["mpiexec", "-np", args.mpi_procs]
+                run_args += [args.regen_with, folder.path + "/in_1.txt", folder.path + "/in_2.txt", edit_path]
+                try:
+                    subprocess.run(run_args, check=True, capture_output=True, timeout=5.)
+                except subprocess.CalledProcessError as e:
+                    print(f"{folder.name:<20}{colored('Failed', 'red')}: Execution of diff algorithm failed with exit code {e.returncode} and stderr: \n {e.stderr}")
+                    continue
+                except subprocess.TimeoutExpired as e:
+                    print(f"{folder.name:<20}{colored('Failed', 'red')}: Execution of diff algorithm timed out after {e.timeout} seconds.")
+                    continue
+
             edit_exists = os.path.isfile(edit_path)
 
             # edit script exists -> validate
             if edit_exists:
-                validate_test(folder)
+                validate_test(folder.path, folder.name)
             else:
                 print(f"{folder.name:<20}No edit script")
+
+
+    # run random tests
+    if args.num_rand_tests > 0:
+        if not args.regen_with:
+            print(f"Cannot run random test cases since no executable was provided with --regen-with")
+            exit(1)
+
+    for i in range(args.num_rand_tests):
+        print(i, end=" ", flush=True)
+
+        config = gen_random_generation_config()
+        test_case_dir = generate_and_save_test_case(
+            config, temporary=True, detailed_name=False
+        )
+        print(test_case_dir.name, config, flush=True)
+
+        update_test_case_diff(test_case_dir)
+
+        edit_path = test_case_dir / edit_filename
+
+        run_args = []
+        if args.mpi_procs:
+            # run with MPI
+            run_args += ["mpiexec", "-np", args.mpi_procs]
+        run_args += [args.regen_with, test_case_dir / "in_1.txt", test_case_dir / "in_2.txt", edit_path]
+        try:
+            subprocess.run(run_args, check=True, capture_output=True, timeout=5.)
+        except subprocess.CalledProcessError as e:
+            print(f"random test {i} {colored('Failed', 'red')}: Execution of diff algorithm failed with exit code {e.returncode} and stderr: \n {e.stderr}")
+            continue
+        except subprocess.TimeoutExpired as e:
+            print(f"random test {i} {colored('Failed', 'red')}: Execution of diff algorithm timed out after {e.timeout} seconds.")
+            continue
+
+        edit_exists = os.path.isfile(edit_path)
+
+        # edit script exists -> validate
+        if edit_exists:
+            validate_test(str(test_case_dir), f"random test {i}")
+        else:
+            print(f"random test {i} No edit script")
+
 
 if __name__ == "__main__":
     main()
