@@ -12,6 +12,9 @@
 /test_cases/temp_*
 /test_cases/*/out.txt
 
+# Binaries
+/bin/*
+
 
 ### C++ ###
 # Prerequisites
