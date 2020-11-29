@@ -1,5 +1,5 @@
 from .gen_random_input import generate_and_save_test_case
-from .run_algorithm import run_own_diff_algorithm_mpi, run_own_diff_algorithm_sequential
+from . import run_algorithm
 import multiprocessing
 import numpy as np
 import argparse
@@ -128,12 +128,18 @@ if __name__ == "__main__":
     diff_programs = [
         {
             "name": "own_mpi",
-            "run": lambda p1, p2: run_own_diff_algorithm_mpi(p1, p2, args.mpi_procs),
+            "run": lambda p1, p2: run_algorithm.run_own_diff_algorithm_mpi(
+                p1, p2, args.mpi_procs
+            ),
             "extra_fields": {"mpi_procs": args.mpi_procs},
         },
         {
             "name": "own_sequential",
-            "run": run_own_diff_algorithm_sequential,
+            "run": run_algorithm.run_own_diff_algorithm_sequential,
+        },
+        {
+            "name": "diffutils",
+            "run": run_algorithm.run_diffutils,
         },
     ]
     all_diff_program_extra_fields = sorted(

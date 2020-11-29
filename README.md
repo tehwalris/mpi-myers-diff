@@ -130,6 +130,7 @@ To run with default settings:
 ```shell
 mpic++ src/main.cpp -O3 -DNDEBUG -o own-diff-mpi.out
 g++ src/sequential.cpp -O3 -DNDEBUG -o own-diff-sequential.out
+./scripts/diffutils_compile.sh
 python -m scripts.bench_algorithm --output-csv temp-bench.csv
 ```
 
