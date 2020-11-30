@@ -163,6 +163,12 @@ def main():
                     continue
 
             edit_exists = os.path.isfile(edit_path)
+            
+            diff_path = folder.path + "/" + diff_filename
+            diff_exists = os.path.isfile(diff_path)
+            if not diff_exists:
+                # generate diff
+                update_test_case_diff(folder.path)
 
             # edit script exists -> validate
             if edit_exists:
