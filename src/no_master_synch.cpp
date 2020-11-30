@@ -45,7 +45,7 @@ enum Tag
 
 class Results{
 private:
-    int alloc_n_layers = 10;
+    int alloc_n_layers = 20;
     std::vector<int*> data_pointers;
 
     // allocate the data block that begins at layer index d_begin
@@ -403,12 +403,6 @@ void main_worker()
 
   int d_max = in_1.size() + in_2.size() + 1;
   Results results(d_max);
-
-  /**
-   * TODO shutdown waiting problem
-   * If we find the solution during the grow phase, it means that some workers are still (blocking) waiting on their
-   * initial message to start computation. How does the shutdown message reach them?
-   **/
 
   
   int d_start = (worker_rank-1)*MIN_ENTRIES; // first included layer
