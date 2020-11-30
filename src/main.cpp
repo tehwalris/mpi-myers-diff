@@ -218,7 +218,7 @@ done:
 
   DEBUG(2, "shutting down workers");
   {
-    std::vector<int> msg{shutdown_sentinel, 0, 0};
+    std::vector<int> msg{shutdown_sentinel, 0, 0, 0, 0, 0};
     for (int i = 1; i < comm_size; i++)
     {
       MPI_Send(msg.data(), msg.size(), MPI_INT, i, Tag::AssignWork, MPI_COMM_WORLD);
