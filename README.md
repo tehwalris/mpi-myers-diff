@@ -6,7 +6,8 @@
 
 Run [`./scripts/diffutils_compile.sh`](./scripts/diffutils_compile.sh). The compiled `diff` binary is [`diffutils.out`](./diffutils.out) in our repo root.
 
-If something goes wrong, try installing any missing tools and re-running the script. If that doesn't work, the explanations in "Manual build" might help you debug.
+If something goes wrong, try installing any missing tools and re-running the script. If it complains that aclocal is missing on the system then try the command `touch aclocal.m4`.<br>
+If that doesn't work, the explanations in "Manual build" might help you debug.
 
 ### Manual build
 
