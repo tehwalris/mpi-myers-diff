@@ -7,7 +7,7 @@
 #include <chrono>                   // chrono::high_resolution_clock
 
 // Uncomment this line when performance is measured
-#define NDEBUG
+//#define NDEBUG
 
 const int debug_level = 0;
 

@@ -31,6 +31,8 @@
 			"args": [
 				//"-std=gnu++17",
 				"-O3",
+				"-march=native",
+				"-DNDEBUG",		// deactivate debug output & asserts
 				"${file}",
 				"-o",
 				"${workspaceFolder}/bin/${fileBasenameNoExtension}_rel"
@@ -56,6 +58,27 @@
 				"-g",
 				"${file}",
 				"${workspaceFolder}/src/precomputation_seq.cpp",
+				"-o",
+				"${workspaceFolder}/bin/${fileBasenameNoExtension}"
+			],
+			"options": {
+				"cwd": "/usr/bin"
+			},
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": "build"
+		},
+		{
+			"type": "shell",
+			"label": "g++ build active file release",
+			"command": "/usr/bin/g++",
+			"args": [
+				"-O3",
+				"-march=native",
+				"-DNDEBUG",		// deactivate debug output & asserts
+				"-std=gnu++17",
+				"${file}",
 				"-o",
 				"${workspaceFolder}/bin/${fileBasenameNoExtension}"
 			],
