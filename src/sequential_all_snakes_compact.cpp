@@ -7,7 +7,7 @@
 #include <chrono>                   // chrono::high_resolution_clock
 
 // Uncomment this line when performance is measured
-//#define NDEBUG
+#define NDEBUG
 
 const int debug_level = 0;
 
@@ -123,14 +123,20 @@ int main(int argc, char *argv[])
     read_file(path_1, in_1);
     read_file(path_2, in_2);
 
+    // TIMER
+    auto chrono_after_read = std::chrono::high_resolution_clock::now();
+
     DEBUG(2, "in_1.size(): " << in_1.size());
     DEBUG(2, "in_2.size(): " << in_2.size());
 
     int d_max = in_1.size() + in_2.size() + 1;
 
-    int k_min = -(std::min((size_t) d_max, in_2.size()) - 1);
-    int k_max = std::min((size_t) d_max, in_1.size()) - 1;
+    int k_min = -(in_2.size() - 1);
+    int k_max = in_1.size() - 1;
     Snakes snakes = compute_all_snakes_seq(in_1, in_2, k_min, k_max);
+
+    // TIMER
+    auto chrono_after_snakes = std::chrono::high_resolution_clock::now();
 
     int edit_len = unknown_len;
     Results results(d_max);     //TODO: k_min, k_max
@@ -173,17 +179,15 @@ int main(int argc, char *argv[])
                 DEBUG(2, "found lcs");
                 edit_len = d;
 
-                // stop TIMER
-                auto chrono_end = std::chrono::high_resolution_clock::now();
-                auto chrono_t = std::chrono::duration_cast<std::chrono::microseconds>(chrono_end - chrono_start).count();
-                std::cout << "chrono Time [μs]: \t" << chrono_t << std::endl << std::endl;
-
                 goto done;
             }
         }
     }
 
 done:
+    // TIMER
+    auto chrono_after_len = std::chrono::high_resolution_clock::now();
+
     std::cout << "min edit length " << edit_len << std::endl;
 
     std::vector<struct Edit_step> steps(edit_len);
@@ -228,6 +232,14 @@ done:
     if (edit_script_to_file) {
         edit_script_file.close();
     }
+
+
+    auto chrono_t = std::chrono::duration_cast<std::chrono::microseconds>(chrono_after_read - chrono_start).count();
+    std::cout << "chrono Time for file read [μs]: \t" << chrono_t << "\n";
+    chrono_t = std::chrono::duration_cast<std::chrono::microseconds>(chrono_after_snakes - chrono_after_read).count();
+    std::cout << "chrono Time for all snakes [μs]: \t" << chrono_t << "\n";
+    chrono_t = std::chrono::duration_cast<std::chrono::microseconds>(chrono_after_len - chrono_after_snakes).count();
+    std::cout << "chrono Time for min edit length [μs]: \t" << chrono_t << "\n";
     
     return 0;
 }
