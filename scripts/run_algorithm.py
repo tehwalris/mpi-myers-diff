@@ -8,7 +8,9 @@ own_diff_executable_sequential = Path(__file__).parent / "../own-diff-sequential
 diffutils_executable = Path(__file__).parent / "../diffutils.out"
 
 
+
 def run_own_diff_algorithm_mpi(file_1_path, file_2_path, mpi_processes):
+    # TODO pascal: KeyboardInterrupt doesn't get passed down and the mpi keeps running in the background hogging resources.
     all_output = subprocess.check_output(
         [
             "mpiexec",
