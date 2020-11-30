@@ -64,13 +64,13 @@ if __name__ == "__main__":
             test_case_dir / "in_2.txt",
             args.mpi_procs,
         )
-        print(f" ({own_diff_output_mpi.micros_until_len}μs)", flush=True)
+        print(f" {own_diff_output_mpi.micros_until_len:>15} μs", flush=True)
         print("Running own sequential implementation", flush=True, end="")
         own_diff_output_sequential = run_own_diff_algorithm_sequential(
             test_case_dir / "in_1.txt",
             test_case_dir / "in_2.txt",
         )
-        print(f" ({own_diff_output_sequential.micros_until_len}μs)", flush=True)
+        print(f" {own_diff_output_sequential.micros_until_len:>8} μs", flush=True)
         print(f"Speed-up: {own_diff_output_sequential.micros_until_len/own_diff_output_mpi.micros_until_len:.2f}x")
 
         if (
