@@ -35,6 +35,8 @@ struct Snakes {
     int m_k_min;        // inclusive
     int m_k_max;
 
+    Snakes() {}
+
     Snakes(int k_min, int k_max) {
         m_k_min = k_min;
         m_k_max = k_max;
@@ -53,7 +55,10 @@ struct Snakes {
 
 
 Snakes compute_all_snakes_seq(const std::vector<int> &in_1, const std::vector<int> &in_2, int k_min, int k_max) {    // inclusive
-    assert(k_min <= k_max);
+    if (k_min > k_max) {
+        // return empty Snakes
+        return Snakes();
+    }
     Snakes result(k_min, k_max);       // #diagonals
 
     // for each diagonal
