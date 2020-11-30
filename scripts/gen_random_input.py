@@ -205,7 +205,7 @@ if __name__ == "__main__":
     generate_and_save_test_case(
         {
             "strategy": "addremove",
-            "length_1": 100,
+            "length_1": 1000,
             "change_strength": 0.2,
             "chunkiness": 0.5,
             "distribution": "zipf",

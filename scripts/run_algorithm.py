@@ -68,7 +68,7 @@ own_diff_output_fields = [
     },
     {
         "key": "micros_until_len",
-        "regex": re.compile(r"^chrono Time \[μs\]:\s*(\d+)$"),
+        "regex": re.compile(r"^Solution \[μs\]:\s*(\d+)$"),
         "extract": lambda m: int(m[1]),
     },
 ]

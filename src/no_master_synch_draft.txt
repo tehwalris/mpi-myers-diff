@@ -56,7 +56,7 @@ for (d = worker_rank*MIN_ENTRIES; d < worker_comm_size * MIN_ENTRIES; ++d) {
 
 // grow one processes workset by 1 in each round in round-robin:
 // workset of process with rank worker_rank grows if: d mod worker_comm_size + 1 = worker_rank
-//compute entries row-wise, but compute entry to send first:
+// compute entries row-wise, but compute entry to send first:
 
 for(d=worker_comm_size * MIN_ENTRIES; d < d_max; ++d) {
 	if ((d+1) mod worker_comm_size + 1 < worker_rank) {
@@ -94,4 +94,4 @@ for(d=worker_comm_size * MIN_ENTRIES; d < d_max; ++d) {
 }
 
 
-//TODO: termination condition
+// TODO: termination condition
