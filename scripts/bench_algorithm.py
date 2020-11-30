@@ -1,5 +1,5 @@
 from .gen_random_input import generate_and_save_test_case
-from .run_algorithm import run_own_diff_algorithm_mpi, run_own_diff_algorithm_sequential
+from . import run_algorithm
 import multiprocessing
 import numpy as np
 import argparse
@@ -65,6 +65,11 @@ parser.add_argument(
     help="number of times to re-generate an input using the same config",
 )
 parser.add_argument(
+    "--limit-programs",
+    type=str,
+    help="comma separated list of programs to benchmark",
+)
+parser.add_argument(
     "--verbose",
     default=False,
     action="store_true",
@@ -128,14 +133,34 @@ if __name__ == "__main__":
     diff_programs = [
         {
             "name": "own_mpi",
-            "run": lambda p1, p2: run_own_diff_algorithm_mpi(p1, p2, args.mpi_procs),
+            "run": lambda p1, p2: run_algorithm.run_own_diff_algorithm_mpi(
+                p1, p2, args.mpi_procs
+            ),
             "extra_fields": {"mpi_procs": args.mpi_procs},
         },
         {
             "name": "own_sequential",
-            "run": run_own_diff_algorithm_sequential,
+            "run": run_algorithm.run_own_diff_algorithm_sequential,
+        },
+        {
+            "name": "diffutils",
+            "run": run_algorithm.run_diffutils,
         },
     ]
+
+    if args.limit_programs is not None:
+        possible_names = set(p["name"] for p in diff_programs)
+        selected_names = set(s.strip() for s in args.limit_programs.split(","))
+
+        unknown_names = selected_names - possible_names
+        if unknown_names:
+            raise ValueError(
+                f'unknown program names passed to --limit-programs: {", ".join(sorted(unknown_names))}'
+            )
+
+        diff_programs = [p for p in diff_programs if p["name"] in selected_names]
+        assert len(diff_programs) == len(selected_names)
+
     all_diff_program_extra_fields = sorted(
         {k for p in diff_programs for k in p.get("extra_fields", {}).keys()}
     )

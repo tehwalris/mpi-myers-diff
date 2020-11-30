@@ -467,7 +467,7 @@ diff_2_files (struct comparison *cmp)
   struct change *script;
   int changes;
 
-  double time_elapsed = -1.0;
+  long time_elapsed = -1;
 
 
   /* If we have detected that either file is binary,
