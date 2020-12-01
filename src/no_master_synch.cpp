@@ -45,6 +45,27 @@ enum Tag
   ReadOutStopWorkers = 5,
 };
 
+std::pair<int, int> get_k_bounds(const int d, const int worker_rank, const int num_workers, const int MIN_ENTRIES){
+  int k_min;
+  int k_max;
+  if(d >= num_workers*MIN_ENTRIES){
+    k_min = -(d) + (d/num_workers)*2*worker_rank + std::min(worker_rank*2, ((d)%num_workers)*2 + 2);
+    int k_num = (d)/num_workers + ((d)%num_workers >= worker_rank ? 1 : 0);
+    k_max = k_min + 2*k_num - 2;
+  } else {
+    k_min = -(d) + (MIN_ENTRIES*2)*worker_rank;
+    if((d)>=(worker_rank+1)*MIN_ENTRIES-1){
+      k_max = k_min + 2*MIN_ENTRIES -2;
+    } else if((d)>=worker_rank*MIN_ENTRIES){
+      k_max = k_min + ((d) - worker_rank*MIN_ENTRIES)*2;
+    } else {
+      // Worker has no more work. Create empty interval
+      k_max = k_min - 1;
+    }
+  }
+  return std::pair<int, int>(k_min, k_max);
+}
+
 class Results{
 private:
     int alloc_n_layers = 20;
@@ -54,7 +75,7 @@ private:
     int* allocate_block(int d_begin){
       int d_max = d_begin + alloc_n_layers;
       int size = pyramid_size(d_max) - pyramid_size(d_begin);
-      DEBUG(3, "PYRAMID: allocate new blocks for layer "<<d_begin<<" to "<<d_max-1<<" of size "<< size);
+      DEBUG(4, "PYRAMID: allocate new blocks for layer "<<d_begin<<" to "<<d_max-1<<" of size "<< size);
       
       return new int[size](); // initialized to 0
     }
@@ -78,19 +99,19 @@ public:
     }
 
     int &result_at(int d, int k){
-        DEBUG(3, "PYRAMID: ("<<d<<", "<<k<<")");
+        DEBUG(4, "PYRAMID: ("<<d<<", "<<k<<")");
         int block_idx = d / alloc_n_layers;
 
         // allocate new block if needed
         if (data_pointers.at(block_idx) == nullptr){
-          DEBUG(3, "PYRAMID: Block is null "<<block_idx);
+          DEBUG(4, "PYRAMID: Block is null "<<block_idx);
           data_pointers.at(block_idx) = allocate_block(block_idx*alloc_n_layers);
         }
 
         int start_d = pyramid_size(d) - pyramid_size(block_idx*alloc_n_layers);
         int offset = (k+d)/2;
 
-        DEBUG(3, "PYRAMID: ("<<d<<", "<<k<<")   block: "<<block_idx<<" start:" << start_d << " offset:" << offset);
+        DEBUG(4, "PYRAMID: ("<<d<<", "<<k<<")   block: "<<block_idx<<" start:" << start_d << " offset:" << offset);
         assert(d < this->m_d_max);
         assert(offset >= 0 && offset <= d+1);
 
@@ -182,27 +203,6 @@ void stop_workers(const int num_workers, const int worker_rank, const Tag tag){
   }
 }
 
-std::pair<int, int> get_k_bounds(const int d, const int worker_rank, const int num_workers, const int MIN_ENTRIES){
-  int k_min;
-  int k_max;
-  if(d >= num_workers*MIN_ENTRIES){
-    k_min = -(d) + (d/num_workers)*2*worker_rank + std::min(worker_rank*2, ((d)%num_workers)*2 + 2);
-    int k_num = (d)/num_workers + ((d)%num_workers >= worker_rank ? 1 : 0);
-    k_max = k_min + 2*k_num - 2;
-  } else {
-    k_min = -(d) + (MIN_ENTRIES*2)*worker_rank;
-    if((d)>=(worker_rank+1)*MIN_ENTRIES-1){
-      k_max = k_min + 2*MIN_ENTRIES -2;
-    } else if((d)>=worker_rank*MIN_ENTRIES){
-      k_max = k_min + ((d) - worker_rank*MIN_ENTRIES)*2;
-    } else {
-      // Worker has no more work. Create empty interval
-      k_max = k_min - 1;
-    }
-  }
-  return std::pair<int, int>(k_min, k_max);
-}
-
 // compute entry x and add it to the data structure
 // returns true if it found the solution
 inline bool compute_entry(int d, int k, Results &data, const std::vector<int> &in_1, const std::vector<int> &in_2){
@@ -264,7 +264,6 @@ bool Recv(int source_rank, int d, int k, Results &results, int worker_rank /*onl
     while (d_rcv != d || k_rcv != k){ // epxected value
 
       MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-      DEBUG(2, worker_rank << " | Message has tag " << status.MPI_TAG);
       if(status.MPI_TAG == Tag::ReadOut || status.MPI_TAG == Tag::ReadOutData || status.MPI_TAG == Tag::ReadOutStopWorkers){
         DEBUG(2, worker_rank << " | There is a worker already reading out. Stop." << status.MPI_SOURCE);
         return true;
@@ -415,58 +414,155 @@ int calculate_table(const std::vector<int> &in_1, const std::vector<int> &in_2, 
 
   DEBUG(2, worker_rank << " | All workers active");
 
+  if(worker_rank > 0){
+    int d=num_workers * MIN_ENTRIES - 1;
+    // Send entry (d, k_min) to worker_rank-1
+    x = results.result_at(d, k_min);
+    std::vector<int> msg{d, k_min, x};
+    DEBUG(2, worker_rank << " | Pre Send to " << worker_rank-1 << " ("<<d<<", "<<k_min<<", "<<x<<")");
+    MPI_Send(msg.data(), msg.size(), MPI_INT, worker_rank-1, Tag::ResultEntry, MPI_COMM_WORLD);
+  }
+
   // ALL WORKERS ACTIVE
   // BALANCING
   for(int d=num_workers * MIN_ENTRIES; d < d_max; ++d) {
-   if ((d) % num_workers < worker_rank) {
-      // Send entry (d, k_min) to worker_rank-1
-      x = results.result_at(d-1, k_min);
-      std::vector<int> msg{d-1, k_min, x};
-      DEBUG(2, worker_rank << " | Send to " << worker_rank-1 << " ("<<d-1<<", "<<k_min<<", "<<x<<")");
-      MPI_Send(msg.data(), msg.size(), MPI_INT, worker_rank-1, Tag::ResultEntry, MPI_COMM_WORLD);
-      assert(worker_rank != 0);
-      if(worker_rank != num_workers -1){
-        // Receive entry (d, k_max+2) from worker_rank+1  //TODO: receive later, only when needed?
-        if (Recv(worker_rank+1, d-1, k_max+2, results, worker_rank)) return -1;
+    bool done = false;
+    if(d%num_workers == num_workers - 1){
+      DEBUG(2, worker_rank << " | in case 5");
+      k_min--;
+      if(worker_rank == num_workers - 1){
+        k_max++;
+      } else {
+        k_max--;
       }
-
-      // new range for next round d+1
-      k_min++;  //decrease  // -d has decreased by 1, but one more entry on the left -> +2
-      k_max++;  //extend
-    } else if ((d) % num_workers == worker_rank) {
-      std::vector<int> msg(3);
-      if(worker_rank > 0){
-        // Receive entry (d, k_min-2) from worker_rank-1
-        if (Recv(worker_rank-1, d-1, k_min-2, results, worker_rank)) return -1;
-
-      }
-      if(worker_rank != num_workers -1){
-        // Receive entry (d, k_max+2) from worker_rank+1
-        if (Recv(worker_rank+1, d-1, k_max+2, results, worker_rank)) return -1;
-      }
-
-      // new range for next round d+1
-      k_min--;  //extend    // -d has decreased by 1, same number of entries on the left
-      k_max++;  //extend    // 1 additional entry -> += 2
-    } else {
-
-      // Send entry (d, k_max) to worker_rank+1
-      if(worker_rank != num_workers -1){
-        x = results.result_at(d-1, k_max);
-        std::vector<int> msg{d-1, k_max, x};
-        DEBUG(2, worker_rank << " | Send to " << worker_rank+1 << " ("<<d-1<<", "<<k_max<<", "<<x<<")");
-        MPI_Send(msg.data(), msg.size(), MPI_INT, worker_rank+1, Tag::ResultEntry, MPI_COMM_WORLD);
-      }
-
       // Receive entry (d, k_min-2) from worker_rank-1
       if(worker_rank > 0){
-        if (Recv(worker_rank-1, d-1, k_min-2, results, worker_rank)) return -1;
+        if (Recv(worker_rank-1, d-1, k_min-1, results, worker_rank)) return -1;
+      }
+      DEBUG_NO_LINE(3, worker_rank << " | ");
+      done = compute_entry(d, k_min, results, in_1, in_2);
+      if (done) {
+        stop_workers(num_workers, worker_rank, Tag::StopWorkers);
+        return d;
+      }
+      if(worker_rank > 0){
+        // Send entry (d, k_min) to worker_rank-1
+        x = results.result_at(d, k_min);
+        std::vector<int> msg{d, k_min, x};
+        DEBUG(2, worker_rank << " | Send to " << worker_rank-1 << " ("<<d<<", "<<k_min<<", "<<x<<")");
+        MPI_Send(msg.data(), msg.size(), MPI_INT, worker_rank-1, Tag::ResultEntry, MPI_COMM_WORLD);
+      }
+      DEBUG_NO_LINE(3, worker_rank << " | ");
+      done = compute_entry(d, k_max, results, in_1, in_2);
+      if (done) {
+        stop_workers(num_workers, worker_rank, Tag::StopWorkers);
+        return d;
       }
 
-      // new range for next round d+1
-      k_min--;  //extend    // -d has decreased by 1, same number of entries on the left
-      k_max--;  //decrease  // -d has decreased by 1, no additional entry
+    } else if(d%num_workers == worker_rank){
+      DEBUG(2, worker_rank << " | in case 3");
+      k_min--; k_max++;
+      if(worker_rank != num_workers -1){
+        // Receive entry (d, k_max+2) from worker_rank+1  //TODO: receive later, only when needed?
+        if (Recv(worker_rank+1, d-1, k_max+1, results, worker_rank)) return -1;
+      }
+      // Receive entry (d, k_min-2) from worker_rank-1
+      if(worker_rank > 0){
+        if (Recv(worker_rank-1, d-1, k_min-1, results, worker_rank)) return -1;
+      }
+      DEBUG_NO_LINE(3, worker_rank << " | ");
+      done = compute_entry(d, k_max, results, in_1, in_2);
+      if (done) {
+        stop_workers(num_workers, worker_rank, Tag::StopWorkers);
+        return d;
+      }
+      if(worker_rank != num_workers -1){
+        x = results.result_at(d, k_max);
+        std::vector<int> msg{d, k_max, x};
+        DEBUG(2, worker_rank << " | Send to " << worker_rank+1 << " ("<<d<<", "<<k_max<<", "<<x<<")");
+        MPI_Send(msg.data(), msg.size(), MPI_INT, worker_rank+1, Tag::ResultEntry, MPI_COMM_WORLD);
+      }
+      DEBUG_NO_LINE(3, worker_rank << " | ");
+      done = compute_entry(d, k_min, results, in_1, in_2);
+      if (done) {
+        stop_workers(num_workers, worker_rank, Tag::StopWorkers);
+        return d;
+      }
+
+    } else if(d%num_workers + 1 == worker_rank){
+      DEBUG(2, worker_rank << " | in case 2");
+      k_min++; k_max++;
+      if(worker_rank != num_workers -1){
+        // Receive entry (d, k_max+2) from worker_rank+1  //TODO: receive later, only when needed?
+        if (Recv(worker_rank+1, d-1, k_max+1, results, worker_rank)) return -1;
+      }
+      DEBUG_NO_LINE(3, worker_rank << " | ");
+      done = compute_entry(d, k_max, results, in_1, in_2);
+      if (done) {
+        stop_workers(num_workers, worker_rank, Tag::StopWorkers);
+        return d;
+      }
+      DEBUG_NO_LINE(3, worker_rank << " | ");
+      done = compute_entry(d, k_min, results, in_1, in_2);
+      if (done) {
+        stop_workers(num_workers, worker_rank, Tag::StopWorkers);
+        return d;
+      }
+
+    } else if(d%num_workers < worker_rank){
+      DEBUG(2, worker_rank << " | in case 1");
+      k_min++; k_max++;
+      if(worker_rank != num_workers -1){
+        // Receive entry (d, k_max+2) from worker_rank+1  //TODO: receive later, only when needed?
+        if (Recv(worker_rank+1, d-1, k_max+1, results, worker_rank)) return -1;
+      }
+      DEBUG_NO_LINE(3, worker_rank << " | ");
+      done = compute_entry(d, k_min, results, in_1, in_2);
+      if (done) {
+        stop_workers(num_workers, worker_rank, Tag::StopWorkers);
+        return d;
+      }
+     if(worker_rank > 0){
+        // Send entry (d, k_min) to worker_rank-1
+        x = results.result_at(d, k_min);
+        std::vector<int> msg{d, k_min, x};
+        DEBUG(2, worker_rank << " | Send to " << worker_rank-1 << " ("<<d<<", "<<k_min<<", "<<x<<")");
+        MPI_Send(msg.data(), msg.size(), MPI_INT, worker_rank-1, Tag::ResultEntry, MPI_COMM_WORLD);
+      }
+      DEBUG_NO_LINE(3, worker_rank << " | ");
+      done = compute_entry(d, k_max, results, in_1, in_2);
+      if (done) {
+        stop_workers(num_workers, worker_rank, Tag::StopWorkers);
+        return d;
+      }
+
+    } else{
+      DEBUG(2, worker_rank << " | in case 4");
+      k_min--; k_max--;
+      // Receive entry (d, k_min-2) from worker_rank-1
+      if(worker_rank > 0){
+        if (Recv(worker_rank-1, d-1, k_min-1, results, worker_rank)) return -1;
+      }
+      DEBUG_NO_LINE(3, worker_rank << " | ");
+      done = compute_entry(d, k_max, results, in_1, in_2);
+      if (done) {
+        stop_workers(num_workers, worker_rank, Tag::StopWorkers);
+        return d;
+      }
+     if(worker_rank != num_workers -1){
+        x = results.result_at(d, k_max);
+        std::vector<int> msg{d, k_max, x};
+        DEBUG(2, worker_rank << " | Send to " << worker_rank+1 << " ("<<d<<", "<<k_max<<", "<<x<<")");
+        MPI_Send(msg.data(), msg.size(), MPI_INT, worker_rank+1, Tag::ResultEntry, MPI_COMM_WORLD);
+      }
+      DEBUG_NO_LINE(3, worker_rank << " | ");
+      done = compute_entry(d, k_min, results, in_1, in_2);
+      if (done) {
+        stop_workers(num_workers, worker_rank, Tag::StopWorkers);
+        return d;
+      }
     }
+
 #ifndef NDEBUG
     auto bounds = get_k_bounds(d, worker_rank, num_workers, MIN_ENTRIES);
     int calc_k_min = bounds.first;
@@ -474,10 +570,10 @@ int calculate_table(const std::vector<int> &in_1, const std::vector<int> &in_2, 
     DEBUG(2, worker_rank << " | d:" << d << " actual_k_min:" << k_min << " calc_k_min:" << calc_k_min << " actual_k_max:" << k_max << " calc_k_max:" << calc_k_max);
     assert(k_min == calc_k_min && k_max == calc_k_max);
 #endif
-    // TODO: Priorize entries
-    for (int k=k_min; k <= k_max; k+=2) {
+    DEBUG(2, worker_rank << " | Do rest of line");
+    for (int k=k_min+2; k < k_max; k+=2) {
       DEBUG_NO_LINE(3, worker_rank << " | ");
-      bool done = compute_entry(d, k, results, in_1, in_2);
+      done = compute_entry(d, k, results, in_1, in_2);
       if (done) {
         stop_workers(num_workers, worker_rank, Tag::StopWorkers);
         return d;
