@@ -30,6 +30,19 @@ struct SnakesOnDiag {
         }
     }
 
+    void append_last_snake(int x_end) {
+        if (m_k < 0) {      // diagonal starts at x = 0
+            for (int i = m_data.size(); i < x_end; i++) {
+                m_data.push_back(x_end);
+            }
+        }
+        else {              // diagonal starts at x = k
+            for (int i = m_data.size() ; i < x_end - m_k; i++) {
+                m_data.push_back(x_end);
+            }
+        }
+    }
+
     int get_end_of_snake(int x_start) {
         if (m_k < 0) {      // diagonal starts at x = 0
             return m_data.at(x_start);
@@ -85,7 +98,7 @@ Snakes compute_all_snakes_seq(const std::vector<int> &in_1, const std::vector<in
             }
         }
         // add last snake, which runs till the end
-        curr_snakes.append_snake(diag_len);
+        curr_snakes.append_last_snake(diag_len);
 
         result.append_snakes_on_diag(curr_snakes);
     }
@@ -101,7 +114,7 @@ Snakes compute_all_snakes_seq(const std::vector<int> &in_1, const std::vector<in
             }
         }
         // add last snake, which runs till the end
-        curr_snakes.append_snake(k + diag_len);
+        curr_snakes.append_last_snake(k + diag_len);
 
         result.append_snakes_on_diag(curr_snakes);
     }

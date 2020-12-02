@@ -239,7 +239,7 @@ done:
     chrono_t = std::chrono::duration_cast<std::chrono::microseconds>(chrono_after_snakes - chrono_after_read).count();
     std::cout << "chrono Time for all snakes [μs]: \t" << chrono_t << "\n";
     chrono_t = std::chrono::duration_cast<std::chrono::microseconds>(chrono_after_len - chrono_after_snakes).count();
-    std::cout << "chrono Time for min edit length [μs]: \t" << chrono_t << "\n";
+    std::cout << "chrono Time for min edit length [μs]: \t" << chrono_t << std::endl;
     
     return 0;
 }

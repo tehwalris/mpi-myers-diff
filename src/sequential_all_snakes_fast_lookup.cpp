@@ -6,6 +6,9 @@
 #include <algorithm>
 #include <chrono>                   // chrono::high_resolution_clock
 
+// all_snakes_fast_lookup_2_vec_eq version
+
+
 // Uncomment this line when performance is measured
 //#define NDEBUG
 
@@ -165,7 +168,7 @@ int main(int argc, char *argv[])
 
             int y = x - k;
 
-            if (x < in_1.size() && y < in_2.size()) {       //TODO: needed?
+            if (x < in_1.size() && y < in_2.size() && in_1.at(x) == in_2.at(y)) {
                 x = snakes.get_end_of_snake(k, x);
                 y = x - k;
             }
@@ -239,7 +242,7 @@ done:
     chrono_t = std::chrono::duration_cast<std::chrono::microseconds>(chrono_after_snakes - chrono_after_read).count();
     std::cout << "chrono Time for all snakes [μs]: \t" << chrono_t << "\n";
     chrono_t = std::chrono::duration_cast<std::chrono::microseconds>(chrono_after_len - chrono_after_snakes).count();
-    std::cout << "chrono Time for min edit length [μs]: \t" << chrono_t << "\n";
+    std::cout << "chrono Time for min edit length [μs]: \t" << chrono_t << std::endl;
     
     return 0;
 }
