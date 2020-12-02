@@ -728,6 +728,6 @@ diff_2_files (struct comparison *cmp)
     free (cmp->file[0].buffer);
   free (cmp->file[1].buffer);
 
-  printf("\nTime [µs]: \t%d\n", time_elapsed);
+  printf("\nSolution [µs]: \t%d\n", time_elapsed);
   return changes;
 }

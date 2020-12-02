@@ -34,26 +34,66 @@ const int shutdown_sentinel = -1;
 const int unknown_len = -1;
 const int no_worker_rank = 0;
 
-struct Results{
 
-    std::vector<int> m_data;
+class Results{
+private:
+    int alloc_n_layers = 20;
+    std::vector<int*> data_pointers;
+
+    // allocate the data block that begins at layer index d_begin
+    int* allocate_block(int d_begin){
+      int d_max = d_begin + alloc_n_layers;
+      int size = pyramid_size(d_max) - pyramid_size(d_begin);
+      DEBUG(3, "PYRAMID: allocate new blocks for layer "<<d_begin<<" to "<<d_max-1<<" of size "<< size);
+      
+      return new int[size](); // initialized to 0
+    }
+
+    // total number of elements in a pyramid with l layers
+    inline int pyramid_size(int l){
+      return (l*(l+1))/2;
+    }
+
+public:
     int m_d_max;
+    int num_blocks;
 
     Results(int d_max){
-        m_d_max = d_max;
-        int size = (d_max*d_max+3*d_max+2)/2;
-        m_data = std::vector<int>(size);
+        this->m_d_max = d_max;
+
+        // allocate initial block 0
+        this->num_blocks = std::max(1, d_max / alloc_n_layers);
+        data_pointers.resize(num_blocks, nullptr);
+        data_pointers[0] = allocate_block(0); 
     }
 
     int &result_at(int d, int k){
-        assert(d < m_d_max);
-        int start = (d*(d+1))/2;
-        int access = (k+d)/2;
-        DEBUG(3, "PYRAMID: d_max: " << m_d_max << " d:" << d << " k:" << k << " start:" << start << " access:" << access);
-        assert(access >= 0 && access <= d+1);
-        assert(start+access < m_data.size());
+        DEBUG(3, "PYRAMID: ("<<d<<", "<<k<<")");
+        int block_idx = d / alloc_n_layers;
 
-        return m_data.at(start+access);
+        // allocate new block if needed
+        if (data_pointers.at(block_idx) == nullptr){
+          data_pointers.at(block_idx) = allocate_block(block_idx*alloc_n_layers);
+        }
+
+        int start_d = pyramid_size(d) - pyramid_size(block_idx*alloc_n_layers);
+        int offset = (k+d)/2;
+
+        assert(d < this->m_d_max);
+        assert(offset >= 0 && offset <= d+1);
+
+        return data_pointers[block_idx][start_d+offset];
+    }
+
+    // returns pointer to first that element.
+    // is guaranteed to continue for at least end of layer d.
+    // unlike result_at(d,k) does not perform allocation of next layers
+    int* get_pointer(int d, int k){
+        int block_idx = d / alloc_n_layers;
+        int start_d = pyramid_size(d) - pyramid_size(block_idx*alloc_n_layers);
+        int offset = (k+d) / 2;
+
+        return data_pointers[block_idx] + start_d + offset;
     }
 
 };

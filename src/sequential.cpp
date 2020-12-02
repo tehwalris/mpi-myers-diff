@@ -68,14 +68,12 @@ public:
 
         // allocate new block if needed
         if (data_pointers.at(block_idx) == nullptr){
-          DEBUG(3, "PYRAMID: Block is null "<<block_idx);
           data_pointers.at(block_idx) = allocate_block(block_idx*alloc_n_layers);
         }
 
         int start_d = pyramid_size(d) - pyramid_size(block_idx*alloc_n_layers);
         int offset = (k+d)/2;
 
-        DEBUG(3, "PYRAMID: ("<<d<<", "<<k<<")   block: "<<block_idx<<" start:" << start_d << " offset:" << offset);
         assert(d < this->m_d_max);
         assert(offset >= 0 && offset <= d+1);
 
