@@ -101,12 +101,16 @@ void read_file(const std::string path, std::vector<int> &output_vec)
   }
 }
 
-void main_master(const std::string path_1, const std::string path_2)
+void main_master(const std::string path_1, const std::string path_2, bool edit_script_to_file, const std::string edit_script_path)
 {
   DEBUG(2, "started master");
 
-  // start TIMER
-  auto chrono_start = std::chrono::high_resolution_clock::now();
+  // Init Timers
+  std::chrono::_V2::system_clock::time_point t_in_start, t_in_end, t_pre_start, t_pre_end, t_sol_start, t_sol_end, t_script_start, t_script_end;
+
+  // Input Timer
+  t_in_start = std::chrono::high_resolution_clock::now();
+
 
   std::vector<int> in_1, in_2;
   read_file(path_1, in_1);
@@ -128,6 +132,10 @@ void main_master(const std::string path_1, const std::string path_2)
 
   int d_max = in_1.size() + in_2.size() + 1;
   MPI_Bcast(&d_max, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  t_in_end = std::chrono::high_resolution_clock::now();
+
+  // Solution Timer
+  t_sol_start = std::chrono::high_resolution_clock::now();
 
   int edit_len = unknown_len;
   Results results(d_max);
@@ -204,17 +212,14 @@ void main_master(const std::string path_1, const std::string path_2)
         edit_len = d;
 
         // stop TIMER
-        auto chrono_end = std::chrono::high_resolution_clock::now();
-        auto chrono_t = std::chrono::duration_cast<std::chrono::microseconds>(chrono_end - chrono_start).count();
-        std::cout << "Solution [μs]: \t" << chrono_t << std::endl << std::endl;
-        
+        t_sol_end = std::chrono::high_resolution_clock::now();        
         goto done;
       }
     }
   }
 
 done:
-  std::cout << "min edit length " << edit_len << std::endl;
+  t_script_start = std::chrono::high_resolution_clock::now();
 
   DEBUG(2, "shutting down workers");
   {
@@ -241,6 +246,20 @@ done:
             steps[d-1] = {x, -1, false};
         }
     }
+
+    std::ofstream edit_script_file;
+    auto cout_buf = std::cout.rdbuf();
+    if (edit_script_to_file) {
+        edit_script_file.open(edit_script_path);
+        if (!edit_script_file.is_open())
+        {
+            std::cerr << "Could not open edit script file " << edit_script_path << std::endl;
+            exit(1);
+        }
+
+        std::cout.rdbuf(edit_script_file.rdbuf()); //redirect std::cout to file
+    }
+
     for(int i=0; i < steps.size(); i++){
         struct Edit_step step = steps.at(i);
         if(step.mode){
@@ -249,6 +268,19 @@ done:
             std::cout << step.x << " -" << std::endl;
         }
     }
+
+    if (edit_script_to_file) {
+        edit_script_file.close();
+    }
+
+    t_script_end = std::chrono::high_resolution_clock::now();
+
+    // Output Timers
+    std::cout.rdbuf(cout_buf); // redirect output back to stdout
+    std::cout << "\nmin edit length " << edit_len << std::endl << std::endl;
+    std::cout << "Read Input [μs]: \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_in_end - t_in_start).count() << std::endl;
+    std::cout << "Solution [μs]:   \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_sol_end - t_sol_start).count() << std::endl;
+    std::cout << "Edit Script [μs]: \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_script_end - t_script_start).count() << std::endl;
 }
 
 void main_worker()
@@ -372,7 +404,8 @@ int main(int argc, char *argv[])
 {
   std::ios_base::sync_with_stdio(false);
 
-  std::string path_1, path_2;
+  std::string path_1, path_2, edit_script_path;
+  bool edit_script_to_file = false;
 
   if (argc < 3)
   {
@@ -383,6 +416,10 @@ int main(int argc, char *argv[])
   {
     path_1 = argv[1];
     path_2 = argv[2];
+    if (argc >= 4) {
+      edit_script_path = argv[3];
+      edit_script_to_file = true;
+    }
   }
 
   MPI_Init(nullptr, nullptr);
@@ -391,7 +428,7 @@ int main(int argc, char *argv[])
   MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
   if (world_rank == 0)
   {
-    main_master(path_1, path_2);
+    main_master(path_1, path_2, edit_script_to_file, edit_script_path);
   }
   else
   {

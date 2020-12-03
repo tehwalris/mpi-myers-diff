@@ -153,16 +153,21 @@ int main(int argc, char *argv[])
         }
     }
 
-    // start TIMER
-    auto chrono_start = std::chrono::high_resolution_clock::now();
-
+    // TIMERS
+    std::chrono::_V2::system_clock::time_point t_in_start, t_in_end, t_sol_start, t_sol_end, t_script_start, t_script_end;
+    t_in_start = std::chrono::high_resolution_clock::now();
 
     std::vector<int> in_1, in_2;
     read_file(path_1, in_1);
     read_file(path_2, in_2);
 
+    t_in_end = std::chrono::high_resolution_clock::now();
+
     DEBUG(2, "in_1.size(): " << in_1.size());
     DEBUG(2, "in_2.size(): " << in_2.size());
+
+    
+    t_sol_start = std::chrono::high_resolution_clock::now();
 
     int d_max = in_1.size() + in_2.size() + 1;
 
@@ -209,17 +214,14 @@ int main(int argc, char *argv[])
                 edit_len = d;
 
                 // stop TIMER
-                auto chrono_end = std::chrono::high_resolution_clock::now();
-                auto chrono_t = std::chrono::duration_cast<std::chrono::microseconds>(chrono_end - chrono_start).count();
-                std::cout << "Solution [μs]: \t" << chrono_t << std::endl << std::endl;
-
+                t_sol_end = std::chrono::high_resolution_clock::now();
                 goto done;
             }
         }
     }
 
 done:
-    std::cout << "min edit length " << edit_len << std::endl;
+    t_script_start = std::chrono::high_resolution_clock::now();
 
     std::vector<struct Edit_step> steps(edit_len);
     int k = in_1.size() - in_2.size();
@@ -240,6 +242,7 @@ done:
     }
 
     std::ofstream edit_script_file;
+    auto cout_buf = std::cout.rdbuf();
     if (edit_script_to_file) {
         edit_script_file.open(edit_script_path);
         if (!edit_script_file.is_open())
@@ -263,6 +266,14 @@ done:
     if (edit_script_to_file) {
         edit_script_file.close();
     }
+
+    t_script_end = std::chrono::high_resolution_clock::now();
+
+    std::cout.rdbuf(cout_buf);
+    std::cout << "\nmin edit length " << edit_len << std::endl << std::endl;
+    std::cout << "Read Input [μs]: \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_in_end - t_in_start).count() << std::endl;
+    std::cout << "Solution [μs]:   \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_sol_end - t_sol_start).count() << std::endl;
+    std::cout << "Edit Script [μs]: \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_script_end - t_script_start).count() << std::endl;
     
     return 0;
 }

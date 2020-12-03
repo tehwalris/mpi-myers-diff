@@ -3,20 +3,23 @@ import subprocess
 import re
 from typing import List
 
-own_diff_executable_mpi = Path(__file__).parent / "../own-diff-mpi.out"
-own_diff_executable_sequential = Path(__file__).parent / "../own-diff-sequential.out"
-diffutils_executable = Path(__file__).parent / "../diffutils.out"
+own_diff_executable_mpi = Path(__file__).parent / "../bin/own-diff-mpi.out"
+own_diff_executable_sequential = Path(__file__).parent / "../bin/own-diff-sequential.out"
+diffutils_executable = Path(__file__).parent / "../bin/diffutils.out"
 
 
 
 def run_own_diff_algorithm_mpi(file_1_path, file_2_path, mpi_processes):
+    return run_diff_algorithm_mpi(file_1_path, file_2_path, mpi_processes, own_diff_executable_mpi)
+
+def run_diff_algorithm_mpi(file_1_path, file_2_path, mpi_processes, mpi_executable_path):
     # TODO pascal: KeyboardInterrupt doesn't get passed down and the mpi keeps running in the background hogging resources.
     all_output = subprocess.check_output(
         [
             "mpiexec",
             "-np",
             str(mpi_processes),
-            own_diff_executable_mpi,
+            mpi_executable_path,
             file_1_path,
             file_2_path,
         ],

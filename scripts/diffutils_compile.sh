@@ -10,4 +10,4 @@ if [ ! -f ./configure ]; then
 fi
 
 make
-cp src/diff $DIR/../diffutils.out
+cp src/diff $DIR/../bin/diffutils.out

@@ -295,11 +295,6 @@ bool Recv(int source_rank, int d, int k, Results &results, int worker_rank /*onl
 */
 int calculate_table(const std::vector<int> &in_1, const std::vector<int> &in_2, Results &results,
                         const int worker_rank, const int num_workers, const int MIN_ENTRIES){
-  /**
-   * TODO shutdown waiting problem
-   * If we find the solution during the grow phase, it means that some workers are still (blocking) waiting on their
-   * initial message to start computation. How does the shutdown message reach them?
-   **/
 
   int d_start = (worker_rank)*MIN_ENTRIES; // first included layer
   int d_end = num_workers * MIN_ENTRIES - 1; // last included layer
@@ -582,7 +577,7 @@ int calculate_table(const std::vector<int> &in_1, const std::vector<int> &in_2, 
   }
 }
 
-void main_worker(const std::string &path_1, const std::string &path_2)
+void main_worker(const std::string &path_1, const std::string &path_2, bool edit_script_to_file, const std::string &edit_script_path)
 {
   // This number must be greater or equal to 2
   const int MIN_ENTRIES = 100; // min. number of initial entries to compute on one node per layer d before the next node is started
@@ -597,8 +592,9 @@ void main_worker(const std::string &path_1, const std::string &path_2)
   std::vector<int> in_1;
   std::vector<int> in_2;
 
-  // start TIMER
-  auto time_start = std::chrono::high_resolution_clock::now();
+  // Init Timers
+  // Reading Input file (and sending), precomputation (snakes), computation of edit length, reconstructing the solution and the edit script
+  std::chrono::_V2::system_clock::time_point t_in_start, t_in_end, t_pre_start, t_pre_end, t_sol_start, t_sol_end, t_script_start, t_script_end;
 
   if(worker_rank > 0){
     DEBUG(2, worker_rank << " | "
@@ -613,6 +609,7 @@ void main_worker(const std::string &path_1, const std::string &path_2)
     in_1 = receive_vector();
     in_2 = receive_vector();
   } else {
+    t_in_start = std::chrono::high_resolution_clock::now();
     read_file(path_1, in_1);
     read_file(path_2, in_2);
 
@@ -624,19 +621,27 @@ void main_worker(const std::string &path_1, const std::string &path_2)
     };
     send_vector(in_1);
     send_vector(in_2);
+    t_in_end = std::chrono::high_resolution_clock::now();
   }
 
+  t_sol_start = std::chrono::high_resolution_clock::now();
   int d_max = in_1.size() + in_2.size() + 1;
   Results results(d_max);
 
   int edit_len = calculate_table(in_1, in_2, results, worker_rank, num_workers, MIN_ENTRIES);
   DEBUG(2, worker_rank << " | Done calculating");
 
-  // TIMER for solution
-  auto time_sol_start = std::chrono::high_resolution_clock::now();
-  auto time_sol = std::chrono::duration_cast<std::chrono::microseconds>(time_sol_start - time_start).count();
+  // TODO pascalm timer of worker 0 is not the time it took until the solution, but the time until
+  // it found a solution OR until it received the shutdown message.
+  // Worker that finds solution (unless rank==0) should send 2 timers to 0:
+  //    - t_sol_end
+  //    - t_script_start
+  t_sol_end = std::chrono::high_resolution_clock::now();
+
+
 
   // read result and send it to next worker
+  t_script_start = std::chrono::high_resolution_clock::now();
   std::vector<struct edit_step> steps;
   bool first = false;
   int d = edit_len;
@@ -701,34 +706,40 @@ void main_worker(const std::string &path_1, const std::string &path_2)
       k_min = bounds.first;
       k_max = bounds.second;
       DEBUG(2, worker_rank << " | next: d: " << d-1 << " k: " << k << " k_min: " << k_min << " k_max: " << k_max);
-      if(k > k_max){
+      if(k > k_max || k < k_min){
+        int offset = k > k_max ? +1 : -1; // neighbour left or right
         msg = {d-1, k, edit_len};
-        DEBUG(2, worker_rank << " | Sending message to " << worker_rank + 1 << " (" << msg[0]<<","<<msg[1]<<","<<msg[2]<<")");
-        MPI_Send(msg.data(), msg.size(), MPI_INT, worker_rank + 1, Tag::ReadOut, MPI_COMM_WORLD);
-        DEBUG(2, worker_rank << " | Sending Data to " << worker_rank + 1);
-        MPI_Send(steps.data(), steps.size(), MPI_edit_step_t, worker_rank + 1, Tag::ReadOutData, MPI_COMM_WORLD);
-        break;
-      } else if(k < k_min){
-        msg = {d-1, k, edit_len};
-        DEBUG(2, worker_rank << " | Sending message to " << worker_rank - 1 << " (" << msg[0]<<","<<msg[1]<<","<<msg[2]<<")");
-        MPI_Send(msg.data(), msg.size(), MPI_INT, worker_rank - 1, Tag::ReadOut, MPI_COMM_WORLD);
-        DEBUG(2, worker_rank << " | Sending Data to " << worker_rank - 1);
-        MPI_Send(steps.data(), steps.size(), MPI_edit_step_t, worker_rank - 1, Tag::ReadOutData, MPI_COMM_WORLD);
+        DEBUG(2, worker_rank << " | Sending message to " << worker_rank + offset << " (" << msg[0]<<","<<msg[1]<<","<<msg[2]<<")");
+        MPI_Send(msg.data(), msg.size(), MPI_INT, worker_rank + offset, Tag::ReadOut, MPI_COMM_WORLD);
+        DEBUG(2, worker_rank << " | Sending Data to " << worker_rank + offset);
+        MPI_Send(steps.data(), steps.size(), MPI_edit_step_t, worker_rank + offset, Tag::ReadOutData, MPI_COMM_WORLD);
         break;
       }
     }
     if(d==0){
       DEBUG(2, worker_rank << " | All done");
       stop_workers(num_workers, worker_rank, Tag::ReadOutStopWorkers);
+      t_script_end = std::chrono::high_resolution_clock::now();
       break;
     }
   }
 
 
   if(worker_rank == 0){
-    // TIMER edit script
-    auto time_edit_start = std::chrono::high_resolution_clock::now();
-    auto time_edit = std::chrono::duration_cast<std::chrono::microseconds>(time_edit_start - time_sol_start).count();
+
+    // redirect output
+    std::ofstream edit_script_file;
+    auto cout_buf = std::cout.rdbuf(); // stdout
+    if (edit_script_to_file) {
+        edit_script_file.open(edit_script_path);
+        if (!edit_script_file.is_open())
+        {
+            std::cerr << "Could not open edit script file " << edit_script_path << std::endl;
+            exit(1);
+        }
+
+        std::cout.rdbuf(edit_script_file.rdbuf()); //redirect std::cout to file
+    }
 
     for(int i=0, size = steps.size(); i < size; i++){
       struct edit_step step = steps.at(i);
@@ -738,11 +749,14 @@ void main_worker(const std::string &path_1, const std::string &path_2)
         std::cout << step.x << " -" << std::endl;
       }
     }
-    //print_vector(results.m_data);
+    // Output Timers
+    auto cout_buf = std::cout.rdbuf(); before edit_script_to_file
 
-    std::cout << "Solution [μs]: \t\t" << time_sol << std::endl;
-    std::cout << "Edit Script [μs]: \t" << time_edit << std::endl << std::endl;
-    std::cout << "min edit length " << edit_len << std::endl;
+    std::cout.rdbuf(cout_buf);
+    std::cout << "\nmin edit length " << edit_len << std::endl << std::endl;
+    std::cout << "Read Input [μs]: \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_in_end - t_in_start).count() << std::endl;
+    std::cout << "Solution [μs]:   \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_sol_end - t_sol_start).count() << std::endl;
+    std::cout << "Edit Script [μs]: \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_script_end - t_script_start).count() << std::endl;
 
   }
 
@@ -752,7 +766,8 @@ int main(int argc, char *argv[])
 {
   std::ios_base::sync_with_stdio(false);
 
-  std::string path_1, path_2;
+  std::string path_1, path_2, edit_script_path;
+  bool edit_script_to_file = false;
 
   if (argc < 3)
   {
@@ -763,6 +778,10 @@ int main(int argc, char *argv[])
   {
     path_1 = argv[1];
     path_2 = argv[2];
+    if (argc >= 4) {
+      edit_script_path = argv[3];
+      edit_script_to_file = true;
+    }
   }
 
   MPI_Init(nullptr, nullptr);
@@ -770,7 +789,7 @@ int main(int argc, char *argv[])
   int world_rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
 
-  main_worker(path_1, path_2);
+  main_worker(path_1, path_2, edit_script_to_file, edit_script_path);
 
   DEBUG(2, world_rank << " | " << "EXITING\n");
   MPI_Finalize();

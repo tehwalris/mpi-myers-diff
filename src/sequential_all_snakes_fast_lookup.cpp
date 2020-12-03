@@ -158,19 +158,24 @@ int main(int argc, char *argv[])
         }
     }
 
-    // start TIMER
-    auto chrono_start = std::chrono::high_resolution_clock::now();
+    // Init Timers
+    std::chrono::_V2::system_clock::time_point t_in_start, t_in_end, t_pre_start, t_pre_end, t_sol_start, t_sol_end, t_script_start, t_script_end;
 
+
+    // Input Timer
+    t_in_start = std::chrono::high_resolution_clock::now();
 
     std::vector<int> in_1, in_2;
     read_file(path_1, in_1);
     read_file(path_2, in_2);
 
-    // TIMER
-    auto chrono_after_read = std::chrono::high_resolution_clock::now();
+    t_in_end = std::chrono::high_resolution_clock::now();
 
     DEBUG(2, "in_1.size(): " << in_1.size());
     DEBUG(2, "in_2.size(): " << in_2.size());
+
+    // Precomputation Timer
+    t_pre_start = std::chrono::high_resolution_clock::now();
 
     int d_max = in_1.size() + in_2.size() + 1;
 
@@ -178,9 +183,9 @@ int main(int argc, char *argv[])
     int k_max = std::min((size_t) d_max, in_1.size()) - 1;
     Snakes snakes = compute_all_snakes_seq(in_1, in_2, k_min, k_max);
 
-    // TIMER
-    auto chrono_after_snakes = std::chrono::high_resolution_clock::now();
+    t_pre_end = std::chrono::high_resolution_clock::now();
 
+    t_sol_start = std::chrono::high_resolution_clock::now();
     int edit_len = unknown_len;
     Results results(d_max);     //TODO: k_min, k_max
 
@@ -221,6 +226,7 @@ int main(int argc, char *argv[])
             {
                 DEBUG(2, "found lcs");
                 edit_len = d;
+                t_sol_end = std::chrono::high_resolution_clock::now();
 
                 goto done;
             }
@@ -228,10 +234,8 @@ int main(int argc, char *argv[])
     }
 
 done:
-    // TIMER
-    auto chrono_after_len = std::chrono::high_resolution_clock::now();
-
-    std::cout << "min edit length " << edit_len << std::endl;
+    // Edit Script Timer
+    t_script_start = std::chrono::high_resolution_clock::now();
 
     std::vector<struct Edit_step> steps(edit_len);
     int k = in_1.size() - in_2.size();
@@ -252,6 +256,7 @@ done:
     }
 
     std::ofstream edit_script_file;
+    auto cout_buf = std::cout.rdbuf();
     if (edit_script_to_file) {
         edit_script_file.open(edit_script_path);
         if (!edit_script_file.is_open())
@@ -277,12 +282,14 @@ done:
     }
 
 
-    auto chrono_t = std::chrono::duration_cast<std::chrono::microseconds>(chrono_after_read - chrono_start).count();
-    std::cout << "chrono Time for file read [μs]: \t" << chrono_t << "\n";
-    chrono_t = std::chrono::duration_cast<std::chrono::microseconds>(chrono_after_snakes - chrono_after_read).count();
-    std::cout << "chrono Time for all snakes [μs]: \t" << chrono_t << "\n";
-    chrono_t = std::chrono::duration_cast<std::chrono::microseconds>(chrono_after_len - chrono_after_snakes).count();
-    std::cout << "chrono Time for min edit length [μs]: \t" << chrono_t << std::endl;
+    t_script_end = std::chrono::high_resolution_clock::now();
+
+    std::cout.rdbuf(cout_buf);
+    std::cout << "\nmin edit length " << edit_len << std::endl << std::endl;
+    std::cout << "Read Input [μs]: \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_in_end - t_in_start).count() << std::endl;
+    std::cout << "Solution [μs]:   \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_sol_end - t_sol_start).count() << std::endl;
+    std::cout << "Edit Script [μs]: \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_script_end - t_script_start).count() << std::endl;
+    
     
     return 0;
 }

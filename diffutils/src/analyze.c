@@ -458,6 +458,13 @@ briefly_report (int changes, struct file_data const filevec[])
              file_label[1] ? file_label[1] : filevec[1].name);
 }
 
+/* get the elapsed time and return the value in microseconds. */
+inline get_timer_micros(struct timeval *t_begin, struct timeval *t_end){
+  long seconds = t_end->tv_sec - t_begin->tv_sec;
+  long microseconds = t_end->tv_usec - t_begin->tv_usec;
+  return seconds*1e6 + microseconds;
+}
+
 /* Report the differences of two files.  */
 int
 diff_2_files (struct comparison *cmp)
@@ -477,10 +484,8 @@ diff_2_files (struct comparison *cmp)
      we can speed things up by treating the files as binary.  */
 
 	// START TIMER
-	struct timespec time_start, time_end; 
-	struct timeval t_begin, t_end;
-    gettimeofday(&t_begin, 0);
-    clock_gettime(CLOCK_REALTIME, &time_start);
+	struct timeval t_in_start, t_in_end, t_pre_start, t_pre_end, t_sol_start, t_sol_end, t_script_start, t_script_end;
+  gettimeofday(&t_in_start, 0);
 
 
   if (read_files (cmp->file, files_can_be_treated_as_binary))
@@ -542,9 +547,15 @@ diff_2_files (struct comparison *cmp)
     }
   else
     {
+
+      gettimeofday(&t_in_end, 0);
+
+
       struct context ctxt;
       lin diags;
       lin too_expensive;
+
+      gettimeofday(&t_pre_start, 0);
 
       /* Allocate vectors for the results of comparison:
          a flag for each line of each file, saying whether that line
@@ -587,14 +598,14 @@ diff_2_files (struct comparison *cmp)
       files[0] = cmp->file[0];
       files[1] = cmp->file[1];
 
+      gettimeofday(&t_pre_end, 0);
+      gettimeofday(&t_sol_start, 0);
+
       compareseq (0, cmp->file[0].nondiscarded_lines,
                   0, cmp->file[1].nondiscarded_lines, minimal, &ctxt);
 
-	  // STOP TIMER
-      gettimeofday(&t_end, 0);
-      long seconds = t_end.tv_sec - t_begin.tv_sec;
-      long microseconds = t_end.tv_usec - t_begin.tv_usec;
-      time_elapsed = seconds*1e6 + microseconds;
+      gettimeofday(&t_sol_end, 0);
+
 
       free (ctxt.fdiag - (cmp->file[1].nondiscarded_lines + 1));
 
@@ -605,6 +616,8 @@ diff_2_files (struct comparison *cmp)
 
       /* Get the results of comparison in the form of a chain
          of 'struct change's -- an edit script.  */
+
+      gettimeofday(&t_script_start, 0);
 
       if (output_style == OUTPUT_ED)
         script = build_reverse_script (cmp->file);
@@ -697,6 +710,9 @@ diff_2_files (struct comparison *cmp)
             }
         }
 
+      gettimeofday(&t_script_end, 0);
+
+
       free (cmp->file[0].undiscarded);
 
       free (flag_space);
@@ -728,6 +744,9 @@ diff_2_files (struct comparison *cmp)
     free (cmp->file[0].buffer);
   free (cmp->file[1].buffer);
 
-  printf("\nSolution [µs]: \t%d\n", time_elapsed);
+  // Output Timers
+  printf("\nRead Input [μs]: \t%d\n", get_timer_micros(&t_in_start, &t_in_end)); 
+  printf("Solution [μs]:   \t%d\n", get_timer_micros(&t_sol_start, &t_sol_end)); 
+  printf("Edit Script [μs]: \t%d\n", get_timer_micros(&t_script_start, &t_script_end));
   return changes;
 }
