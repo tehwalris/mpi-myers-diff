@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <chrono>                   // chrono::high_resolution_clock
 #include <optional>                 // requires C++17
+#include <cmath>
 
 // Uncomment this line when performance is measured
 //#define NDEBUG
@@ -59,7 +60,7 @@ public:
         this->m_d_max = d_max;
 
         // allocate initial block 0
-        this->num_blocks = std::max(1, d_max / alloc_n_layers);
+        this->num_blocks = std::ceil(std::max(1.0, d_max / (double) alloc_n_layers));
         data_pointers.resize(num_blocks, nullptr);
         data_pointers[0] = allocate_block(0); 
     }

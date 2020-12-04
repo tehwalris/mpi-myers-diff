@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <assert.h>
 #include <stdlib.h> 
+#include <cmath> 
 
 
 void discard_lines_without_match_seq(std::vector<int> &in_1, std::vector<int> &in_2, 
