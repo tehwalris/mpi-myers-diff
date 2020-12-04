@@ -195,10 +195,13 @@ if __name__ == "__main__":
     csv_output_file = open(args.output_csv, "w", newline="")
     csv_output_writer = CSVOutputWriter(csv_output_file)
 
+    failed_configs = []
+
     progress_bar = tqdm(total=total_test_combinations, smoothing=0)
 
     shuffled_generation_configs = list(enumerate(all_generation_configs.copy()))
     random.shuffle(shuffled_generation_configs)
+    break_flag = False
     for generation_config_i, generation_config in shuffled_generation_configs:
         for regen_i in range(args.num_regens):
             verbose_print("generation_config", generation_config)
@@ -209,14 +212,23 @@ if __name__ == "__main__":
             for diff_program in diff_programs:
                 for repetition_i in range(args.num_repetitions):
                     verbose_print("  diff_program", diff_program["name"])
-                    # TODO Enforce a timeout
-                    program_result = diff_program["run"](
-                        test_case_dir / "in_1.txt",
-                        test_case_dir / "in_2.txt",
-                    )
-                    verbose_print(
-                        "    micros_until_len", program_result.micros_until_len
-                    )
+
+                    try:
+                        program_result = diff_program["run"](
+                            test_case_dir / "in_1.txt",
+                            test_case_dir / "in_2.txt",
+                        )
+                        verbose_print(
+                            "    micros_until_len", program_result.micros_until_len
+                        )
+                    except KeyboardInterrupt: # exit the benchmark
+                        break_flag = True
+                        break;
+                    except Exception as e: # catch all
+                        progress_bar.update()
+                        failed_configs.append((generation_config, e))
+                        # TODO pascal: kill child process. Or handle in run_algorithm
+                        continue
 
                     progress_bar.update()
 
@@ -236,6 +248,23 @@ if __name__ == "__main__":
                         "micros_edit_script": program_result.micros_edit_script,
                     }
                     csv_output_writer.write_row(output_data)
+            
+                if break_flag:
+                    break
+            if break_flag:
+                break
+        if break_flag:
+            break
+            
+
+    # write failed configs to file
+    if failed_configs:
+        filename = args.output_csv.split('.')[:-1][0] + "-FAILED.txt"
+        with open(filename, "w") as f:
+            for conf, e in failed_configs:
+                print(conf, file=f, end="")
+                print("\t"+repr(e), file=f)
+
 
     progress_bar.close()
     csv_output_file.close()
