@@ -1,7 +1,7 @@
 #!/bin/bash
 
 default_np=4
-executable_name=own-diff-mpi.out
+executable_name=own-diff-mpi-no-master.out
 
 DIR="$(dirname "$(readlink -f "$BASH_SOURCE")")"
 

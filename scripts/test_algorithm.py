@@ -1,6 +1,6 @@
 from .diff_sizes import update_test_case_diff
 from .gen_random_input import generate_and_save_test_case
-from .run_algorithm import run_own_diff_algorithm_mpi, run_own_diff_algorithm_sequential
+from . import run_algorithm
 import multiprocessing
 from termcolor import colored
 import numpy as np
@@ -31,7 +31,7 @@ def gen_random_generation_config():
         "strategy": np.random.choice(
             ["independent", "add", "remove", "addremove"], p=[0.1, 0.2, 0.2, 0.5]
         ),
-        "length_1": np.random.randint(1, 10 ** np.random.randint(1, 5)),
+        "length_1": np.random.randint(1, 10 ** np.random.randint(2, 5)),
         "change_strength": np.random.rand()
         * np.random.choice([0.3, 1], p=[0.75, 0.25]),
         "chunkiness": np.random.rand(),
@@ -59,16 +59,18 @@ if __name__ == "__main__":
         print("Running golden implementation", flush=True)
         golden_diff_size = update_test_case_diff(test_case_dir)
         print("Running own MPI implementation", flush=True, end="")
-        own_diff_output_mpi = run_own_diff_algorithm_mpi(
+        own_diff_output_mpi = run_algorithm.run_diff_algorithm_mpi(
             test_case_dir / "in_1.txt",
             test_case_dir / "in_2.txt",
             args.mpi_procs,
+            run_algorithm.own_diff_executable_mpi_no_master
         )
         print(f" {own_diff_output_mpi.micros_until_len:>15} μs", flush=True)
         print("Running own sequential implementation", flush=True, end="")
-        own_diff_output_sequential = run_own_diff_algorithm_sequential(
+        own_diff_output_sequential = run_algorithm.run_own_diff_algorithm_sequential(
             test_case_dir / "in_1.txt",
             test_case_dir / "in_2.txt",
+            run_algorithm.own_diff_executable_sequential_fast_snakes
         )
         print(f" {own_diff_output_sequential.micros_until_len:>8} μs", flush=True)
         print(f"Speed-up: {own_diff_output_sequential.micros_until_len/own_diff_output_mpi.micros_until_len:.2f}x")

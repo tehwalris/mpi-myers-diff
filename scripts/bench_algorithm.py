@@ -132,15 +132,30 @@ if __name__ == "__main__":
 
     diff_programs = [
         {
-            "name": "own_mpi",
-            "run": lambda p1, p2: run_algorithm.run_own_diff_algorithm_mpi(
-                p1, p2, args.mpi_procs
+            "name": "mpi_master",
+            "run": lambda p1, p2: run_algorithm.run_diff_algorithm_mpi(
+                p1, p2, args.mpi_procs, run_algorithm.own_diff_executable_mpi_master
             ),
             "extra_fields": {"mpi_procs": args.mpi_procs},
         },
         {
-            "name": "own_sequential",
-            "run": run_algorithm.run_own_diff_algorithm_sequential,
+            "name": "mpi_no_master",
+            "run": lambda p1, p2: run_algorithm.run_diff_algorithm_mpi(
+                p1, p2, args.mpi_procs, run_algorithm.own_diff_executable_mpi_no_master
+            ),
+            "extra_fields": {"mpi_procs": args.mpi_procs},
+        },
+        {
+            "name": "sequential",
+            "run": lambda p1, p2: run_algorithm.run_own_diff_algorithm_sequential(
+                p1, p2, run_algorithm.own_diff_executable_sequential
+            ),
+        },
+        {
+            "name": "sequential_fast_snakes",
+            "run": lambda p1, p2: run_algorithm.run_own_diff_algorithm_sequential(
+                p1, p2, run_algorithm.own_diff_executable_sequential_fast_snakes
+            ),
         },
         {
             "name": "diffutils",
@@ -215,7 +230,10 @@ if __name__ == "__main__":
                             k: diff_program.get("extra_fields", {}).get(k, "")
                             for k in all_diff_program_extra_fields
                         },
+                        "micros_input": program_result.micros_input,
+                        "micros_precompute": program_result.micros_precompute,
                         "micros_until_len": program_result.micros_until_len,
+                        "micros_edit_script": program_result.micros_edit_script,
                     }
                     csv_output_writer.write_row(output_data)
 

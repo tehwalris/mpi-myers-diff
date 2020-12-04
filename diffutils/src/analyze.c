@@ -459,7 +459,7 @@ briefly_report (int changes, struct file_data const filevec[])
 }
 
 /* get the elapsed time and return the value in microseconds. */
-inline get_timer_micros(struct timeval *t_begin, struct timeval *t_end){
+long get_timer_micros(struct timeval *t_begin, struct timeval *t_end){
   long seconds = t_end->tv_sec - t_begin->tv_sec;
   long microseconds = t_end->tv_usec - t_begin->tv_usec;
   return seconds*1e6 + microseconds;
@@ -746,6 +746,7 @@ diff_2_files (struct comparison *cmp)
 
   // Output Timers
   printf("\nRead Input [μs]: \t%d\n", get_timer_micros(&t_in_start, &t_in_end)); 
+  printf("Precompute [μs]:   \t%d\n", get_timer_micros(&t_pre_start, &t_pre_end)); 
   printf("Solution [μs]:   \t%d\n", get_timer_micros(&t_sol_start, &t_sol_end)); 
   printf("Edit Script [μs]: \t%d\n", get_timer_micros(&t_script_start, &t_script_end));
   return changes;

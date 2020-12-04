@@ -7,7 +7,7 @@
 #include <chrono>
 
 // Uncomment this line when performance is measured
-//#define NDEBUG
+#define NDEBUG
 
 const int debug_level = 0;
 
@@ -279,6 +279,7 @@ done:
     std::cout.rdbuf(cout_buf); // redirect output back to stdout
     std::cout << "\nmin edit length " << edit_len << std::endl << std::endl;
     std::cout << "Read Input [μs]: \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_in_end - t_in_start).count() << std::endl;
+    std::cout << "Precompute [μs]: \t" << 0 << std::endl;
     std::cout << "Solution [μs]:   \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_sol_end - t_sol_start).count() << std::endl;
     std::cout << "Edit Script [μs]: \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_script_end - t_script_start).count() << std::endl;
 }
