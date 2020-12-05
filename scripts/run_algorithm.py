@@ -26,31 +26,18 @@ def run_diff_algorithm_mpi(
     # TODO pascal: KeyboardInterrupt doesn't get passed down and the mpi keeps running in the background hogging resources.
     # TODO set timeout?
 
-    if edit_script_path is None:
-        all_output = subprocess.check_output(
-            [
-                "mpiexec",
-                "-np",
-                str(mpi_processes),
-                mpi_executable_path,
-                file_1_path,
-                file_2_path,
-            ],
-            text=True,
-        )
-    else:
-        all_output = subprocess.check_output(
-            [
-                "mpiexec",
-                "-np",
-                str(mpi_processes),
-                mpi_executable_path,
-                file_1_path,
-                file_2_path,
-                edit_script_path,
-            ],
-            text=True,
-        )
+    command = [
+        "mpiexec",
+        "-np",
+        str(mpi_processes),
+        mpi_executable_path,
+        file_1_path,
+        file_2_path,
+    ]
+    if edit_script_path is not None:
+        command.append(edit_script_path)
+
+    all_output = subprocess.check_output(command, text=True)
     return OwnDiffOutput(all_output)
 
 
