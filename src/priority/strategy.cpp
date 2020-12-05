@@ -1,6 +1,8 @@
 #include <iostream>
 #include <vector>
+#include <optional>
 #include <cassert>
+#include <algorithm>
 
 enum Side
 {
@@ -46,6 +48,24 @@ private:
   T left;
   T right;
 };
+
+class CellLocation
+{
+public:
+  int d;
+  int k;
+
+  CellLocation() : d(0), k(0){};
+  CellLocation(int d, int k) : d(d), k(k){};
+};
+
+inline bool operator==(const CellLocation &lhs, const CellLocation &rhs)
+{
+  return lhs.d == rhs.d && lhs.k == rhs.k;
+}
+
+// CellDiamond is a pair of top point (exclusive) and bottom point (inclusive)
+typedef std::pair<CellLocation, CellLocation> CellDiamond;
 
 template <class S>
 class DebugStrategyFollower
@@ -118,11 +138,82 @@ private:
   std::vector<std::vector<int>> data;
 };
 
+class Frontier
+{
+public:
+  Frontier(CellLocation left, CellLocation right)
+  {
+    assert(left.k < right.k);
+    covered_triangle_bottoms.push_back(left);
+    covered_triangle_bottoms.push_back(right);
+  }
+
+  std::optional<CellDiamond> get_next_exposed_diamond(CellLocation query_triangle_bottom)
+  {
+    assert(!point_is_on_inside_of_triangle(covered_triangle_bottoms.front(), query_triangle_bottom));
+    assert(!point_is_on_inside_of_triangle(covered_triangle_bottoms.back(), query_triangle_bottom));
+
+    for (int i = 1; i < covered_triangle_bottoms.size(); i++)
+    {
+      CellLocation prev_bottom = covered_triangle_bottoms.at(i - 1);
+      CellLocation next_bottom = covered_triangle_bottoms.at(i);
+
+      CellLocation exposed_top = intersect_triangles(prev_bottom, next_bottom);
+      if (!point_is_on_inside_of_triangle(exposed_top, query_triangle_bottom))
+      {
+        continue;
+      }
+
+      CellLocation exposed_bottom(query_triangle_bottom.d - query_triangle_bottom.k - exposed_top.k, exposed_top.k);
+      assert(!point_is_on_inside_of_triangle(exposed_bottom, query_triangle_bottom));
+      assert(point_is_on_inside_of_triangle(CellLocation(exposed_bottom.d - 1, exposed_bottom.k), query_triangle_bottom));
+      return std::optional{std::make_pair(exposed_top, exposed_bottom)};
+    }
+
+    return std::nullopt;
+  }
+
+  void cover_triangle(CellLocation triangle_bottom)
+  {
+    auto rem_it = std::remove_if(covered_triangle_bottoms.begin(), covered_triangle_bottoms.end(), [triangle_bottom](CellLocation &existing) {
+      return point_is_on_inside_of_triangle(existing, triangle_bottom);
+    });
+    covered_triangle_bottoms.erase(rem_it, covered_triangle_bottoms.end());
+    covered_triangle_bottoms.push_back(triangle_bottom);
+    assert(covered_triangle_bottoms.size() >= 2);
+    std::sort(covered_triangle_bottoms.begin(), covered_triangle_bottoms.end(), [](CellLocation &a, CellLocation &b) { return a.k < b.k; });
+  }
+
+private:
+  std::vector<CellLocation> covered_triangle_bottoms;
+
+  static bool point_is_on_inside_of_triangle(CellLocation query_point, CellLocation triangle_bottom)
+  {
+    return query_point.d < triangle_bottom.d && abs(query_point.k - triangle_bottom.k) < (triangle_bottom.d - query_point.d);
+  }
+
+  static CellLocation intersect_triangles(CellLocation bottom_a, CellLocation bottom_b)
+  {
+    if (bottom_a == bottom_b)
+    {
+      return bottom_a;
+    }
+    if (bottom_a.k > bottom_b.k)
+    {
+      std::swap(bottom_a, bottom_b);
+    }
+    int temp = bottom_b.k - bottom_a.k + bottom_a.d - bottom_b.d;
+    assert(temp > 0 && temp % 2 == 0);
+    temp /= 2;
+    return CellLocation(bottom_b.d - temp, bottom_b.k - temp);
+  }
+};
+
 template <class F>
 class Strategy
 {
 public:
-  Strategy(F *follower, int d_max) : follower(follower), d_max(d_max), last_receive(never_received, never_received){};
+  Strategy(F *follower, int d_max) : follower(follower), d_max(d_max), last_receive(never_received, never_received), frontier(CellLocation(d_max, -d_max - 2), CellLocation(d_max, d_max + 2)){};
 
   void receive(int d, int k, int v, Side from)
   {
@@ -133,10 +224,25 @@ public:
 
   void run()
   {
+    CellLocation target(d_max, d_max); // TODO determine dynamically
+    while (true)
+    {
+      std::optional<CellDiamond> exposed_diamond_opt = frontier.get_next_exposed_diamond(target);
+      if (!exposed_diamond_opt.has_value())
+      {
+        break;
+      }
+      CellDiamond &exposed_diamond = exposed_diamond_opt.value();
+
+      std::cerr << "DEBUG got exposed diamond" << std::endl;
+
+      frontier.cover_triangle(exposed_diamond.second);
+    }
   }
 
 private:
   PerSide<int> last_receive;
+  Frontier frontier;
   F *follower;
   int d_max;
   inline static const int never_received = -1;
@@ -150,4 +256,5 @@ int main()
   Strategy<DebugStrategyFollower<SimpleStorage>> strategy(&follower, d_max);
 
   strategy.receive(0, 0, 12, Side::Left);
+  strategy.run();
 }
