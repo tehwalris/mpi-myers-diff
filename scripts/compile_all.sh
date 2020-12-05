@@ -11,6 +11,9 @@ mpic++ src/main.cpp -o bin/own-diff-mpi-main.out $CFLAGS
 printf "\nCompiling MPI No Master:\n"
 mpic++ src/no_master_synch.cpp -o bin/own-diff-mpi-no-master.out $CFLAGS
 
+printf "\nCompiling MPI No Sync Layers:\n"
+mpic++ src/no_sync_layers.cpp -o bin/own-diff-mpi-no-sync-layers.out $CFLAGS
+
 printf "\nCompiling Sequential Fast Snakesn:\n"
 g++ src/sequential_all_snakes_fast_lookup.cpp -o bin/own-diff-sequential-fast-snakes.out $CFLAGS
 

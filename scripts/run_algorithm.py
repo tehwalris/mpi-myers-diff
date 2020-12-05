@@ -8,6 +8,9 @@ own_diff_executable_mpi_master = Path(__file__).parent / "../bin/own-diff-mpi-ma
 own_diff_executable_mpi_no_master = (
     Path(__file__).parent / "../bin/own-diff-mpi-no-master.out"
 )
+own_diff_executable_mpi_no_sync_layers = (
+    Path(__file__).parent / "../bin/own-diff-mpi-no-sync-layers.out"
+)
 own_diff_executable_sequential = (
     Path(__file__).parent / "../bin/own-diff-sequential.out"
 )
