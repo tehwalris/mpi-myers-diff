@@ -63,17 +63,19 @@ if __name__ == "__main__":
             test_case_dir / "in_1.txt",
             test_case_dir / "in_2.txt",
             args.mpi_procs,
-            run_algorithm.own_diff_executable_mpi_no_master
+            run_algorithm.own_diff_executable_mpi_no_master,
         )
         print(f" {own_diff_output_mpi.micros_until_len:>15} μs", flush=True)
         print("Running own sequential implementation", flush=True, end="")
         own_diff_output_sequential = run_algorithm.run_own_diff_algorithm_sequential(
             test_case_dir / "in_1.txt",
             test_case_dir / "in_2.txt",
-            run_algorithm.own_diff_executable_sequential_fast_snakes
+            run_algorithm.own_diff_executable_sequential_fast_snakes,
         )
         print(f" {own_diff_output_sequential.micros_until_len:>8} μs", flush=True)
-        print(f"Speed-up: {own_diff_output_sequential.micros_until_len/own_diff_output_mpi.micros_until_len:.2f}x")
+        print(
+            f"Speed-up: {own_diff_output_sequential.micros_until_len/own_diff_output_mpi.micros_until_len:.2f}x"
+        )
 
         if (
             own_diff_output_mpi.min_edit_len == golden_diff_size
