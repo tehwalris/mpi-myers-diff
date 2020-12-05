@@ -195,7 +195,7 @@ if __name__ == "__main__":
     csv_output_file = open(args.output_csv, "w", newline="")
     csv_output_writer = CSVOutputWriter(csv_output_file)
 
-    failed_configs = []
+    failed_file = open(args.output_csv.split('.')[:-1][0] + "-FAILED.txt", "w")
 
     progress_bar = tqdm(total=total_test_combinations, smoothing=0)
 
@@ -226,8 +226,10 @@ if __name__ == "__main__":
                         break;
                     except Exception as e: # catch all
                         progress_bar.update()
-                        failed_configs.append((generation_config, e))
-                        # TODO pascal: kill child process. Or handle in run_algorithm
+
+                        print(diff_program["name"] + "\t", file=failed_file, end="")
+                        print(generation_config, file=failed_file, end="")
+                        print("\t"+repr(e), file=failed_file)
                         continue
 
                     progress_bar.update()
@@ -257,14 +259,6 @@ if __name__ == "__main__":
             break
             
 
-    # write failed configs to file
-    if failed_configs:
-        filename = args.output_csv.split('.')[:-1][0] + "-FAILED.txt"
-        with open(filename, "w") as f:
-            for conf, e in failed_configs:
-                print(conf, file=f, end="")
-                print("\t"+repr(e), file=f)
-
-
     progress_bar.close()
     csv_output_file.close()
+    failed_file.close()

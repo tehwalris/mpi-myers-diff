@@ -3,7 +3,7 @@
 DIR="$(dirname "$(readlink -f "$BASH_SOURCE")")"
 cd $DIR/..
 
-CFLAGS="-O3 -Wall -DNDEBUG"
+CFLAGS="-O3 -Wall -DNDEBUG -march=native -ffast-math"
 
 printf "\nCompiling MPI Main:\n"
 mpic++ src/main.cpp -o bin/own-diff-mpi-main.out $CFLAGS
