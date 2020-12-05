@@ -134,7 +134,7 @@ public:
   inline int &at(int d, int k)
   {
     assert(d >= 0 && d <= d_max);
-    assert(abs(k) >= d);
+    assert(abs(k) <= d);
     assert((d - abs(k)) % 2 == 0);
     return data.at(d).at(k + d);
   }
@@ -176,6 +176,8 @@ public:
       {
         continue;
       }
+      exposed_top.d += 2;
+      assert(!point_is_outside_of_triangle(exposed_top, query_triangle_bottom));
 
       CellLocation exposed_bottom = intersect_triangles(query_triangle_bottom, triangle_through_points(prev_bottom, next_bottom));
       return std::optional{std::make_pair(exposed_top, exposed_bottom)};
@@ -292,8 +294,8 @@ int main()
   DebugStrategyFollower<SimpleStorage> follower(&storage);
   Strategy<DebugStrategyFollower<SimpleStorage>> strategy(&follower, d_max);
 
-  strategy.receive(0, 0, 12, Side::Left);
-  // strategy.receive(1, 1, 12, Side::Left);
-  // strategy.receive(2, 2, 12, Side::Left);
+  strategy.receive(0, 0, 12, Side::Right);
+  strategy.receive(1, 1, 12, Side::Right);
+  strategy.receive(2, 2, 12, Side::Right);
   strategy.run();
 }
