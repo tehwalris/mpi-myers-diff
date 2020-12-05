@@ -272,9 +272,8 @@ public:
         break;
       }
       CellDiamond &exposed_diamond = exposed_diamond_opt.value();
-
       std::cerr << "DEBUG got exposed diamond " << exposed_diamond.first << " " << exposed_diamond.second << std::endl;
-
+      calculate_all_in_diamond(exposed_diamond);
       frontier.cover_triangle(exposed_diamond.second);
     }
   }
@@ -285,6 +284,21 @@ private:
   F *follower;
   int d_max;
   inline static const int never_received = -1;
+
+  void calculate_all_in_diamond(CellDiamond diamond)
+  {
+    int last_d = std::min(diamond.second.d, d_max);
+    for (int d = diamond.first.d; d <= last_d; d++)
+    {
+      int k_min = std::max(diamond.first.k - (d - diamond.first.d), diamond.second.k - (diamond.second.d - d));
+      int k_max = std::min(diamond.first.k + (d - diamond.first.d), diamond.second.k + (diamond.second.d - d));
+      assert(k_max >= k_min && (k_max - k_min) % 2 == 0);
+      for (int k = k_min; k <= k_max; k += 2)
+      {
+        follower->calculate(d, k);
+      }
+    }
+  }
 };
 
 int main()
