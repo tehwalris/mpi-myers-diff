@@ -5,13 +5,21 @@ from typing import List
 
 # Executables:
 own_diff_executable_mpi_master = Path(__file__).parent / "../bin/own-diff-mpi-main.out"
-own_diff_executable_mpi_no_master = Path(__file__).parent / "../bin/own-diff-mpi-no-master.out"
-own_diff_executable_sequential = Path(__file__).parent / "../bin/own-diff-sequential.out"
-own_diff_executable_sequential_fast_snakes = Path(__file__).parent / "../bin/own-diff-sequential-fast-snakes.out"
+own_diff_executable_mpi_no_master = (
+    Path(__file__).parent / "../bin/own-diff-mpi-no-master.out"
+)
+own_diff_executable_sequential = (
+    Path(__file__).parent / "../bin/own-diff-sequential.out"
+)
+own_diff_executable_sequential_fast_snakes = (
+    Path(__file__).parent / "../bin/own-diff-sequential-fast-snakes.out"
+)
 diffutils_executable = Path(__file__).parent / "../bin/diffutils.out"
 
 
-def run_diff_algorithm_mpi(file_1_path, file_2_path, mpi_processes, mpi_executable_path, edit_script_path=None):
+def run_diff_algorithm_mpi(
+    file_1_path, file_2_path, mpi_processes, mpi_executable_path, edit_script_path=None
+):
     # TODO pascal: KeyboardInterrupt doesn't get passed down and the mpi keeps running in the background hogging resources.
     # TODO set timeout?
 
@@ -36,7 +44,7 @@ def run_diff_algorithm_mpi(file_1_path, file_2_path, mpi_processes, mpi_executab
                 mpi_executable_path,
                 file_1_path,
                 file_2_path,
-                edit_script_path
+                edit_script_path,
             ],
             text=True,
         )
