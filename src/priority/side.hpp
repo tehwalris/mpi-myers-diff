@@ -42,6 +42,11 @@ public:
     }
   }
 
+  inline bool operator==(const PerSide<T> &other)
+  {
+    return left == other.left && right == other.right;
+  }
+
 private:
   T left;
   T right;

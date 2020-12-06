@@ -118,7 +118,7 @@ public:
       frontier.cover_triangle(exposed_diamond.second);
     }
 
-    if (future_receives.at(Side::Left) == future_receive_ends.at(Side::Left) && future_receives.at(Side::Right) == future_receive_ends.at(Side::Right))
+    if (future_receives == future_receive_ends)
     {
       done = true;
     }
