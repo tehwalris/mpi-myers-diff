@@ -81,7 +81,12 @@
     "cuchar": "cpp",
     "regex": "cpp",
     "future": "cpp",
-    "shared_mutex": "cpp"
+    "shared_mutex": "cpp",
+    "*.ipp": "cpp",
+    "version": "cpp",
+    "*.inc": "cpp",
+    "core": "cpp",
+    "*.def": "cpp"
   },
   "[c]": {
     "editor.formatOnPaste": false,
