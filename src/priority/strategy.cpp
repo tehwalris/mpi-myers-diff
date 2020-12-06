@@ -70,6 +70,52 @@ inline bool operator==(const CellLocation &lhs, const CellLocation &rhs)
   return lhs.d == rhs.d && lhs.k == rhs.k;
 }
 
+bool point_is_on_inside_of_triangle(CellLocation query_point, CellLocation triangle_bottom)
+{
+  return query_point.d < triangle_bottom.d && abs(query_point.k - triangle_bottom.k) < (triangle_bottom.d - query_point.d);
+}
+
+bool point_is_outside_of_triangle(CellLocation query_point, CellLocation triangle_bottom)
+{
+  return query_point.d > triangle_bottom.d || abs(query_point.k - triangle_bottom.k) > (triangle_bottom.d - query_point.d);
+}
+
+CellLocation triangle_through_points(CellLocation a, CellLocation b)
+{
+  if (a.k > b.k)
+  {
+    std::swap(a, b);
+  }
+  int temp = b.k - a.k + a.d - b.d;
+  assert(temp >= 0 && temp % 2 == 0);
+  temp /= 2;
+  return CellLocation(b.d + temp, b.k - temp);
+}
+
+CellLocation intersect_triangles(CellLocation bottom_a, CellLocation bottom_b)
+{
+  if (bottom_a == bottom_b)
+  {
+    return bottom_a;
+  }
+  if (!point_is_outside_of_triangle(bottom_a, bottom_b))
+  {
+    return bottom_a;
+  }
+  if (!point_is_outside_of_triangle(bottom_b, bottom_a))
+  {
+    return bottom_b;
+  }
+  if (bottom_a.k > bottom_b.k)
+  {
+    std::swap(bottom_a, bottom_b);
+  }
+  int temp = bottom_b.k - bottom_a.k + bottom_b.d - bottom_a.d;
+  assert(temp > 0 && temp % 2 == 0);
+  temp /= 2;
+  return CellLocation(bottom_b.d - temp, bottom_b.k - temp);
+}
+
 // CellDiamond is a pair of top point (inclusive) and bottom point (inclusive)
 typedef std::pair<CellLocation, CellLocation> CellDiamond;
 
@@ -199,71 +245,49 @@ public:
 
 private:
   std::vector<CellLocation> covered_triangle_bottoms;
-
-  static bool point_is_on_inside_of_triangle(CellLocation query_point, CellLocation triangle_bottom)
-  {
-    return query_point.d < triangle_bottom.d && abs(query_point.k - triangle_bottom.k) < (triangle_bottom.d - query_point.d);
-  }
-
-  static bool point_is_outside_of_triangle(CellLocation query_point, CellLocation triangle_bottom)
-  {
-    return query_point.d > triangle_bottom.d || abs(query_point.k - triangle_bottom.k) > (triangle_bottom.d - query_point.d);
-  }
-
-  static CellLocation triangle_through_points(CellLocation a, CellLocation b)
-  {
-    if (a.k > b.k)
-    {
-      std::swap(a, b);
-    }
-    int temp = b.k - a.k + a.d - b.d;
-    assert(temp >= 0 && temp % 2 == 0);
-    temp /= 2;
-    return CellLocation(b.d + temp, b.k - temp);
-  }
-
-  static CellLocation intersect_triangles(CellLocation bottom_a, CellLocation bottom_b)
-  {
-    if (bottom_a == bottom_b)
-    {
-      return bottom_a;
-    }
-    if (!point_is_outside_of_triangle(bottom_a, bottom_b))
-    {
-      return bottom_a;
-    }
-    if (!point_is_outside_of_triangle(bottom_b, bottom_a))
-    {
-      return bottom_b;
-    }
-    if (bottom_a.k > bottom_b.k)
-    {
-      std::swap(bottom_a, bottom_b);
-    }
-    int temp = bottom_b.k - bottom_a.k + bottom_b.d - bottom_a.d;
-    assert(temp > 0 && temp % 2 == 0);
-    temp /= 2;
-    return CellLocation(bottom_b.d - temp, bottom_b.k - temp);
-  }
 };
 
-template <class F>
+template <class F, class IR>
 class Strategy
 {
 public:
-  Strategy(F *follower, int d_max) : follower(follower), d_max(d_max), last_receive(never_received, never_received), frontier(CellLocation(d_max, -d_max - 2), CellLocation(d_max, d_max + 2)){};
+  Strategy(
+      F *follower,
+      PerSide<IR> future_receives,
+      PerSide<IR> future_receive_ends,
+      int d_max) : follower(follower),
+                   future_receives(future_receives),
+                   future_receive_ends(future_receive_ends),
+                   d_max(d_max),
+                   last_receive(never_received, never_received),
+                   frontier(CellLocation(d_max, -d_max - 2), CellLocation(d_max, d_max + 2)){};
 
-  void receive(int d, int k, int v, Side from)
+  void receive(Side from, int v)
   {
-    assert(last_receive.at(from) < d);
-    last_receive.at(from) = d;
-    follower->set(d, k, v);
-    frontier.cover_triangle(CellLocation(d, k));
+    assert(future_receives.at(from) != future_receive_ends.at(from));
+    CellLocation loc = *future_receives.at(from);
+    future_receives.at(from)++;
+
+    assert(last_receive.at(from) < loc.d);
+    last_receive.at(from) = loc.d;
+
+    follower->set(loc.d, loc.k, v);
+    frontier.cover_triangle(loc);
   }
 
   void run()
   {
-    CellLocation target(2 * d_max, 0); // TODO determine dynamically
+    PerSide<CellLocation> limiters(CellLocation(d_max + 1, -(d_max + 1)), CellLocation(d_max + 1, d_max + 1));
+    for (Side s : {Side::Left, Side::Right})
+    {
+      if (future_receives.at(s) != future_receive_ends.at(s))
+      {
+        limiters.at(s) = *future_receives.at(s);
+      }
+    }
+    CellLocation target = triangle_through_points(limiters.at(Side::Left), limiters.at(Side::Right));
+    target.d -= 2;
+
     while (true)
     {
       std::optional<CellDiamond> exposed_diamond_opt = frontier.get_next_exposed_diamond(target);
@@ -279,6 +303,8 @@ public:
   }
 
 private:
+  PerSide<IR> future_receives;
+  PerSide<IR> future_receive_ends;
   PerSide<int> last_receive;
   Frontier frontier;
   F *follower;
@@ -303,13 +329,42 @@ private:
 
 int main()
 {
-  int d_max = 10;
+  int d_max = 7;
+  PerSide<std::vector<CellLocation>> future_receives(std::vector<CellLocation>{}, std::vector<CellLocation>());
+  future_receives.at(Side::Left).emplace_back(0, 0);
+  future_receives.at(Side::Left).emplace_back(1, -1);
+  future_receives.at(Side::Left).emplace_back(3, -1);
+  future_receives.at(Side::Left).emplace_back(4, -2);
+  future_receives.at(Side::Left).emplace_back(6, -2);
+  future_receives.at(Side::Right).emplace_back(2, 2);
+  future_receives.at(Side::Right).emplace_back(3, 3);
+  future_receives.at(Side::Right).emplace_back(5, 3);
+  future_receives.at(Side::Right).emplace_back(6, 4);
+  PerSide<std::vector<CellLocation>::const_iterator> future_receive_begins(future_receives.at(Side::Left).begin(), future_receives.at(Side::Right).begin());
+  PerSide<std::vector<CellLocation>::const_iterator> future_receive_ends(future_receives.at(Side::Left).end(), future_receives.at(Side::Right).end());
+
   SimpleStorage storage(d_max);
   DebugStrategyFollower<SimpleStorage> follower(&storage);
-  Strategy<DebugStrategyFollower<SimpleStorage>> strategy(&follower, d_max);
+  Strategy strategy(&follower, future_receive_begins, future_receive_ends, d_max);
 
-  strategy.receive(0, 0, 12, Side::Right);
-  strategy.receive(1, 1, 12, Side::Right);
-  strategy.receive(2, 2, 12, Side::Right);
   strategy.run();
+  std::cerr << std::endl;
+
+  strategy.receive(Side::Left, 12);
+  strategy.run();
+  std::cerr << std::endl;
+
+  strategy.receive(Side::Left, 12);
+  strategy.run();
+  std::cerr << std::endl;
+
+  strategy.receive(Side::Left, 12);
+  strategy.run();
+  std::cerr << std::endl;
+
+  strategy.receive(Side::Right, 12);
+  strategy.run();
+  std::cerr << std::endl;
+
+  // TODO This might try to calculate invalid cells when all receives are done
 }
