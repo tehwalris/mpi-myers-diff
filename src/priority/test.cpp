@@ -176,11 +176,11 @@ TEST_CASE("Strategy - whole pyramid")
   REQUIRE(follower.get_num_directly_calculated() == ((d_max + 1) * (d_max + 1) + (d_max + 1)) / 2);
 }
 
-TEST_CASE("Partition - concrete example (green)")
+TEST_CASE("RoundRobinPartition - concrete example (green)")
 {
   // This tests the partition calculator with the tasks of the green worker from the custom figure in our first (progress) presentation
 
-  Partition partition(3, 1);
+  RoundRobinPartition partition(3, 1);
 
   // d 0
   REQUIRE(!partition.has_work());
@@ -206,11 +206,11 @@ TEST_CASE("Partition - concrete example (green)")
   }
 }
 
-TEST_CASE("Partition - concrete example (red)")
+TEST_CASE("RoundRobinPartition - concrete example (red)")
 {
   // This tests the partition calculator with the tasks of the red worker from the custom figure in our first (progress) presentation
 
-  Partition partition(3, 0);
+  RoundRobinPartition partition(3, 0);
 
   // starting from d 0
   std::vector<std::pair<int, int>> k_ranges{

@@ -3,10 +3,10 @@
 #include <vector>
 #include <cassert>
 
-class Partition
+class RoundRobinPartition
 {
 public:
-  Partition(
+  RoundRobinPartition(
       int num_workers,
       int target_worker) : num_workers(num_workers),
                            target_worker(target_worker)
