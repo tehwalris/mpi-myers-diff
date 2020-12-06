@@ -96,8 +96,6 @@ public:
 
   void run()
   {
-    std::cerr << "DEBUG run " << std::endl;
-
     PerSide<CellLocation> limiters = final_known_limiters;
     bool limited_by_receives = false;
     for (Side s : {Side::Left, Side::Right})
@@ -142,8 +140,6 @@ public:
       }
       CellDiamond &exposed_diamond = exposed_diamond_opt.value();
 
-      std::cerr << "DEBUG diamond " << exposed_diamond.first << " " << exposed_diamond.second << std::endl;
-
       assert(!done);
       calculate_all_in_diamond(exposed_diamond);
       frontier.cover_triangle(exposed_diamond.second);
@@ -157,7 +153,7 @@ public:
         continue;
       }
       CellLocation send_loc = *future_sends.at(s);
-      if (!point_is_outside_of_triangle(send_loc, target))
+      if (send_loc.d < d_max && !point_is_outside_of_triangle(send_loc, target))
       {
         follower->send(send_loc.d, send_loc.k, s);
         future_sends.at(s)++;

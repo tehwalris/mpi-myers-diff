@@ -15,6 +15,8 @@ template <class S>
 class TestStrategyFollower
 {
 public:
+  std::vector<std::pair<CellLocation, Side>> sends;
+
   TestStrategyFollower(S *storage) : storage(storage), num_calculated(0){};
 
   inline void set(int d, int k, int v)
@@ -42,6 +44,7 @@ public:
   void send(int d, int k, Side to)
   {
     get(d, k);
+    sends.emplace_back(CellLocation(d, k), to);
   }
 
   int get_num_directly_calculated()
@@ -117,61 +120,89 @@ TEST_CASE("Strategy - concrete example (green)")
   REQUIRE(!strategy.is_done());
   strategy.run();
   REQUIRE(follower.get_num_directly_calculated() == 0);
+  REQUIRE(follower.sends.size() == 0);
 
   strategy.receive(Side::Left, dummy);
   strategy.run();
   REQUIRE(follower.get_num_directly_calculated() == 1);
+  REQUIRE(follower.sends.size() == 1);
 
   strategy.receive(Side::Left, dummy);
   strategy.run();
   REQUIRE(follower.get_num_directly_calculated() == 2);
+  REQUIRE(follower.sends.size() == 2);
 
   strategy.receive(Side::Left, dummy);
   strategy.run();
   REQUIRE(follower.get_num_directly_calculated() == 2);
+  REQUIRE(follower.sends.size() == 2);
 
   strategy.receive(Side::Right, dummy);
   strategy.run();
   REQUIRE(follower.get_num_directly_calculated() == 4);
+  REQUIRE(follower.sends.size() == 2);
 
   strategy.receive(Side::Right, dummy);
   strategy.run();
   REQUIRE(follower.get_num_directly_calculated() == 5);
+  REQUIRE(follower.sends.size() == 3);
   REQUIRE(!strategy.is_blocked_waiting_for_receive());
   strategy.run();
   REQUIRE(follower.get_num_directly_calculated() == 6);
+  REQUIRE(follower.sends.size() == 3);
   strategy.run();
   REQUIRE(follower.get_num_directly_calculated() == 6);
+  REQUIRE(follower.sends.size() == 3);
   REQUIRE(strategy.is_blocked_waiting_for_receive());
 
   strategy.receive(Side::Right, dummy);
   strategy.run();
   REQUIRE(follower.get_num_directly_calculated() == 7);
+  REQUIRE(follower.sends.size() == 3);
 
   strategy.receive(Side::Left, dummy);
   strategy.run();
   REQUIRE(follower.get_num_directly_calculated() == 8);
+  REQUIRE(follower.sends.size() == 4);
   REQUIRE(!strategy.is_blocked_waiting_for_receive());
   strategy.run();
   REQUIRE(follower.get_num_directly_calculated() == 10);
+  REQUIRE(follower.sends.size() == 4);
   strategy.run();
   REQUIRE(follower.get_num_directly_calculated() == 10);
+  REQUIRE(follower.sends.size() == 4);
   REQUIRE(strategy.is_blocked_waiting_for_receive());
 
   strategy.receive(Side::Left, dummy);
   strategy.run();
   REQUIRE(follower.get_num_directly_calculated() == 11);
+  REQUIRE(follower.sends.size() == 4);
 
   REQUIRE(!strategy.is_done());
   strategy.receive(Side::Right, dummy);
   strategy.run();
   REQUIRE(follower.get_num_directly_calculated() == 12);
+  REQUIRE(follower.sends.size() == 4);
   REQUIRE(strategy.is_done());
 
   strategy.run();
   REQUIRE(follower.get_num_directly_calculated() == 12);
+  REQUIRE(follower.sends.size() == 4);
   REQUIRE(strategy.is_done());
   REQUIRE(!strategy.is_blocked_waiting_for_receive());
+
+  std::vector<std::pair<CellLocation, Side>> expected_sends{
+      std::make_pair(CellLocation(1, 1), Side::Right),
+      std::make_pair(CellLocation(2, 0), Side::Left),
+      std::make_pair(CellLocation(4, 2), Side::Right),
+      std::make_pair(CellLocation(5, -1), Side::Left),
+  };
+  REQUIRE(follower.sends.size() == expected_sends.size());
+  for (int i = 0; i < expected_sends.size(); i++)
+  {
+    REQUIRE(follower.sends.at(i).first == expected_sends.at(i).first);
+    REQUIRE(follower.sends.at(i).second == expected_sends.at(i).second);
+  }
 }
 
 TEST_CASE("Strategy - whole pyramid")
