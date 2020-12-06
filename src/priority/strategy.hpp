@@ -166,7 +166,7 @@ public:
     {
       done = true;
     }
-    blocked_waiting_for_receive = !done && !calculated_something && limited_by_receives;
+    blocked_waiting_for_receive = !done && !calculated_something && limited_by_receives && !limited_by_sends;
   }
 
   bool is_done()
