@@ -25,6 +25,11 @@ public:
     d++;
   }
 
+  int get_d_layer()
+  {
+    return d;
+  }
+
   bool has_work()
   {
     return size_target > 0;
@@ -65,6 +70,11 @@ public:
     return PerSide(target_worker > next_worker_to_extend, target_worker < next_worker_to_extend);
   }
 
+  PerSide<bool> will_not_use_side_in_future()
+  {
+    return PerSide(target_worker == 0, target_worker + 1 == num_workers);
+  }
+
 private:
   int num_workers;
   int target_worker;
@@ -90,5 +100,97 @@ private:
     {
       size_target++;
     }
+  }
+};
+
+template <class P>
+class BaseSideIterator
+{
+public:
+  BaseSideIterator(P partition, Side side) : partition(partition), side(side)
+  {
+    assert(partition.get_d_layer() == 0);
+    end = partition.will_not_use_side_in_future(side);
+    if (!end)
+    {
+      while (!partition.has_work() || !found_good_element())
+      {
+        partition.next_d_layer();
+      }
+    }
+  }
+
+  BaseSideIterator() : end(true) {}
+
+  inline CellLocation operator++() const
+  {
+    assert(!end);
+    do
+    {
+      partition.next_d_layer();
+      end = partition.will_not_use_side_in_future(side);
+    } while (!end && !found_good_element());
+  }
+
+  inline bool operator==(const BaseSideIterator<P> &other) const
+  {
+    return end && other.end;
+  }
+
+protected:
+  Side side;
+  P partition;
+
+  virtual bool found_good_element();
+
+private:
+  bool end;
+};
+
+template <class P>
+class ReceiveSideIterator : public BaseSideIterator<P>
+{
+public:
+  ReceiveSideIterator(P partition, Side side) : BaseSideIterator<P>(partition, side) {}
+
+  ReceiveSideIterator() : BaseSideIterator<P>() {}
+
+  inline CellLocation operator*() const
+  {
+    assert(BaseSideIterator<P>::partition.has_work());
+    int d = BaseSideIterator<P>::partition.get_d_layer();
+    assert(d > 0);
+    std::pair<int, int> k_range = BaseSideIterator<P>::partition.get_k_range();
+    return (BaseSideIterator<P>::side == Side::Left) ? CellLocation(d - 1, k_range.first - 1) : CellLocation(d - 1, k_range.second + 1);
+  }
+
+protected:
+  virtual bool found_good_element()
+  {
+    return BaseSideIterator<P>::partition.should_receive().at(BaseSideIterator<P>::side);
+  }
+};
+
+template <class P>
+class SendSideIterator : public BaseSideIterator<P>
+{
+public:
+  SendSideIterator(P partition, Side side) : BaseSideIterator<P>(partition, side) {}
+
+  SendSideIterator() : BaseSideIterator<P>() {}
+
+  inline CellLocation operator*() const
+  {
+    assert(BaseSideIterator<P>::partition.has_work());
+    int d = BaseSideIterator<P>::partition.get_d_layer();
+    assert(d >= 0);
+    std::pair<int, int> k_range = BaseSideIterator<P>::partition.get_k_range();
+    return (BaseSideIterator<P>::side == Side::Left) ? CellLocation(d, k_range.first) : CellLocation(d, k_range.second);
+  }
+
+protected:
+  virtual bool found_good_element()
+  {
+    return BaseSideIterator<P>::partition.should_send().at(BaseSideIterator<P>::side);
   }
 };
