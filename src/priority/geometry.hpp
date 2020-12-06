@@ -36,6 +36,8 @@ inline bool point_is_outside_of_triangle(CellLocation query_point, CellLocation 
 
 CellLocation triangle_through_points(CellLocation a, CellLocation b)
 {
+  assert(!point_is_on_inside_of_triangle(a, b));
+  assert(!point_is_on_inside_of_triangle(b, a));
   if (a.k > b.k)
   {
     std::swap(a, b);

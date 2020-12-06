@@ -10,6 +10,7 @@
 #include "geometry.hpp"
 #include "side.hpp"
 #include "partition.hpp"
+#include "storage.hpp"
 
 template <class S>
 class TestStrategyFollower
@@ -17,7 +18,7 @@ class TestStrategyFollower
 public:
   std::vector<std::pair<CellLocation, Side>> sends;
 
-  TestStrategyFollower(S *storage) : storage(storage), num_calculated(0){};
+  TestStrategyFollower(S *storage) : storage(storage){};
 
   inline void set(int d, int k, int v)
   {
@@ -54,7 +55,7 @@ public:
 
 private:
   S *storage;
-  int num_calculated;
+  int num_calculated = 0;
 
   inline int get(int d, int k)
   {
@@ -62,32 +63,6 @@ private:
     assert(stored != S::undefined);
     return stored;
   }
-};
-
-class SimpleStorage
-{
-public:
-  inline static const int undefined = -1;
-
-  SimpleStorage(int d_max) : d_max(d_max)
-  {
-    for (int i = 0; i <= d_max; i++)
-    {
-      data.emplace_back(2 * i + 1, undefined);
-    }
-  }
-
-  inline int &at(int d, int k)
-  {
-    assert(d >= 0 && d <= d_max);
-    assert(abs(k) <= d);
-    assert((d - abs(k)) % 2 == 0);
-    return data.at(d).at(k + d);
-  }
-
-private:
-  int d_max;
-  std::vector<std::vector<int>> data;
 };
 
 TEST_CASE("Strategy - concrete example (green)")

@@ -22,6 +22,20 @@ const char *str_for_side(Side side)
   }
 }
 
+Side other_side(Side side)
+{
+  switch (side)
+  {
+  case Side::Left:
+    return Side::Right;
+  case Side::Right:
+    return Side::Left;
+  default:
+    assert(false);
+    __builtin_unreachable();
+  }
+}
+
 template <class T>
 class PerSide
 {

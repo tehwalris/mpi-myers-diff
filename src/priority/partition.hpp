@@ -2,7 +2,7 @@
 
 #include <vector>
 #include <cassert>
-#include "./side.hpp"
+#include "side.hpp"
 
 class RoundRobinPartition
 {

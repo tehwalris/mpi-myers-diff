@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+#include <algorithm>
 #include "geometry.hpp"
 #include "side.hpp"
 
