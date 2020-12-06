@@ -86,12 +86,12 @@ private:
   std::vector<std::vector<int>> data;
 };
 
-TEST_CASE("Strategy - concrete example")
+TEST_CASE("Strategy - concrete example (green)")
 {
   // This tests the strategy with the tasks of the green worker from the custom figure in our first (progress) presentation
 
-  int d_max = 7;
-  PerSide<std::vector<CellLocation>> future_receives(std::vector<CellLocation>{}, std::vector<CellLocation>());
+  const int d_max = 7;
+  PerSide<std::vector<CellLocation>> future_receives(std::vector<CellLocation>{}, std::vector<CellLocation>{});
   future_receives.at(Side::Left).emplace_back(0, 0);
   future_receives.at(Side::Left).emplace_back(1, -1);
   future_receives.at(Side::Left).emplace_back(3, -1);
@@ -155,4 +155,22 @@ TEST_CASE("Strategy - concrete example")
   strategy.run();
   REQUIRE(follower.get_num_directly_calculated() == 12);
   REQUIRE(strategy.is_done());
+}
+
+TEST_CASE("Strategy - whole pyramid")
+{
+  const int d_max = 20;
+  PerSide<std::vector<CellLocation>> future_receives(std::vector<CellLocation>{}, std::vector<CellLocation>{});
+  PerSide<std::vector<CellLocation>::const_iterator> future_receive_begins(future_receives.at(Side::Left).begin(), future_receives.at(Side::Right).begin());
+  PerSide<std::vector<CellLocation>::const_iterator> future_receive_ends(future_receives.at(Side::Left).end(), future_receives.at(Side::Right).end());
+
+  SimpleStorage storage(d_max);
+  TestStrategyFollower<SimpleStorage> follower(&storage);
+  Strategy strategy(&follower, future_receive_begins, future_receive_ends, d_max);
+
+  REQUIRE(!strategy.is_done());
+  REQUIRE(follower.get_num_directly_calculated() == 0);
+  strategy.run();
+  REQUIRE(strategy.is_done());
+  REQUIRE(follower.get_num_directly_calculated() == ((d_max + 1) * (d_max + 1) + (d_max + 1)) / 2);
 }
