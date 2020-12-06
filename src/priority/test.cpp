@@ -9,6 +9,7 @@
 #include "strategy.hpp"
 #include "geometry.hpp"
 #include "side.hpp"
+#include "partition.hpp"
 
 template <class S>
 class TestStrategyFollower
@@ -173,4 +174,61 @@ TEST_CASE("Strategy - whole pyramid")
   strategy.run();
   REQUIRE(strategy.is_done());
   REQUIRE(follower.get_num_directly_calculated() == ((d_max + 1) * (d_max + 1) + (d_max + 1)) / 2);
+}
+
+TEST_CASE("Partition - concrete example (green)")
+{
+  // This tests the partition calculator with the tasks of the green worker from the custom figure in our first (progress) presentation
+
+  Partition partition(3, 1);
+
+  // d 0
+  REQUIRE(!partition.has_work());
+  partition.next_d_layer();
+
+  // starting from d 1
+  std::vector<std::pair<int, int>> k_ranges{
+      std::make_pair(1, 1),
+      std::make_pair(0, 0),
+      std::make_pair(1, 1),
+      std::make_pair(0, 2),
+      std::make_pair(-1, 1),
+      std::make_pair(0, 2),
+      std::make_pair(-1, 3),
+  };
+
+  for (auto expected_k_range : k_ranges)
+  {
+    REQUIRE(partition.has_work());
+    REQUIRE(partition.get_k_range().first == expected_k_range.first);
+    REQUIRE(partition.get_k_range().second == expected_k_range.second);
+    partition.next_d_layer();
+  }
+}
+
+TEST_CASE("Partition - concrete example (red)")
+{
+  // This tests the partition calculator with the tasks of the red worker from the custom figure in our first (progress) presentation
+
+  Partition partition(3, 0);
+
+  // starting from d 0
+  std::vector<std::pair<int, int>> k_ranges{
+      std::make_pair(0, 0),
+      std::make_pair(-1, -1),
+      std::make_pair(-2, -2),
+      std::make_pair(-3, -1),
+      std::make_pair(-4, -2),
+      std::make_pair(-5, -3),
+      std::make_pair(-6, -2),
+      std::make_pair(-7, -3),
+  };
+
+  for (auto expected_k_range : k_ranges)
+  {
+    REQUIRE(partition.has_work());
+    REQUIRE(partition.get_k_range().first == expected_k_range.first);
+    REQUIRE(partition.get_k_range().second == expected_k_range.second);
+    partition.next_d_layer();
+  }
 }
