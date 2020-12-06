@@ -8,7 +8,19 @@ enum Side
   Right = 2,
 };
 
-const char *str_for_side(Side side);
+const char *str_for_side(Side side)
+{
+  switch (side)
+  {
+  case Side::Left:
+    return "left";
+  case Side::Right:
+    return "right";
+  default:
+    assert(false);
+    __builtin_unreachable();
+  }
+}
 
 template <class T>
 class PerSide
