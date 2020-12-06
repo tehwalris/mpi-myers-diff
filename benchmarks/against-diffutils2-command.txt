@@ -1,0 +1,1 @@
+scripts.bench_algorithm --output-csv=benchmarks/against-diffutils2.csv --max-file-size=10000 --target-file-size-steps=15 --target-change-strength-steps=10 --target-chunkiness-steps=1 --mpi-procs=4 --num-regens=3 --num-repetitions=2 --limit-programs=mpi_no_master,diffutils

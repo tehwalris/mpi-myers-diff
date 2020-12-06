@@ -1,5 +1,6 @@
 #include <vector>
 #include <assert.h>
+#include <cstdlib>
 
 
 struct SnakesOnDiag {
