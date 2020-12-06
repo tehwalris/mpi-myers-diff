@@ -60,7 +60,7 @@ private:
   std::vector<CellLocation> covered_triangle_bottoms;
 };
 
-template <class F, class IR>
+template <class F, class IR, class IS>
 class Strategy
 {
 public:
@@ -68,13 +68,16 @@ public:
       F *follower,
       PerSide<IR> future_receives,
       PerSide<IR> future_receive_ends,
+      PerSide<IS> future_sends,
+      PerSide<IS> future_send_ends,
       int d_max) : follower(follower),
                    future_receives(future_receives),
                    future_receive_ends(future_receive_ends),
+                   future_sends(future_sends),
+                   future_send_ends(future_send_ends),
                    d_max(d_max),
                    frontier(CellLocation(d_max, -d_max - 2), CellLocation(d_max, d_max + 2)),
-                   final_known_limiters(CellLocation(d_max + 1, -(d_max + 1)), CellLocation(d_max + 1, d_max + 1)),
-                   done(false)
+                   final_known_limiters(CellLocation(d_max + 1, -(d_max + 1)), CellLocation(d_max + 1, d_max + 1))
   {
     assert(d_max >= 0);
   };
@@ -93,22 +96,43 @@ public:
 
   void run()
   {
+    std::cerr << "DEBUG run " << std::endl;
+
     PerSide<CellLocation> limiters = final_known_limiters;
     bool limited_by_receives = false;
     for (Side s : {Side::Left, Side::Right})
     {
-      if (future_receives.at(s) != future_receive_ends.at(s))
+      if (future_receives.at(s) == future_receive_ends.at(s))
       {
-        limiters.at(s) = *future_receives.at(s);
-        if (limiters.at(s).d < d_max)
-        {
-          limited_by_receives = true;
-        }
+        continue;
+      }
+      limiters.at(s) = *future_receives.at(s);
+      if (limiters.at(s).d < d_max)
+      {
+        limited_by_receives = true;
       }
     }
+
     CellLocation target = triangle_through_points(limiters.at(Side::Left), limiters.at(Side::Right));
     target.d -= 2;
 
+    bool limited_by_sends = false;
+    for (Side s : {Side::Left, Side::Right})
+    {
+      if (future_sends.at(s) == future_send_ends.at(s))
+      {
+        continue;
+      }
+      CellLocation send_loc = *future_sends.at(s);
+      if (send_loc.d < d_max && !point_is_outside_of_triangle(send_loc, target))
+      {
+        target = send_loc;
+        limited_by_sends = true;
+        break;
+      }
+    }
+
+    bool calculated_something = false;
     while (true)
     {
       std::optional<CellDiamond> exposed_diamond_opt = frontier.get_next_exposed_diamond(target);
@@ -118,15 +142,33 @@ public:
       }
       CellDiamond &exposed_diamond = exposed_diamond_opt.value();
 
+      std::cerr << "DEBUG diamond " << exposed_diamond.first << " " << exposed_diamond.second << std::endl;
+
       assert(!done);
       calculate_all_in_diamond(exposed_diamond);
       frontier.cover_triangle(exposed_diamond.second);
+      calculated_something = true;
     }
 
-    if (!limited_by_receives)
+    for (Side s : {Side::Left, Side::Right})
+    {
+      if (future_sends.at(s) == future_send_ends.at(s))
+      {
+        continue;
+      }
+      CellLocation send_loc = *future_sends.at(s);
+      if (!point_is_outside_of_triangle(send_loc, target))
+      {
+        follower->send(send_loc.d, send_loc.k, s);
+        future_sends.at(s)++;
+      }
+    }
+
+    if (!limited_by_receives && !limited_by_sends)
     {
       done = true;
     }
+    blocked_waiting_for_receive = !done && !calculated_something && limited_by_receives;
   }
 
   bool is_done()
@@ -134,15 +176,23 @@ public:
     return done;
   }
 
+  bool is_blocked_waiting_for_receive()
+  {
+    return blocked_waiting_for_receive;
+  }
+
 private:
   PerSide<IR> future_receives;
   PerSide<IR> future_receive_ends;
+  PerSide<IS> future_sends;
+  PerSide<IS> future_send_ends;
   PerSide<CellLocation> final_known_limiters;
   Frontier frontier;
   F *follower;
   int d_max;
   inline static const int never_received = -1;
-  bool done;
+  bool done = false;
+  bool blocked_waiting_for_receive = false;
 
   void calculate_all_in_diamond(CellDiamond diamond)
   {

@@ -91,8 +91,8 @@ TEST_CASE("Strategy - concrete example (green)")
 {
   // This tests the strategy with the tasks of the green worker from the custom figure in our first (progress) presentation
 
-  const int d_max = 7;
   RoundRobinPartition partition(3, 1);
+
   ReceiveSideIterator left_receive_begin(partition, Side::Left);
   ReceiveSideIterator left_receive_end(partition);
   ReceiveSideIterator right_receive_begin(partition, Side::Right);
@@ -100,9 +100,17 @@ TEST_CASE("Strategy - concrete example (green)")
   PerSide future_receive_begins(left_receive_begin, right_receive_begin);
   PerSide future_receive_ends(left_receive_end, right_receive_end);
 
+  SendSideIterator left_send_begin(partition, Side::Left);
+  SendSideIterator left_send_end(partition);
+  SendSideIterator right_send_begin(partition, Side::Right);
+  SendSideIterator right_send_end(partition);
+  PerSide future_send_begins(left_send_begin, right_send_begin);
+  PerSide future_send_ends(left_send_end, right_send_end);
+
+  const int d_max = 7;
   SimpleStorage storage(d_max);
   TestStrategyFollower<SimpleStorage> follower(&storage);
-  Strategy strategy(&follower, future_receive_begins, future_receive_ends, d_max);
+  Strategy strategy(&follower, future_receive_begins, future_receive_ends, future_send_begins, future_send_ends, d_max);
 
   const int dummy = 0;
 
@@ -128,7 +136,13 @@ TEST_CASE("Strategy - concrete example (green)")
 
   strategy.receive(Side::Right, dummy);
   strategy.run();
+  REQUIRE(follower.get_num_directly_calculated() == 5);
+  REQUIRE(!strategy.is_blocked_waiting_for_receive());
+  strategy.run();
   REQUIRE(follower.get_num_directly_calculated() == 6);
+  strategy.run();
+  REQUIRE(follower.get_num_directly_calculated() == 6);
+  REQUIRE(strategy.is_blocked_waiting_for_receive());
 
   strategy.receive(Side::Right, dummy);
   strategy.run();
@@ -136,7 +150,13 @@ TEST_CASE("Strategy - concrete example (green)")
 
   strategy.receive(Side::Left, dummy);
   strategy.run();
+  REQUIRE(follower.get_num_directly_calculated() == 8);
+  REQUIRE(!strategy.is_blocked_waiting_for_receive());
+  strategy.run();
   REQUIRE(follower.get_num_directly_calculated() == 10);
+  strategy.run();
+  REQUIRE(follower.get_num_directly_calculated() == 10);
+  REQUIRE(strategy.is_blocked_waiting_for_receive());
 
   strategy.receive(Side::Left, dummy);
   strategy.run();
@@ -151,6 +171,7 @@ TEST_CASE("Strategy - concrete example (green)")
   strategy.run();
   REQUIRE(follower.get_num_directly_calculated() == 12);
   REQUIRE(strategy.is_done());
+  REQUIRE(!strategy.is_blocked_waiting_for_receive());
 }
 
 TEST_CASE("Strategy - whole pyramid")
@@ -160,9 +181,13 @@ TEST_CASE("Strategy - whole pyramid")
   PerSide<std::vector<CellLocation>::const_iterator> future_receive_begins(future_receives.at(Side::Left).begin(), future_receives.at(Side::Right).begin());
   PerSide<std::vector<CellLocation>::const_iterator> future_receive_ends(future_receives.at(Side::Left).end(), future_receives.at(Side::Right).end());
 
+  PerSide<std::vector<CellLocation>> future_sends(std::vector<CellLocation>{}, std::vector<CellLocation>{});
+  PerSide<std::vector<CellLocation>::const_iterator> future_send_begins(future_sends.at(Side::Left).begin(), future_sends.at(Side::Right).begin());
+  PerSide<std::vector<CellLocation>::const_iterator> future_send_ends(future_sends.at(Side::Left).end(), future_sends.at(Side::Right).end());
+
   SimpleStorage storage(d_max);
   TestStrategyFollower<SimpleStorage> follower(&storage);
-  Strategy strategy(&follower, future_receive_begins, future_receive_ends, d_max);
+  Strategy strategy(&follower, future_receive_begins, future_receive_ends, future_send_begins, future_send_ends, d_max);
 
   REQUIRE(!strategy.is_done());
   REQUIRE(follower.get_num_directly_calculated() == 0);
