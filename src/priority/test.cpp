@@ -278,3 +278,72 @@ TEST_CASE("RoundRobinPartition - concrete example (red)")
     partition.next_d_layer();
   }
 }
+
+TEST_CASE("ReceiveSideIterator - concrete example (green)")
+{
+  // This test uses tasks of the green worker from the custom figure in our first (progress) presentation
+
+  PerSide<std::vector<CellLocation>> future_receives(std::vector<CellLocation>{}, std::vector<CellLocation>{});
+  future_receives.at(Side::Left).emplace_back(0, 0);
+  future_receives.at(Side::Left).emplace_back(1, -1);
+  future_receives.at(Side::Left).emplace_back(3, -1);
+  future_receives.at(Side::Left).emplace_back(4, -2);
+  future_receives.at(Side::Left).emplace_back(6, -2);
+  future_receives.at(Side::Right).emplace_back(2, 2);
+  future_receives.at(Side::Right).emplace_back(3, 3);
+  future_receives.at(Side::Right).emplace_back(5, 3);
+  future_receives.at(Side::Right).emplace_back(6, 4);
+
+  for (Side side : {Side::Left, Side::Right})
+  {
+    ReceiveSideIterator it(RoundRobinPartition(3, 1), side);
+    for (CellLocation expected_receive : future_receives.at(side))
+    {
+      REQUIRE(*it == expected_receive);
+      it++;
+    }
+  }
+}
+
+TEST_CASE("SendSideIterator - concrete example (green)")
+{
+  // This test uses tasks of the green worker from the custom figure in our first (progress) presentation
+
+  PerSide<std::vector<CellLocation>> future_sends(std::vector<CellLocation>{}, std::vector<CellLocation>{});
+  future_sends.at(Side::Left).emplace_back(2, 0);
+  future_sends.at(Side::Left).emplace_back(5, -1);
+  future_sends.at(Side::Right).emplace_back(1, 1);
+  future_sends.at(Side::Right).emplace_back(4, 2);
+
+  for (Side side : {Side::Left, Side::Right})
+  {
+    SendSideIterator it(RoundRobinPartition(3, 1), side);
+    for (CellLocation expected_send : future_sends.at(side))
+    {
+      REQUIRE(*it == expected_send);
+      it++;
+    }
+  }
+}
+
+TEST_CASE("SendSideIterator - concrete example (blue)")
+{
+  // This test uses tasks of the blue worker from the custom figure in our first (progress) presentation
+
+  RoundRobinPartition partition(3, 2);
+  SendSideIterator end_it(partition);
+
+  SendSideIterator left_it(partition, Side::Left);
+  assert(left_it != end_it);
+  REQUIRE(*left_it == CellLocation(2, 2));
+  left_it++;
+  REQUIRE(*left_it == CellLocation(3, 3));
+  left_it++;
+  REQUIRE(*left_it == CellLocation(5, 3));
+  left_it++;
+  REQUIRE(*left_it == CellLocation(6, 4));
+  left_it++;
+
+  SendSideIterator right_it(partition, Side::Right);
+  assert(!(right_it != end_it));
+}
