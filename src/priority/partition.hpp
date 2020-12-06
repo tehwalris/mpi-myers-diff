@@ -20,6 +20,7 @@ public:
   void next_d_layer()
   {
     extend(next_worker_to_extend);
+    just_extended_worker = next_worker_to_extend;
     next_worker_to_extend = (next_worker_to_extend + 1) % num_workers;
     d++;
   }
@@ -41,8 +42,21 @@ public:
   // receive border elements from last layer before starting work on this layer
   PerSide<bool> should_receive()
   {
-    // TODO
-    return PerSide(false, false);
+    if (!has_work())
+    {
+      return PerSide(false, false);
+    }
+    PerSide<bool> out(just_extended_worker >= target_worker, just_extended_worker <= target_worker);
+    std::pair<int, int> k_range = get_k_range();
+    if (k_range.first == -d)
+    {
+      out.at(Side::Left) = false;
+    }
+    if (k_range.second == d)
+    {
+      out.at(Side::Right) = false;
+    }
+    return out;
   }
 
   // send border elements of this layer before starting work on next layer
@@ -56,6 +70,7 @@ private:
   int target_worker;
   int d = -1;
   int next_worker_to_extend = 0;
+  int just_extended_worker;
   int size_before = 0;
   int size_target = 0;
   int size_after = 0;
