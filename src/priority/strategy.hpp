@@ -98,6 +98,8 @@ public:
 
   void run()
   {
+    assert(!done);
+
     PerSide<CellLocation> limiters = final_known_limiters;
     bool limited_by_receives = false;
     for (Side s : {Side::Left, Side::Right})
@@ -142,7 +144,6 @@ public:
       }
       CellDiamond &exposed_diamond = exposed_diamond_opt.value();
 
-      assert(!done);
       calculate_all_in_diamond(exposed_diamond);
       frontier.cover_triangle(exposed_diamond.second);
       calculated_something = true;
@@ -166,7 +167,7 @@ public:
     {
       done = true;
     }
-    blocked_waiting_for_receive = !done && !calculated_something && limited_by_receives && !limited_by_sends;
+    blocked_waiting_for_receive = !calculated_something && limited_by_receives && !limited_by_sends;
   }
 
   bool is_done()
@@ -176,7 +177,12 @@ public:
 
   bool is_blocked_waiting_for_receive()
   {
-    return blocked_waiting_for_receive;
+    return !done && blocked_waiting_for_receive;
+  }
+
+  std::optional<CellLocation> get_final_result_location()
+  {
+    return final_result_location;
   }
 
 private:
@@ -191,6 +197,7 @@ private:
   inline static const int never_received = -1;
   bool done = false;
   bool blocked_waiting_for_receive = false;
+  std::optional<CellLocation> final_result_location = std::nullopt;
 
   void calculate_all_in_diamond(CellDiamond diamond)
   {
@@ -202,7 +209,14 @@ private:
       assert(k_max >= k_min && (k_max - k_min) % 2 == 0);
       for (int k = k_min; k <= k_max; k += 2)
       {
-        follower->calculate(d, k);
+        bool just_found_final_result = follower->calculate(d, k);
+        if (just_found_final_result)
+        {
+          assert(!final_result_location.has_value());
+          final_result_location = std::optional{CellLocation(d, k)};
+          done = true;
+          return;
+        }
       }
     }
   }

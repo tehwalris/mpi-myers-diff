@@ -7,6 +7,7 @@
 enum Tag
 {
   ReportWork,
+  Interrupt,
 };
 
 template <class S>
@@ -35,7 +36,7 @@ public:
     stored = v;
   }
 
-  void calculate(int d, int k)
+  bool calculate(int d, int k)
   {
     assert(d >= 0 && abs(k) <= d);
 
@@ -62,6 +63,7 @@ public:
     }
 
     set(d, k, x);
+    return x >= in_1.size() && y >= in_2.size();
   }
 
   void send(int d, int k, Side to)
@@ -73,14 +75,52 @@ public:
     MPI_Send(msg.data(), msg.size(), MPI_INT, to_rank, Tag::ReportWork, MPI_COMM_WORLD);
   }
 
-  static std::pair<Side, int> blocking_receive()
+  void send_interrupt(Side to)
   {
+    if ((world_rank == 0 && to == Side::Left) || (world_rank + 1 == world_size && to == Side::Right))
+    {
+      return;
+    }
+    int to_rank = to == Side::Left ? world_rank - 1 : world_rank + 1;
+    assert(to_rank >= 0 && to_rank < world_size);
+    std::vector<int> msg{int(to)};
+    MPI_Send(msg.data(), msg.size(), MPI_INT, to_rank, Tag::Interrupt, MPI_COMM_WORLD);
+  }
+
+  bool has_incoming_message()
+  {
+    int flag;
+    MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag, MPI_STATUS_IGNORE);
+    return flag != 0;
+  }
+
+  std::optional<std::pair<Side, int>> blocking_receive()
+  {
+    // handle interrupt if one is already queued
+    int flag;
+    MPI_Iprobe(MPI_ANY_SOURCE, Tag::Interrupt, MPI_COMM_WORLD, &flag, MPI_STATUS_IGNORE);
+    if (flag)
+    {
+      consume_and_forward_interrupt();
+      return std::nullopt;
+    }
+
+    // wait for any message (could still be an interrupt that arrives later)
+    MPI_Status status;
+    MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+    if (status.MPI_TAG == Tag::Interrupt)
+    {
+      consume_and_forward_interrupt();
+      return std::nullopt;
+    }
+
+    assert(status.MPI_TAG == Tag::ReportWork);
     std::pair<Side, int> out;
     std::vector<int> msg(3);
     MPI_Recv(msg.data(), msg.size(), MPI_INT, MPI_ANY_SOURCE, Tag::ReportWork, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     out.first = Side(msg.at(0));
     out.second = msg.at(1);
-    return out;
+    return std::optional{out};
   }
 
 private:
@@ -95,6 +135,14 @@ private:
     int stored = storage->at(d, k);
     assert(stored != S::undefined);
     return stored;
+  }
+
+  void consume_and_forward_interrupt()
+  {
+    std::vector<int> msg(1);
+    MPI_Recv(msg.data(), msg.size(), MPI_INT, MPI_ANY_SOURCE, Tag::Interrupt, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    Side to = Side(msg.at(0));
+    send_interrupt(to);
   }
 };
 
@@ -137,14 +185,28 @@ void main_worker(std::string path_1, std::string path_2)
     {
       break;
     }
-    // TODO try non-blocking receive
-    if (strategy.is_blocked_waiting_for_receive())
+    if (strategy.is_blocked_waiting_for_receive() || follower.has_incoming_message())
     {
-      std::pair<Side, int> msg = follower.blocking_receive();
-      strategy.receive(msg.first, msg.second);
+      std::optional<std::pair<Side, int>> result_opt = follower.blocking_receive();
+      if (!result_opt.has_value())
+      {
+        break;
+      }
+      auto result = result_opt.value();
+      strategy.receive(result.first, result.second);
     }
   }
-  DEBUG(0, "all done");
+
+  DEBUG(0, "all done ");
+
+  if (strategy.get_final_result_location().has_value())
+  {
+    follower.send_interrupt(Side::Left);
+    follower.send_interrupt(Side::Right);
+
+    CellLocation loc = strategy.get_final_result_location().value();
+    DEBUG(0, "result " << loc << " " << storage.at(loc.d, loc.k));
+  }
 }
 
 int main(int argc, char *argv[])

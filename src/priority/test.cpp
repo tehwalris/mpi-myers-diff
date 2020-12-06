@@ -27,7 +27,7 @@ public:
     stored = v;
   }
 
-  void calculate(int d, int k)
+  bool calculate(int d, int k)
   {
     assert(d >= 0 && abs(k) <= d);
     if (k > -d)
@@ -40,6 +40,7 @@ public:
     }
     set(d, k, 0); // fake value
     num_calculated++;
+    return false; // fake "found final result"
   }
 
   void send(int d, int k, Side to)
@@ -159,12 +160,8 @@ TEST_CASE("Strategy - concrete example (green)")
   REQUIRE(follower.get_num_directly_calculated() == 12);
   REQUIRE(follower.sends.size() == 4);
   REQUIRE(strategy.is_done());
-
-  strategy.run();
-  REQUIRE(follower.get_num_directly_calculated() == 12);
-  REQUIRE(follower.sends.size() == 4);
-  REQUIRE(strategy.is_done());
   REQUIRE(!strategy.is_blocked_waiting_for_receive());
+  REQUIRE(!strategy.get_final_result_location().has_value());
 
   std::vector<std::pair<CellLocation, Side>> expected_sends{
       std::make_pair(CellLocation(1, 1), Side::Right),
