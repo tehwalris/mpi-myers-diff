@@ -34,6 +34,15 @@ inline bool point_is_outside_of_triangle(CellLocation query_point, CellLocation 
   return query_point.d > triangle_bottom.d || abs(query_point.k - triangle_bottom.k) > (triangle_bottom.d - query_point.d);
 }
 
+// Intersect the diagonal in (+d, +k) direction through a, with the diagonal in (-d, +k) direction through b
+CellLocation intersect_diagonals(CellLocation a, CellLocation b)
+{
+  int temp = b.k - a.k + a.d - b.d;
+  assert(temp % 2 == 0);
+  temp /= 2;
+  return CellLocation(b.d + temp, b.k - temp);
+}
+
 CellLocation triangle_through_points(CellLocation a, CellLocation b)
 {
   assert(!point_is_on_inside_of_triangle(a, b));
@@ -42,10 +51,7 @@ CellLocation triangle_through_points(CellLocation a, CellLocation b)
   {
     std::swap(a, b);
   }
-  int temp = b.k - a.k + a.d - b.d;
-  assert(temp >= 0 && temp % 2 == 0);
-  temp /= 2;
-  return CellLocation(b.d + temp, b.k - temp);
+  return intersect_diagonals(a, b);
 }
 
 CellLocation intersect_triangles(CellLocation bottom_a, CellLocation bottom_b)

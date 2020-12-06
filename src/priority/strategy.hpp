@@ -113,7 +113,7 @@ public:
       }
     }
 
-    CellLocation target = triangle_through_points(limiters.at(Side::Left), limiters.at(Side::Right));
+    CellLocation target = intersect_diagonals(limiters.at(Side::Left), limiters.at(Side::Right));
     target.d -= 2;
 
     bool limited_by_sends = false;

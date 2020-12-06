@@ -373,3 +373,27 @@ TEST_CASE("SendSideIterator - concrete example (blue)")
   SendSideIterator right_it(partition, Side::Right);
   assert(right_it == end_it);
 }
+
+TEST_CASE("triangle_through_points")
+{
+  REQUIRE(triangle_through_points(CellLocation(0, 0), CellLocation(0, 0)) == CellLocation(0, 0));
+  REQUIRE(triangle_through_points(CellLocation(5, 3), CellLocation(5, 3)) == CellLocation(5, 3));
+  REQUIRE(triangle_through_points(CellLocation(3, -3), CellLocation(2, 2)) == CellLocation(5, -1));
+  REQUIRE(triangle_through_points(CellLocation(3, -3), CellLocation(5, -1)) == CellLocation(5, -1));
+  REQUIRE(triangle_through_points(CellLocation(5, -1), CellLocation(2, 2)) == CellLocation(5, -1));
+}
+
+TEST_CASE("intersect_diagonals")
+{
+  // these are equivalent to the results form triangle_through_points
+  REQUIRE(intersect_diagonals(CellLocation(0, 0), CellLocation(0, 0)) == CellLocation(0, 0));
+  REQUIRE(intersect_diagonals(CellLocation(5, 3), CellLocation(5, 3)) == CellLocation(5, 3));
+  REQUIRE(intersect_diagonals(CellLocation(3, -3), CellLocation(2, 2)) == CellLocation(5, -1));
+  REQUIRE(intersect_diagonals(CellLocation(3, -3), CellLocation(5, -1)) == CellLocation(5, -1));
+  REQUIRE(intersect_diagonals(CellLocation(5, -1), CellLocation(2, 2)) == CellLocation(5, -1));
+
+  // these are not valid with triangle_through_points
+  REQUIRE(intersect_diagonals(CellLocation(0, 0), CellLocation(3, 1)) == CellLocation(2, 2));
+  REQUIRE(intersect_diagonals(CellLocation(7, -1), CellLocation(2, -2)) == CellLocation(4, -4));
+  REQUIRE(intersect_diagonals(CellLocation(7, -1), CellLocation(2, 2)) == CellLocation(6, -2));
+}
