@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <cassert>
+#include "./side.hpp"
 
 class RoundRobinPartition
 {
@@ -35,6 +36,19 @@ public:
     int k_max = k_min + 2 * size_target - 2;
     assert(k_min <= k_max);
     return std::make_pair(k_min, k_max);
+  }
+
+  // receive border elements from last layer before starting work on this layer
+  PerSide<bool> should_receive()
+  {
+    // TODO
+    return PerSide(false, false);
+  }
+
+  // send border elements of this layer before starting work on next layer
+  PerSide<bool> should_send()
+  {
+    return PerSide(target_worker > next_worker_to_extend, target_worker < next_worker_to_extend);
   }
 
 private:

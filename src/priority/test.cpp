@@ -184,6 +184,7 @@ TEST_CASE("RoundRobinPartition - concrete example (green)")
 
   // d 0
   REQUIRE(!partition.has_work());
+  REQUIRE(partition.should_send() == PerSide(false, false));
   partition.next_d_layer();
 
   // starting from d 1
@@ -196,12 +197,23 @@ TEST_CASE("RoundRobinPartition - concrete example (green)")
       std::make_pair(0, 2),
       std::make_pair(-1, 3),
   };
+  std::vector<PerSide<bool>> should_sends{
+      PerSide(false, true),
+      PerSide(true, false),
+      PerSide(false, false),
+      PerSide(false, true),
+      PerSide(true, false),
+      PerSide(false, false),
+      PerSide(false, true),
+  };
+  assert(k_ranges.size() == should_sends.size());
 
-  for (auto expected_k_range : k_ranges)
+  for (int i = 0; i < k_ranges.size(); i++)
   {
     REQUIRE(partition.has_work());
-    REQUIRE(partition.get_k_range().first == expected_k_range.first);
-    REQUIRE(partition.get_k_range().second == expected_k_range.second);
+    REQUIRE(partition.get_k_range().first == k_ranges.at(i).first);
+    REQUIRE(partition.get_k_range().second == k_ranges.at(i).second);
+    REQUIRE(partition.should_send() == should_sends.at(i));
     partition.next_d_layer();
   }
 }
@@ -223,12 +235,24 @@ TEST_CASE("RoundRobinPartition - concrete example (red)")
       std::make_pair(-6, -2),
       std::make_pair(-7, -3),
   };
+  std::vector<PerSide<bool>> should_sends{
+      PerSide(false, true),
+      PerSide(false, true),
+      PerSide(false, false),
+      PerSide(false, true),
+      PerSide(false, true),
+      PerSide(false, false),
+      PerSide(false, true),
+      PerSide(false, true),
+  };
+  assert(k_ranges.size() == should_sends.size());
 
-  for (auto expected_k_range : k_ranges)
+  for (int i = 0; i < k_ranges.size(); i++)
   {
     REQUIRE(partition.has_work());
-    REQUIRE(partition.get_k_range().first == expected_k_range.first);
-    REQUIRE(partition.get_k_range().second == expected_k_range.second);
+    REQUIRE(partition.get_k_range().first == k_ranges.at(i).first);
+    REQUIRE(partition.get_k_range().second == k_ranges.at(i).second);
+    REQUIRE(partition.should_send() == should_sends.at(i));
     partition.next_d_layer();
   }
 }

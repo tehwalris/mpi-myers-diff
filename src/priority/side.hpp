@@ -42,7 +42,12 @@ public:
     }
   }
 
-  inline bool operator==(const PerSide<T> &other)
+  inline const T &at(Side side) const
+  {
+    return ((PerSide *)this)->at(side);
+  }
+
+  inline bool operator==(const PerSide<T> &other) const
   {
     return left == other.left && right == other.right;
   }
@@ -51,3 +56,10 @@ private:
   T left;
   T right;
 };
+
+template <class T>
+inline std::ostream &operator<<(std::ostream &os, const PerSide<T> &loc)
+{
+  os << "{ " << str_for_side(Side::Left) << " = " << loc.at(Side::Left) << ", " << str_for_side(Side::Right) << " = " << loc.at(Side::Right) << " }";
+  return os;
+}
