@@ -72,8 +72,12 @@ public:
                    future_receives(future_receives),
                    future_receive_ends(future_receive_ends),
                    d_max(d_max),
-                   last_receive(never_received, never_received),
-                   frontier(CellLocation(d_max, -d_max - 2), CellLocation(d_max, d_max + 2)){};
+                   frontier(CellLocation(d_max, -d_max - 2), CellLocation(d_max, d_max + 2)),
+                   final_known_limiters(CellLocation(d_max + 1, -(d_max + 1)), CellLocation(d_max + 1, d_max + 1)),
+                   done(false)
+  {
+    assert(d_max >= 0);
+  };
 
   void receive(Side from, int v)
   {
@@ -81,8 +85,7 @@ public:
     CellLocation loc = *future_receives.at(from);
     future_receives.at(from)++;
 
-    assert(last_receive.at(from) < loc.d);
-    last_receive.at(from) = loc.d;
+    final_known_limiters.at(from) = CellLocation(loc.d + 2, loc.k);
 
     follower->set(loc.d, loc.k, v);
     frontier.cover_triangle(loc);
@@ -90,7 +93,7 @@ public:
 
   void run()
   {
-    PerSide<CellLocation> limiters(CellLocation(d_max + 1, -(d_max + 1)), CellLocation(d_max + 1, d_max + 1));
+    PerSide<CellLocation> limiters = final_known_limiters;
     for (Side s : {Side::Left, Side::Right})
     {
       if (future_receives.at(s) != future_receive_ends.at(s))
@@ -109,20 +112,32 @@ public:
         break;
       }
       CellDiamond &exposed_diamond = exposed_diamond_opt.value();
-      std::cerr << "DEBUG got exposed diamond " << exposed_diamond.first << " " << exposed_diamond.second << std::endl;
+
+      assert(!done);
       calculate_all_in_diamond(exposed_diamond);
       frontier.cover_triangle(exposed_diamond.second);
     }
+
+    if (future_receives.at(Side::Left) == future_receive_ends.at(Side::Left) && future_receives.at(Side::Right) == future_receive_ends.at(Side::Right))
+    {
+      done = true;
+    }
+  }
+
+  bool is_done()
+  {
+    return done;
   }
 
 private:
   PerSide<IR> future_receives;
   PerSide<IR> future_receive_ends;
-  PerSide<int> last_receive;
+  PerSide<CellLocation> final_known_limiters;
   Frontier frontier;
   F *follower;
   int d_max;
   inline static const int never_received = -1;
+  bool done;
 
   void calculate_all_in_diamond(CellDiamond diamond)
   {

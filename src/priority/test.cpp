@@ -1,17 +1,20 @@
+#define CATCH_CONFIG_MAIN
+
 #include <iostream>
 #include <vector>
 #include <optional>
 #include <cassert>
 #include <algorithm>
+#include "../../lib/catch/catch_amalgamated.hpp"
 #include "strategy.hpp"
 #include "geometry.hpp"
 #include "side.hpp"
 
 template <class S>
-class DebugStrategyFollower
+class TestStrategyFollower
 {
 public:
-  DebugStrategyFollower(S *storage) : storage(storage){};
+  TestStrategyFollower(S *storage) : storage(storage), num_calculated(0){};
 
   inline void set(int d, int k, int v)
   {
@@ -22,7 +25,6 @@ public:
 
   void calculate(int d, int k)
   {
-    std::cerr << "calculating d " << d << " k " << k << std::endl;
     assert(d >= 0 && abs(k) <= d);
     if (k > -d)
     {
@@ -33,16 +35,22 @@ public:
       get(d - 1, k + 1);
     }
     set(d, k, 0); // fake value
+    num_calculated++;
   }
 
   void send(int d, int k, Side to)
   {
-    std::cerr << "sending d " << d << " k " << k << " to " << str_for_side(to) << std::endl;
     get(d, k);
+  }
+
+  int get_num_directly_calculated()
+  {
+    return num_calculated;
   }
 
 private:
   S *storage;
+  int num_calculated;
 
   inline int get(int d, int k)
   {
@@ -78,8 +86,10 @@ private:
   std::vector<std::vector<int>> data;
 };
 
-int main()
+TEST_CASE("Strategy - concrete example")
 {
+  // This tests the strategy with the tasks of the green worker from the custom figure in our first (progress) presentation
+
   int d_max = 7;
   PerSide<std::vector<CellLocation>> future_receives(std::vector<CellLocation>{}, std::vector<CellLocation>());
   future_receives.at(Side::Left).emplace_back(0, 0);
@@ -95,27 +105,54 @@ int main()
   PerSide<std::vector<CellLocation>::const_iterator> future_receive_ends(future_receives.at(Side::Left).end(), future_receives.at(Side::Right).end());
 
   SimpleStorage storage(d_max);
-  DebugStrategyFollower<SimpleStorage> follower(&storage);
+  TestStrategyFollower<SimpleStorage> follower(&storage);
   Strategy strategy(&follower, future_receive_begins, future_receive_ends, d_max);
 
-  strategy.run();
-  std::cerr << std::endl;
+  const int dummy = 0;
 
-  strategy.receive(Side::Left, 12);
+  REQUIRE(!strategy.is_done());
   strategy.run();
-  std::cerr << std::endl;
+  REQUIRE(follower.get_num_directly_calculated() == 0);
 
-  strategy.receive(Side::Left, 12);
+  strategy.receive(Side::Left, dummy);
   strategy.run();
-  std::cerr << std::endl;
+  REQUIRE(follower.get_num_directly_calculated() == 1);
 
-  strategy.receive(Side::Left, 12);
+  strategy.receive(Side::Left, dummy);
   strategy.run();
-  std::cerr << std::endl;
+  REQUIRE(follower.get_num_directly_calculated() == 2);
 
-  strategy.receive(Side::Right, 12);
+  strategy.receive(Side::Left, dummy);
   strategy.run();
-  std::cerr << std::endl;
+  REQUIRE(follower.get_num_directly_calculated() == 2);
 
-  // TODO This might try to calculate invalid cells when all receives are done
+  strategy.receive(Side::Right, dummy);
+  strategy.run();
+  REQUIRE(follower.get_num_directly_calculated() == 4);
+
+  strategy.receive(Side::Right, dummy);
+  strategy.run();
+  REQUIRE(follower.get_num_directly_calculated() == 6);
+
+  strategy.receive(Side::Right, dummy);
+  strategy.run();
+  REQUIRE(follower.get_num_directly_calculated() == 7);
+
+  strategy.receive(Side::Left, dummy);
+  strategy.run();
+  REQUIRE(follower.get_num_directly_calculated() == 10);
+
+  strategy.receive(Side::Left, dummy);
+  strategy.run();
+  REQUIRE(follower.get_num_directly_calculated() == 11);
+
+  REQUIRE(!strategy.is_done());
+  strategy.receive(Side::Right, dummy);
+  strategy.run();
+  REQUIRE(follower.get_num_directly_calculated() == 12);
+  REQUIRE(strategy.is_done());
+
+  strategy.run();
+  REQUIRE(follower.get_num_directly_calculated() == 12);
+  REQUIRE(strategy.is_done());
 }
