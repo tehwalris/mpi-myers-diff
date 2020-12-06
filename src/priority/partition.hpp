@@ -151,6 +151,11 @@ public:
     return !end || !other.end;
   }
 
+  inline bool operator==(const ReceiveSideIterator<P> &other) const
+  {
+    return !(*this != other);
+  }
+
 private:
   Side side;
   P partition;
@@ -203,6 +208,11 @@ public:
   inline bool operator!=(const SendSideIterator<P> &other) const
   {
     return !end || !other.end;
+  }
+
+  inline bool operator==(const SendSideIterator<P> &other) const
+  {
+    return !(*this != other);
   }
 
 private:

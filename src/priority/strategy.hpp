@@ -94,11 +94,16 @@ public:
   void run()
   {
     PerSide<CellLocation> limiters = final_known_limiters;
+    bool limited_by_receives = false;
     for (Side s : {Side::Left, Side::Right})
     {
       if (future_receives.at(s) != future_receive_ends.at(s))
       {
         limiters.at(s) = *future_receives.at(s);
+        if (limiters.at(s).d < d_max)
+        {
+          limited_by_receives = true;
+        }
       }
     }
     CellLocation target = triangle_through_points(limiters.at(Side::Left), limiters.at(Side::Right));
@@ -118,7 +123,7 @@ public:
       frontier.cover_triangle(exposed_diamond.second);
     }
 
-    if (future_receives == future_receive_ends)
+    if (!limited_by_receives)
     {
       done = true;
     }

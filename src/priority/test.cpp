@@ -92,18 +92,13 @@ TEST_CASE("Strategy - concrete example (green)")
   // This tests the strategy with the tasks of the green worker from the custom figure in our first (progress) presentation
 
   const int d_max = 7;
-  PerSide<std::vector<CellLocation>> future_receives(std::vector<CellLocation>{}, std::vector<CellLocation>{});
-  future_receives.at(Side::Left).emplace_back(0, 0);
-  future_receives.at(Side::Left).emplace_back(1, -1);
-  future_receives.at(Side::Left).emplace_back(3, -1);
-  future_receives.at(Side::Left).emplace_back(4, -2);
-  future_receives.at(Side::Left).emplace_back(6, -2);
-  future_receives.at(Side::Right).emplace_back(2, 2);
-  future_receives.at(Side::Right).emplace_back(3, 3);
-  future_receives.at(Side::Right).emplace_back(5, 3);
-  future_receives.at(Side::Right).emplace_back(6, 4);
-  PerSide<std::vector<CellLocation>::const_iterator> future_receive_begins(future_receives.at(Side::Left).begin(), future_receives.at(Side::Right).begin());
-  PerSide<std::vector<CellLocation>::const_iterator> future_receive_ends(future_receives.at(Side::Left).end(), future_receives.at(Side::Right).end());
+  RoundRobinPartition partition(3, 1);
+  ReceiveSideIterator left_receive_begin(partition, Side::Left);
+  ReceiveSideIterator left_receive_end(partition);
+  ReceiveSideIterator right_receive_begin(partition, Side::Right);
+  ReceiveSideIterator right_receive_end(partition);
+  PerSide future_receive_begins(left_receive_begin, right_receive_begin);
+  PerSide future_receive_ends(left_receive_end, right_receive_end);
 
   SimpleStorage storage(d_max);
   TestStrategyFollower<SimpleStorage> follower(&storage);
@@ -345,5 +340,5 @@ TEST_CASE("SendSideIterator - concrete example (blue)")
   left_it++;
 
   SendSideIterator right_it(partition, Side::Right);
-  assert(!(right_it != end_it));
+  assert(right_it == end_it);
 }
