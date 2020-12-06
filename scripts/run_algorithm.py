@@ -1,7 +1,6 @@
 from pathlib import Path
 import subprocess
 import re
-from typing import List
 import os
 import signal
 import time
@@ -79,7 +78,7 @@ def run_diffutils(file_1_path, file_2_path):
 
 
 class RegexExtractedOutput:
-    def __init__(self, output: str, field_configs: List):
+    def __init__(self, output: str, field_configs):
         found_fields = set()
         for line in output.splitlines():
             for field in field_configs:

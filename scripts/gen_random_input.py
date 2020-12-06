@@ -1,4 +1,3 @@
-from typing import Dict, Literal, Optional, Sequence
 import numpy as np
 from pathlib import Path
 import os
@@ -8,9 +7,9 @@ import itertools
 
 
 def generate_input_1(
-    length: int,
-    distribution: Literal["uniform", "zipf"],
-    values_range: Optional[int] = None,
+    length,
+    distribution,
+    values_range= None,
 ):
     if values_range is None:
         values_range = length
@@ -25,14 +24,15 @@ def generate_input_1(
 
     return np.random.choice(values_range, size=length, replace=True, p=weights)
 
-
-def random_interleaving(a: Sequence[int], b: Sequence[int], chunkiness: float):
+# a: Sequence[int], b: Sequence[int], chunkiness: float
+def random_interleaving(a, b, chunkiness):
     assert 0 <= chunkiness <= 1
     # HACK Try to make the insertion chunkiness similar to the removal chunkiness
     chunkiness = 0.1 + 0.7 * chunkiness
     assert 0 <= chunkiness <= 1
 
-    def chunks_from_sequence(seq: Sequence[int], chunk_count: int):
+    # seq: Sequence[int], chunk_count: int
+    def chunks_from_sequence(seq, chunk_count):
         assert len(seq) >= 1
         chunk_count = min(len(seq), chunk_count)
         chunk_sizes = random_positive_integers_to_sum(len(seq), chunk_count)
@@ -64,8 +64,8 @@ def random_interleaving(a: Sequence[int], b: Sequence[int], chunkiness: float):
     assert len(output) == len(a) + len(b)
     return output
 
-
-def random_positive_integers_to_sum(sum: int, count: int):
+# sum: int, count: int
+def random_positive_integers_to_sum(sum, count):
     assert 1 <= count <= sum
     cuts = np.random.choice(sum, size=count, replace=False)
     cuts = np.append(cuts, [sum])
@@ -77,8 +77,8 @@ def random_positive_integers_to_sum(sum: int, count: int):
     assert values.sum() == sum
     return values
 
-
-def random_chunky_mask(size: int, p_true: float, chunkiness: float):
+# size: int, p_true: float, chunkiness: float
+def random_chunky_mask(size, p_true, chunkiness):
     assert 0 <= chunkiness <= 1
     # HACK This is an attempt at making the chunkiness of the result less dependent on p_true.
     chunkiness = min(
@@ -120,13 +120,13 @@ def random_chunky_mask(size: int, p_true: float, chunkiness: float):
     assert base_mask.sum() == chunky_mask.sum()
     return chunky_mask
 
-
+# len: int, strategy: ["independent", "remove", "add", "addremove"], change_strength: float, chunkiness: float, distribution: ["uniform", "zipf"]
 def generate_input_pair(
-    length_1: int,
-    strategy: Literal["independent", "remove", "add", "addremove"],
-    change_strength: float,  # 0 - no changes, 1 - many changes
-    chunkiness: float,  # 0 - mostly individual random changes, 1 - mostly consecutive changes
-    distribution: Literal["uniform", "zipf"],
+    length_1,
+    strategy, # ["independent", "remove", "add", "addremove"]
+    change_strength,  # 0 - no changes, 1 - many changes
+    chunkiness,  # 0 - mostly individual random changes, 1 - mostly consecutive changes
+    distribution # ["uniform", "zipf"],
 ):
     assert 0 < change_strength <= 1
 
@@ -161,8 +161,8 @@ def generate_input_pair(
     assert len(values_1) == length_1
     return (values_1, generate_input_2(values_1, strategy, change_strength))
 
-
-def test_case_name_from_config(config: Dict, temporary: bool, detailed_name: bool):
+# config: Dict, temporary: bool, detailed_name: bool
+def test_case_name_from_config(config, temporary, detailed_name):
     parts = []
     if temporary:
         parts.append("temp")
@@ -179,9 +179,9 @@ def test_case_name_from_config(config: Dict, temporary: bool, detailed_name: boo
         )
     return "_".join(str(p) for p in parts)
 
-
+# config: Dict, temporary: bool = False, detailed_name: bool = False
 def generate_and_save_test_case(
-    config: Dict, temporary: bool = False, detailed_name: bool = False
+    config, temporary=False, detailed_name=False
 ):
     all_test_cases_dir = Path(__file__).parent / "../test_cases"
 
