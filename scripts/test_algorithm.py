@@ -70,7 +70,7 @@ if __name__ == "__main__":
         own_diff_output_sequential = run_algorithm.run_own_diff_algorithm_sequential(
             test_case_dir / "in_1.txt",
             test_case_dir / "in_2.txt",
-            run_algorithm.own_diff_executable_sequential_fast_snakes,
+            run_algorithm.own_diff_executable_sequential,
         )
         print(f" {own_diff_output_sequential.micros_until_len:>8} μs", flush=True)
         print(
