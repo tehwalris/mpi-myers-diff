@@ -4,9 +4,12 @@
 #include "partition.hpp"
 #include "util.hpp"
 
+const int master_rank = 0;
+
 enum Tag
 {
   ReportWork,
+  ReportBestKnown,
   Interrupt,
 };
 
@@ -14,6 +17,8 @@ template <class S>
 class MPIStrategyFollower
 {
 public:
+  static const int no_known_d = -1;
+
   MPIStrategyFollower(
       S *storage,
       const std::vector<int> &in_1,
@@ -63,7 +68,18 @@ public:
     }
 
     set(d, k, x);
-    return x >= in_1.size() && y >= in_2.size();
+
+    bool is_final_result = x >= in_1.size() && y >= in_2.size();
+    if (is_final_result)
+    {
+      try_update_lowest_known_d(d);
+    }
+    return is_final_result;
+  }
+
+  int get_lowest_known_d()
+  {
+    return lowest_known_d;
   }
 
   void send(int d, int k, Side to)
@@ -77,13 +93,14 @@ public:
 
   void send_interrupt(Side to)
   {
+    assert(lowest_known_d != no_known_d);
     if ((world_rank == 0 && to == Side::Left) || (world_rank + 1 == world_size && to == Side::Right))
     {
       return;
     }
     int to_rank = to == Side::Left ? world_rank - 1 : world_rank + 1;
     assert(to_rank >= 0 && to_rank < world_size);
-    std::vector<int> msg{int(to)};
+    std::vector<int> msg{int(to), lowest_known_d};
     MPI_Send(msg.data(), msg.size(), MPI_INT, to_rank, Tag::Interrupt, MPI_COMM_WORLD);
   }
 
@@ -129,6 +146,16 @@ private:
   S *storage;
   int world_rank;
   int world_size;
+  int lowest_known_d = no_known_d;
+
+  void try_update_lowest_known_d(int d)
+  {
+    if (lowest_known_d == no_known_d || d < lowest_known_d)
+    {
+      lowest_known_d = d;
+    }
+    assert(lowest_known_d >= 0);
+  }
 
   inline int get(int d, int k)
   {
@@ -139,9 +166,10 @@ private:
 
   void consume_and_forward_interrupt()
   {
-    std::vector<int> msg(1);
+    std::vector<int> msg(2);
     MPI_Recv(msg.data(), msg.size(), MPI_INT, MPI_ANY_SOURCE, Tag::Interrupt, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     Side to = Side(msg.at(0));
+    try_update_lowest_known_d(msg.at(1));
     send_interrupt(to);
   }
 };
@@ -156,7 +184,8 @@ void main_worker(std::string path_1, std::string path_2)
   std::vector<int> in_1 = read_vec_from_file(path_1);
   std::vector<int> in_2 = read_vec_from_file(path_2);
 
-  int d_max = in_1.size() + in_2.size() + 1;
+  const int d_max_possible = in_1.size() + in_2.size() + 1; // TODO should this really have "+ 1"?
+  const int d_max = d_max_possible;
 
   RoundRobinPartition partition(world_size, world_rank);
 
@@ -188,24 +217,46 @@ void main_worker(std::string path_1, std::string path_2)
     if (strategy.is_blocked_waiting_for_receive() || follower.has_incoming_message())
     {
       std::optional<std::pair<Side, int>> result_opt = follower.blocking_receive();
-      if (!result_opt.has_value())
+      if (!result_opt.has_value()) // received an interrupt
       {
-        break;
+        int lowest_known_d = follower.get_lowest_known_d();
+        assert(lowest_known_d != follower.no_known_d);
+        if (lowest_known_d == 0)
+        {
+          break;
+        }
+        strategy.try_lower_d_max(lowest_known_d - 1);
+        continue;
       }
       auto result = result_opt.value();
       strategy.receive(result.first, result.second);
     }
   }
 
-  DEBUG(0, "all done ");
-
+  int lowest_self_known_d = d_max_possible;
   if (strategy.get_final_result_location().has_value())
   {
     follower.send_interrupt(Side::Left);
     follower.send_interrupt(Side::Right);
-
     CellLocation loc = strategy.get_final_result_location().value();
-    DEBUG(0, "result " << loc << " " << storage.at(loc.d, loc.k));
+    assert(loc.d <= lowest_self_known_d);
+    lowest_self_known_d = loc.d;
+  }
+
+  DEBUG(1, world_rank << " | "
+                      << "main computation done " << follower.get_lowest_known_d() << " " << lowest_self_known_d);
+
+  if (world_rank == master_rank)
+  {
+    std::vector<int> all_lowest_known_ds(world_size);
+    MPI_Gather(&lowest_self_known_d, 1, MPI_INT, all_lowest_known_ds.data(), 1, MPI_INT, master_rank, MPI_COMM_WORLD);
+    int global_lowest_d = *std::min_element(all_lowest_known_ds.begin(), all_lowest_known_ds.end());
+    assert(global_lowest_d >= 0 && global_lowest_d <= d_max_possible);
+    std::cout << "min edit length " << global_lowest_d << std::endl;
+  }
+  else
+  {
+    MPI_Gather(&lowest_self_known_d, 1, MPI_INT, nullptr, 1, MPI_INT, master_rank, MPI_COMM_WORLD);
   }
 }
 

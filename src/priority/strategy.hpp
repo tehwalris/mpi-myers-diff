@@ -170,6 +170,15 @@ public:
     blocked_waiting_for_receive = !calculated_something && limited_by_receives && !limited_by_sends;
   }
 
+  void try_lower_d_max(int new_d_max)
+  {
+    assert(new_d_max >= 0);
+    if (new_d_max < d_max)
+    {
+      d_max = new_d_max;
+    }
+  }
+
   bool is_done()
   {
     return done;
@@ -201,8 +210,7 @@ private:
 
   void calculate_all_in_diamond(CellDiamond diamond)
   {
-    int last_d = std::min(diamond.second.d, d_max);
-    for (int d = diamond.first.d; d <= last_d; d++)
+    for (int d = diamond.first.d; d <= std::min(diamond.second.d, d_max); d++)
     {
       int k_min = std::max(diamond.first.k - (d - diamond.first.d), diamond.second.k - (diamond.second.d - d));
       int k_max = std::min(diamond.first.k + (d - diamond.first.d), diamond.second.k + (diamond.second.d - d));
@@ -214,8 +222,7 @@ private:
         {
           assert(!final_result_location.has_value());
           final_result_location = std::optional{CellLocation(d, k)};
-          done = true;
-          return;
+          try_lower_d_max(std::max(0, d - 1));
         }
       }
     }
