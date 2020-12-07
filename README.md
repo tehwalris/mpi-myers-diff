@@ -149,6 +149,19 @@ connect with `ssh username@euler.ethz.ch`. You need to be in ETH VPN.
 git clone https://gitlab.ethz.ch/pascalm/2020-dphpc-project.git
 ```
 
+Euler uses Modules have to be loaded (compiler, libraries, python, etc.) first.
+
+Execute the script  [`load_modules_euler.sh`](./euler/load_modules_euler.sh) to load the required Modules. Afterwards, you need to create the python virtual environment and install its requirements (see [script setup](#setup)) if it doesn't exist already.
+```shell
+source ./euler/load_modules_euler.sh 
+```
+
+Compile all our binaries into the bin folder. If this script fails it means that the compilers haven't been loaded correctly.
+```shell
+./scripts/compile_all.sh 
+```
+---
+
 How to copy files between PC and remote Euler:
 (Note that `rsync -r` copies all the files from a folder which also includes generated files that would be in the `.gitignore` like `.venv` or `__pycache__`. You would need to exclude them all.)
 ```shell
@@ -166,36 +179,29 @@ rsync -Pavr --exclude={.venv,__pycache__,.vscode} scripts/ username@euler.ethz.c
 ```
 
 
-Execute the following script to load all needed Modules.
-The Modules that Euler uses have to be loaded (compiler, libraries, python, etc.) first.
-```shell
-source ./euler/load_modules_euler.sh 
-```
-
-After loading python, create the virtual environment and install the needed libraries (See [Script Setup](#setup)).
 
 If you need to load additional Modules use:
 ```shell
-# search modules in all available scopes:
-> load module legacy new
+# upgrade to the new modulestack:
+> source /cluster/apps/local/env2lmod.sh 
 > module available gcc 
 
---------------- /cluster/apps/modules/modulefiles ---------------
-gcc/4.4.7(4.4)     gcc/4.8.2(default) gcc/4.9.2
+------------------------------------------------------------------------------------------- /cluster/apps/lmodules/Core -------------------------------------------------------------------------------------------
+   gcc/4.8.2    gcc/4.8.5    gcc/5.4.0    gcc/6.3.0    gcc/7.3.0    gcc/8.2.0 (L,D)
 
------------------ /cluster/apps/modules/legacy ------------------
-gcc/4.7.4
+  Where:
+   L:  Module is loaded
+   D:  Default Module
 
-------------------- /cluster/apps/modules/new -------------------
-gcc/4.8.4 gcc/5.2.0
+Use "module spider" to find all possible modules.
+Use "module keyword key1 key2 ..." to search for all possible modules matching any of the "keys".
 
-> module load gcc/5.2.0
+
+
+
+> module load gcc/8.2.0
 ```
 
-Compile all our binaries into the bin folder. If this script fails it means that the compilers haven't been loaded correctly.
-```shell
-./scripts/compile_all.sh 
-```
 
 ### Submit Jobs
 First, test out that the code works by executing it directly on the login node.
