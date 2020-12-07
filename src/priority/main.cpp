@@ -65,15 +65,17 @@ public:
 
     int y = x - k;
 
+    assert(x >= 0 && x <= in_1.size() && y >= 0 && y <= in_2.size());
     while (x < in_1.size() && y < in_2.size() && in_1.at(x) == in_2.at(y))
     {
       x++;
       y++;
     }
+    assert(x >= 0 && x <= in_1.size() && y >= 0 && y <= in_2.size());
 
     set(d, k, x);
 
-    return x >= in_1.size() && y >= in_2.size() && k == in_1.size() - in_2.size();
+    return x == in_1.size() && y == in_2.size() && k == in_1.size() - in_2.size();
   }
 
   void send(int d, int k, Side to)
@@ -155,7 +157,7 @@ void main_worker(std::string path_1, std::string path_2)
   // Ideally the workers should all start at exactly the same time. This is never exactly possible, so t_sol_start is the time when the master started calculating.
   t_sol_start = std::chrono::high_resolution_clock::now();
 
-  const int d_max_possible = in_1.size() + in_2.size() + 1; // TODO should this really have "+ 1"?
+  const int d_max_possible = in_1.size() + in_2.size();
   const int d_max = d_max_possible;
 
   RoundRobinPartition partition(world_size, world_rank);
