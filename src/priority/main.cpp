@@ -85,6 +85,17 @@ public:
     MPI_Send(msg.data(), msg.size(), MPI_INT, to_rank, Tag::ReportWork, MPI_COMM_WORLD);
   }
 
+  inline bool check_cancel()
+  {
+    if (world_rank != master_rank)
+    {
+      return false;
+    }
+    int flag;
+    MPI_Iprobe(MPI_ANY_SOURCE, Tag::ReportLcsLength, MPI_COMM_WORLD, &flag, MPI_STATUS_IGNORE);
+    return flag != 0;
+  }
+
   bool has_incoming_message()
   {
     int flag;
@@ -95,9 +106,7 @@ public:
   std::optional<std::pair<Side, int>> blocking_receive()
   {
     // stop if result already found
-    int flag;
-    MPI_Iprobe(MPI_ANY_SOURCE, Tag::ReportLcsLength, MPI_COMM_WORLD, &flag, MPI_STATUS_IGNORE);
-    if (flag)
+    if (check_cancel())
     {
       return std::nullopt;
     }
