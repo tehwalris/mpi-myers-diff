@@ -137,6 +137,89 @@ python -m scripts.bench_algorithm --output-csv temp-bench.csv
 
 To get info about arguments pass `--help`.
 
+
+## On Euler
+It is required to first request an account to be granted access. In the following paragraph `username`refers to your nethz account.
+
+connect with `ssh username@euler.ethz.ch`. You need to be in ETH VPN.
+
+### Setup
+
+How to copy files between pc and remote Euler:
+```shell
+# scp [options] source destination
+# -r for folder
+
+# from remote:
+scp -r username@euler.ethz.ch:/cluster/home/username/dphpc/ local_dir/
+
+# to remote:
+scp -r local_dir/ username@euler.ethz.ch:/cluster/home/username/dphpc/
+```
+
+or use 
+
+```shell
+git clone https://gitlab.ethz.ch/pascalm/2020-dphpc-project.git
+```
+
+The modules that Euler uses have to be loaded. (compiler, libraries, python, ..)
+Execute the following script to load all needed Modules:
+```shell
+source ./euler/load_modules_euler.sh 
+```
+
+After loading python, create the virtual environment and install the needed libraries (See [Script Setup](#setup)).
+
+If you need to load modules individually use:
+```shell
+# search modules in all available scopes:
+> load module legacy new
+> module available gcc 
+
+--------------- /cluster/apps/modules/modulefiles ---------------
+gcc/4.4.7(4.4)     gcc/4.8.2(default) gcc/4.9.2
+
+----------------- /cluster/apps/modules/legacy ------------------
+gcc/4.7.4
+
+------------------- /cluster/apps/modules/new -------------------
+gcc/4.8.4 gcc/5.2.0
+
+> module load gcc/5.2.0
+```
+
+Compile all our binaries into the bin folder. If this script fails it means that the compilers haven't been loaded correctly.
+```shell
+./scripts/compile_all.sh 
+```
+
+### Submit Jobs
+First, test out that the code works by executing it directly on the login node.
+
+Submit job with:
+```shell
+# bsub -n CORES -W (HH:MM or MINUTES. Default is 4h) command args
+# make sure that -n and our --mpi-procs match.
+bsub -n 32 -W 4:00 python -m scripts.bench_algorithm --output-csv=/cluster/home/username/dphpc/benchmarks/test.csv --mpi-procs=32 --limit-programs=mpi_no_master,sequential_priority
+
+# Check the status of the job:
+bbjobs
+
+# Check the output of the currently running job:
+# Useful to see the progress par and estimate remaining time.
+bpeek
+
+# kill submitted job
+bkill
+bkill JOBID
+```
+
+The Output and some additional information of the job can be found in the working directory where you submitted it in a file called `lsf.oJOBID`. And the csv should be stored in the path that you specified.
+
+For more information check out the [Euler Wiki](https://scicomp.ethz.ch/wiki/Getting_started_with_clusters).
+
+
 ## Output Formats for Tests
 
 ### Input Files

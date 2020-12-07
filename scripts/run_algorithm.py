@@ -29,7 +29,6 @@ def kill_process(pid):
 def run_diff_algorithm_mpi(
     file_1_path, file_2_path, mpi_processes, mpi_executable_path, edit_script_path=None
 ):
-    # TODO pascal is timeout of 6min OK?
 
     args = [
         "mpiexec",
@@ -51,7 +50,7 @@ def run_diff_algorithm_mpi(
         start_new_session=True,
     ) as proc:
         try:
-            all_output, error = proc.communicate(timeout=360)
+            all_output, error = proc.communicate(timeout=20)
 
         except Exception as e:
             # kill child and pass exception on to handle/log in benchmark
