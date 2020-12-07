@@ -96,7 +96,7 @@ if __name__ == "__main__":
         if args.verbose:
             print(*a, **kw)
 
-    file_size_steps = np.geomspace(
+    file_size_steps = np.linspace(
         args.min_file_size, args.max_file_size, args.target_file_size_steps
     )
     file_size_steps = np.unique(np.floor(file_size_steps).astype(int))
