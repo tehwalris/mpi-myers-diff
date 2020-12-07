@@ -145,33 +145,36 @@ connect with `ssh username@euler.ethz.ch`. You need to be in ETH VPN.
 
 ### Setup
 
-How to copy files between pc and remote Euler:
-```shell
-# scp [options] source destination
-# -r for folder
-
-# from remote:
-scp -r username@euler.ethz.ch:/cluster/home/username/dphpc/ local_dir/
-
-# to remote:
-scp -r local_dir/ username@euler.ethz.ch:/cluster/home/username/dphpc/
-```
-
-or use 
-
 ```shell
 git clone https://gitlab.ethz.ch/pascalm/2020-dphpc-project.git
 ```
 
-The modules that Euler uses have to be loaded. (compiler, libraries, python, ..)
-Execute the following script to load all needed Modules:
+How to copy files between PC and remote Euler:
+(Note that `rsync -r` copies all the files from a folder which also includes generated files that would be in the `.gitignore` like `.venv` or `__pycache__`. You would need to exclude them all.)
+```shell
+# rsync [options] source destination
+# -r for folder
+
+# from remote:
+rsync -r username@euler.ethz.ch:/cluster/home/username/dphpc/ local_dir/
+
+# to remote:
+rsync -r local_dir/ username@euler.ethz.ch:/cluster/home/username/dphpc/
+
+# with excludes:
+rsync -Pavr --exclude={.venv,__pycache__,.vscode} scripts/ username@euler.ethz.ch:/cluster/home/username/dphpc/scripts
+```
+
+
+Execute the following script to load all needed Modules.
+The Modules that Euler uses have to be loaded (compiler, libraries, python, etc.) first.
 ```shell
 source ./euler/load_modules_euler.sh 
 ```
 
 After loading python, create the virtual environment and install the needed libraries (See [Script Setup](#setup)).
 
-If you need to load modules individually use:
+If you need to load additional Modules use:
 ```shell
 # search modules in all available scopes:
 > load module legacy new
@@ -215,7 +218,7 @@ bkill
 bkill JOBID
 ```
 
-The Output and some additional information of the job can be found in the working directory where you submitted it in a file called `lsf.oJOBID`. And the csv should be stored in the path that you specified.
+The output and some additional information of the job can be found in the working directory where you submitted it in a file called `lsf.oJOBID`. And the csv should be stored in the path that you specified.
 
 For more information check out the [Euler Wiki](https://scicomp.ethz.ch/wiki/Getting_started_with_clusters).
 
@@ -232,10 +235,12 @@ File `edit_script.txt` contains an editing script that transforms file `in_1.txt
 
 Each line start with the `index` (starting from 1) of the affected line in `in_1.txt` followed by the operation `+` or `-` for addition or deletion respectively. In the case of an addition, the third value is the content that will be newly inserted.
 
-`+`Addition
+**`+`Addition**
+
 The index refers to _after_ which line in `in_1.txt` the value will be inserted. If the insertion affects the very first line then the index should be 0.
 
-`-`Deletion
+**`-`Deletion**
+
 The index of the line from `in_1.txt` that will be deleted.
 
 **Example:**
