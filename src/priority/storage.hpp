@@ -104,3 +104,48 @@ private:
     return data_pointers[block_idx][start_d + offset];
   }
 };
+
+class FrontierStorage
+{
+public:
+  FrontierStorage(int d_max) : d_max(d_max), values_by_column(2 * d_max + 1)
+  {
+#ifndef NDEBUG
+    last_ds_by_column = std::vector<int>(2 * d_max + 1, column_never_used);
+#endif
+  }
+
+  inline int get(int d, int k)
+  {
+    assert(d >= 0 && d <= d_max && abs(k) <= d);
+    int i = d_max + k;
+
+#ifndef NDEBUG
+    assert(last_ds_by_column.at(i) == d);
+#endif
+
+    return values_by_column.at(i);
+  }
+
+  inline void set(int d, int k, int v)
+  {
+    assert(d >= 0 && d <= d_max && abs(k) <= d);
+    int i = d_max + k;
+
+#ifndef NDEBUG
+    int last_d = last_ds_by_column.at(i);
+    assert(last_d == column_never_used || last_d < d);
+    last_ds_by_column.at(i) = d;
+#endif
+
+    values_by_column.at(i) = v;
+  }
+
+private:
+  int d_max;
+  std::vector<int> values_by_column;
+#ifndef NDEBUG
+  std::vector<int> last_ds_by_column;
+  inline static const int column_never_used = -1;
+#endif
+};
