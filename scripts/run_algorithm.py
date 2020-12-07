@@ -7,9 +7,18 @@ import time
 
 # Executables:
 own_diff_executable_mpi_master = Path(__file__).parent / "../bin/own-diff-mpi-main.out"
-own_diff_executable_mpi_no_master = Path(__file__).parent / "../bin/own-diff-mpi-no-master.out"
-own_diff_executable_sequential = Path(__file__).parent / "../bin/own-diff-sequential.out"
-own_diff_executable_sequential_fast_snakes = Path(__file__).parent / "../bin/own-diff-sequential-fast-snakes.out"
+own_diff_executable_mpi_no_master = (
+    Path(__file__).parent / "../bin/own-diff-mpi-no-master.out"
+)
+own_diff_executable_mpi_priority = (
+    Path(__file__).parent / "../bin/own-diff-mpi-priority.out"
+)
+own_diff_executable_sequential = (
+    Path(__file__).parent / "../bin/own-diff-sequential.out"
+)
+own_diff_executable_sequential_fast_snakes = (
+    Path(__file__).parent / "../bin/own-diff-sequential-fast-snakes.out"
+)
 diffutils_executable = Path(__file__).parent / "../bin/diffutils.out"
 
 # https://stackoverflow.com/questions/32222681/how-to-kill-a-process-group-using-python-subprocess
@@ -17,51 +26,63 @@ def kill_process(pid):
     os.killpg(os.getpgid(pid), signal.SIGTERM)
 
 
-def run_diff_algorithm_mpi(file_1_path, file_2_path, mpi_processes, mpi_executable_path, edit_script_path=None):
+def run_diff_algorithm_mpi(
+    file_1_path, file_2_path, mpi_processes, mpi_executable_path, edit_script_path=None
+):
     # TODO pascal is timeout of 6min OK?
 
-    args = ["mpiexec",
-            "-np",
-            str(mpi_processes),
-            mpi_executable_path,
-            file_1_path,
-            file_2_path]
+    args = [
+        "mpiexec",
+        "-np",
+        str(mpi_processes),
+        mpi_executable_path,
+        file_1_path,
+        file_2_path,
+    ]
 
     if edit_script_path is not None:
         args.append(edit_script_path)
 
-    with subprocess.Popen(args, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True) as proc:
+    with subprocess.Popen(
+        args,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        start_new_session=True,
+    ) as proc:
         try:
             all_output, error = proc.communicate(timeout=360)
 
-        except Exception as e: 
+        except Exception as e:
             # kill child and pass exception on to handle/log in benchmark
             # this means that KeyboardInterrupt properly kills both python AND the MPI processes
             proc.terminate()
-            kill_process(proc.pid) # kill children via process group
+            kill_process(proc.pid)  # kill children via process group
             time.sleep(5)
             proc.kill()
-            proc.communicate()     # clear buffers
-            raise 
+            proc.communicate()  # clear buffers
+            raise
 
     return OwnDiffOutput(all_output)
 
 
 def run_own_diff_algorithm_sequential(file_1_path, file_2_path, executable_path):
-    
+
     args = [executable_path, file_1_path, file_2_path]
 
-    with subprocess.Popen(args, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as proc:
+    with subprocess.Popen(
+        args, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    ) as proc:
         try:
             all_output, error = proc.communicate()
 
-        except Exception as e: 
+        except Exception as e:
             # kill child and pass exception on to handle/log in benchmark
             # this means that KeyboardInterrupt properly kills both python AND the processes
             proc.terminate()
             proc.kill()
             proc.communicate()
-            raise 
+            raise
 
     return OwnDiffOutput(all_output)
 
