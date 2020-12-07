@@ -210,7 +210,7 @@ bsub -n 32 -W 4:00 python -m scripts.bench_algorithm --output-csv=/cluster/home/
 bbjobs
 
 # Check the output of the currently running job:
-# Useful to see the progress par and estimate remaining time.
+# Useful to see the progress bar and estimate remaining time.
 bpeek
 
 # kill submitted job

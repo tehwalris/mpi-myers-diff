@@ -1,4 +1,5 @@
 #!/bin/bash
+# from: https://scicomp.ethz.ch/wiki/FAQ#Environment_modules
 
 echo "-> Loading modules required for build"
 module list &> /dev/null || source /cluster/apps/modules/init/bash
