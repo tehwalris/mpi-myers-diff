@@ -146,6 +146,13 @@ if __name__ == "__main__":
             "extra_fields": {"mpi_procs": args.mpi_procs},
         },
         {
+            "name": "mpi_priority",
+            "run": lambda p1, p2: run_algorithm.run_diff_algorithm_mpi(
+                p1, p2, args.mpi_procs, run_algorithm.own_diff_executable_mpi_priority
+            ),
+            "extra_fields": {"mpi_procs": args.mpi_procs},
+        },
+        {
             "name": "sequential",
             "run": lambda p1, p2: run_algorithm.run_own_diff_algorithm_sequential(
                 p1, p2, run_algorithm.own_diff_executable_sequential
@@ -195,7 +202,7 @@ if __name__ == "__main__":
     csv_output_file = open(args.output_csv, "w", newline="")
     csv_output_writer = CSVOutputWriter(csv_output_file)
 
-    failed_file = open(args.output_csv.split('.')[:-1][0] + "-FAILED.txt", "w")
+    failed_file = open(args.output_csv.split(".")[:-1][0] + "-FAILED.txt", "w")
 
     progress_bar = tqdm(total=total_test_combinations, smoothing=0)
 
@@ -221,15 +228,15 @@ if __name__ == "__main__":
                         verbose_print(
                             "    micros_until_len", program_result.micros_until_len
                         )
-                    except KeyboardInterrupt: # exit the benchmark
+                    except KeyboardInterrupt:  # exit the benchmark
                         break_flag = True
-                        break;
-                    except Exception as e: # catch all
+                        break
+                    except Exception as e:  # catch all
                         progress_bar.update()
 
                         print(diff_program["name"] + "\t", file=failed_file, end="")
                         print(generation_config, file=failed_file, end="")
-                        print("\t"+repr(e), file=failed_file)
+                        print("\t" + repr(e), file=failed_file)
                         continue
 
                     progress_bar.update()
@@ -250,14 +257,13 @@ if __name__ == "__main__":
                         "micros_edit_script": program_result.micros_edit_script,
                     }
                     csv_output_writer.write_row(output_data)
-            
+
                 if break_flag:
                     break
             if break_flag:
                 break
         if break_flag:
             break
-            
 
     progress_bar.close()
     csv_output_file.close()
