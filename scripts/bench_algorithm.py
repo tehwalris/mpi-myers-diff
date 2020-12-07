@@ -146,6 +146,13 @@ if __name__ == "__main__":
             "extra_fields": {"mpi_procs": args.mpi_procs},
         },
         {
+            "name": "mpi_priority",
+            "run": lambda p1, p2: run_algorithm.run_diff_algorithm_mpi(
+                p1, p2, args.mpi_procs, run_algorithm.own_diff_executable_mpi_priority
+            ),
+            "extra_fields": {"mpi_procs": args.mpi_procs},
+        },
+        {
             "name": "sequential",
             "run": lambda p1, p2: run_algorithm.run_own_diff_algorithm_sequential(
                 p1, p2, run_algorithm.own_diff_executable_sequential
@@ -221,10 +228,10 @@ if __name__ == "__main__":
                         verbose_print(
                             "    micros_until_len", program_result.micros_until_len
                         )
-                    except KeyboardInterrupt: # exit the benchmark
+                    except KeyboardInterrupt:  # exit the benchmark
                         break_flag = True
-                        break;
-                    except Exception as e: # catch all
+                        break
+                    except Exception as e:  # catch all
                         progress_bar.update()
                         failed_configs.append((generation_config, e))
                         # TODO pascal: kill child process. Or handle in run_algorithm
@@ -248,23 +255,21 @@ if __name__ == "__main__":
                         "micros_edit_script": program_result.micros_edit_script,
                     }
                     csv_output_writer.write_row(output_data)
-            
+
                 if break_flag:
                     break
             if break_flag:
                 break
         if break_flag:
             break
-            
 
     # write failed configs to file
     if failed_configs:
-        filename = args.output_csv.split('.')[:-1][0] + "-FAILED.txt"
+        filename = args.output_csv.split(".")[:-1][0] + "-FAILED.txt"
         with open(filename, "w") as f:
             for conf, e in failed_configs:
                 print(conf, file=f, end="")
-                print("\t"+repr(e), file=f)
-
+                print("\t" + repr(e), file=f)
 
     progress_bar.close()
     csv_output_file.close()
