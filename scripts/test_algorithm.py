@@ -63,7 +63,7 @@ if __name__ == "__main__":
             test_case_dir / "in_1.txt",
             test_case_dir / "in_2.txt",
             args.mpi_procs,
-            run_algorithm.own_diff_executable_mpi_no_sync_layers,
+            run_algorithm.own_diff_executable_mpi_priority,
         )
         print(f" {own_diff_output_mpi.micros_until_len:>15} μs", flush=True)
         print("Running own sequential implementation", flush=True, end="")
