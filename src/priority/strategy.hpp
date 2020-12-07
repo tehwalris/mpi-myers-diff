@@ -118,6 +118,7 @@ public:
     CellLocation target = intersect_diagonals(limiters.at(Side::Left), limiters.at(Side::Right));
     target.d -= 2;
 
+    // TODO This probably always prioritizes the left send if both are possible, even if the left one is further away.
     bool limited_by_sends = false;
     for (Side s : {Side::Left, Side::Right})
     {
