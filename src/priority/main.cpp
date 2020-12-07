@@ -155,7 +155,7 @@ void main_worker(std::string path_1, std::string path_2)
   // Ideally the workers should all start at exactly the same time. This is never exactly possible, so t_sol_start is the time when the master started calculating.
   t_sol_start = std::chrono::high_resolution_clock::now();
 
-  const int d_max_possible = in_1.size() + in_2.size() + 1; // TODO should this really have "+ 1"?
+  const int d_max_possible = in_1.size() + in_2.size();
   const int d_max = d_max_possible;
 
   RoundRobinPartition partition(world_size, world_rank);
