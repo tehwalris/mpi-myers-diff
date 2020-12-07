@@ -31,7 +31,7 @@ def gen_random_generation_config():
         "strategy": np.random.choice(
             ["independent", "add", "remove", "addremove"], p=[0.1, 0.2, 0.2, 0.5]
         ),
-        "length_1": np.random.randint(1, 10 ** np.random.randint(2, 5)),
+        "length_1": np.random.randint(1, np.random.randint(1000, 20000)),
         "change_strength": np.random.rand()
         * np.random.choice([0.3, 1], p=[0.75, 0.25]),
         "chunkiness": np.random.rand(),

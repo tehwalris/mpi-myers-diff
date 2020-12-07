@@ -44,13 +44,13 @@ def run_diff_algorithm_mpi(
 
     with subprocess.Popen(
         args,
-        text=True,
+        universal_newlines=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         start_new_session=True,
     ) as proc:
         try:
-            all_output, error = proc.communicate(timeout=20)
+            all_output, error = proc.communicate(timeout=25)
 
         except Exception as e:
             # kill child and pass exception on to handle/log in benchmark
@@ -70,7 +70,10 @@ def run_own_diff_algorithm_sequential(file_1_path, file_2_path, executable_path)
     args = [executable_path, file_1_path, file_2_path]
 
     with subprocess.Popen(
-        args, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        args, 
+        universal_newlines=True,
+        stdout=subprocess.PIPE, 
+        stderr=subprocess.PIPE
     ) as proc:
         try:
             all_output, error = proc.communicate()
