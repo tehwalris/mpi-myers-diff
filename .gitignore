@@ -1,4 +1,5 @@
 /temp-bench.csv
+/temp-bench-FAILED.txt
 
 /diffutils/lib/ctype.h
 /diffutils/lib/glthread
