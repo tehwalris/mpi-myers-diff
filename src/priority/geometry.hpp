@@ -80,3 +80,69 @@ CellLocation intersect_triangles(CellLocation bottom_a, CellLocation bottom_b)
 
 // CellDiamond is a pair of top point (inclusive) and bottom point (inclusive)
 typedef std::pair<CellLocation, CellLocation> CellDiamond;
+
+bool is_valid_diamond(const CellDiamond &diamond)
+{
+  return !point_is_outside_of_triangle(diamond.first, diamond.second);
+}
+
+// limit_diamond_height returns a diamond with size at most limit in d dimension. The new diamond can be inscribed in the original and has the same top point.
+// If there are multiple ways to shrink the diamond, it is shrunk so it is as square as possible.
+// If the diamond would be invalid by moving the bottom point in (-d, 0) direction, it will (initially) be moved in (-d, -k) direction.
+CellDiamond limit_diamond_height(CellDiamond target, int limit)
+{
+  assert(is_valid_diamond(target));
+  assert(limit >= 1);
+  int old_height = target.second.d - target.first.d + 1;
+  assert(old_height >= 1);
+  if (old_height <= limit)
+  {
+    return target;
+  }
+
+  int shrink_by_total = old_height - limit;
+  assert(shrink_by_total > 0);
+  int shrink_k_dir = target.first.k - target.second.k;
+  if (shrink_k_dir < 0)
+  {
+    shrink_k_dir = -1;
+  }
+  else if (shrink_k_dir > 0)
+  {
+    shrink_k_dir = 1;
+  }
+  int shrink_by_this_step;
+  bool was_square = false;
+  if (shrink_k_dir == 0)
+  {
+    was_square = true;
+    shrink_by_this_step = shrink_by_total;
+    if (shrink_by_total % 2 == 1)
+    {
+      shrink_k_dir = -1;
+    }
+  }
+  else
+  {
+    shrink_by_this_step = std::min(shrink_by_total, abs(target.first.k - target.second.k));
+  }
+
+  int new_k = target.second.k + shrink_by_this_step * shrink_k_dir;
+  if (was_square)
+  {
+    new_k = target.second.k;
+    if (shrink_by_this_step % 2 == 1)
+    {
+      new_k += shrink_k_dir;
+    }
+  }
+  CellDiamond result(target.first, CellLocation(target.second.d - shrink_by_this_step, new_k));
+  if (shrink_by_this_step < shrink_by_total)
+  {
+    return limit_diamond_height(result, limit);
+  }
+
+  assert(is_valid_diamond(result));
+  assert(result.second.d - result.first.d + 1 == limit);
+  return result;
+}

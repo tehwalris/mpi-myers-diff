@@ -89,7 +89,7 @@ TEST_CASE("Strategy - concrete example (green)")
   const int d_max = 7;
   SimpleStorage storage(d_max);
   TestStrategyFollower<SimpleStorage> follower(&storage);
-  Strategy strategy(&follower, future_receive_begins, future_receive_ends, future_send_begins, future_send_ends, d_max);
+  Strategy strategy(&follower, future_receive_begins, future_receive_ends, future_send_begins, future_send_ends, d_max, Strategy<void *, void *, void *>::no_diamond_height_limit);
 
   const int dummy = 0;
 
@@ -190,7 +190,7 @@ TEST_CASE("Strategy - whole pyramid")
 
   SimpleStorage storage(d_max);
   TestStrategyFollower<SimpleStorage> follower(&storage);
-  Strategy strategy(&follower, future_receive_begins, future_receive_ends, future_send_begins, future_send_ends, d_max);
+  Strategy strategy(&follower, future_receive_begins, future_receive_ends, future_send_begins, future_send_ends, d_max, Strategy<void *, void *, void *>::no_diamond_height_limit);
 
   REQUIRE(!strategy.is_done());
   REQUIRE(follower.get_num_directly_calculated() == 0);
@@ -393,4 +393,25 @@ TEST_CASE("intersect_diagonals")
   REQUIRE(intersect_diagonals(CellLocation(0, 0), CellLocation(3, 1)) == CellLocation(2, 2));
   REQUIRE(intersect_diagonals(CellLocation(7, -1), CellLocation(2, -2)) == CellLocation(4, -4));
   REQUIRE(intersect_diagonals(CellLocation(7, -1), CellLocation(2, 2)) == CellLocation(6, -2));
+}
+
+TEST_CASE("limit_diamond_height")
+{
+  auto d = [](int top_d, int top_k, int bottom_d, int bottom_k) {
+    return std::make_pair(CellLocation(top_d, top_k), CellLocation(bottom_d, bottom_k));
+  };
+  REQUIRE(limit_diamond_height(d(0, 0, 0, 0), 1) == d(0, 0, 0, 0));
+  REQUIRE(limit_diamond_height(d(52, -7, 52, -7), 1) == d(52, -7, 52, -7));
+  REQUIRE(limit_diamond_height(d(0, 0, 15, 8), 20) == d(0, 0, 15, 8));
+  REQUIRE(limit_diamond_height(d(0, 0, 8, -3), 9) == d(0, 0, 8, -3));
+  REQUIRE(limit_diamond_height(d(7, -2, 15, -4), 9) == d(7, -2, 15, -4));
+  REQUIRE(limit_diamond_height(d(0, 0, 6, 0), 3).second == d(0, 0, 2, 0).second);
+  REQUIRE(limit_diamond_height(d(0, 0, 6, 0), 2).second == d(0, 0, 1, -1).second);
+  REQUIRE(limit_diamond_height(d(0, 0, 4, 0), 2).second == d(0, 0, 1, -1).second);
+  REQUIRE(limit_diamond_height(d(0, 0, 6, 0), 1).second == d(0, 0, 0, 0).second);
+  REQUIRE(limit_diamond_height(d(0, 0, 6, -2), 6) == d(0, 0, 5, -1));
+  REQUIRE(limit_diamond_height(d(0, 0, 6, 2), 6) == d(0, 0, 5, 1));
+  REQUIRE(limit_diamond_height(d(0, 0, 6, 2), 1) == d(0, 0, 0, 0));
+  REQUIRE(limit_diamond_height(d(0, 0, 6, 2), 2).second == d(0, 0, 1, -1).second);
+  REQUIRE(limit_diamond_height(d(0, 0, 2, 0), 2) == d(0, 0, 1, -1));
 }

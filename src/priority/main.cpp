@@ -237,12 +237,13 @@ void main_worker(std::string path_1, std::string path_2)
 #endif
 
   MPIStrategyFollower follower(&storage, in_1, in_2, world_rank, world_size);
-  Strategy strategy(&follower, future_receive_begins, future_receive_ends, future_send_begins, future_send_ends, d_max);
+  const int diamond_height_limit = 20;
+  Strategy strategy(&follower, future_receive_begins, future_receive_ends, future_send_begins, future_send_ends, d_max, diamond_height_limit);
 
   int largest_d_change = 0;
   while (true)
   {
-    int deepest_d_before = 0;
+    int deepest_d_before = follower.get_deepest_calculated_d();
     strategy.run();
     largest_d_change = std::max(largest_d_change, follower.get_deepest_calculated_d() - deepest_d_before);
 

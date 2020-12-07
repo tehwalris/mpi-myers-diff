@@ -66,22 +66,27 @@ template <class F, class IR, class IS>
 class Strategy
 {
 public:
+  static const int no_diamond_height_limit = -1;
+
   Strategy(
       F *follower,
       PerSide<IR> future_receives,
       PerSide<IR> future_receive_ends,
       PerSide<IS> future_sends,
       PerSide<IS> future_send_ends,
-      int d_max) : follower(follower),
-                   future_receives(future_receives),
-                   future_receive_ends(future_receive_ends),
-                   future_sends(future_sends),
-                   future_send_ends(future_send_ends),
-                   d_max(d_max),
-                   frontier(CellLocation(d_max, -d_max - 2), CellLocation(d_max, d_max + 2)),
-                   final_known_limiters(CellLocation(d_max + 1, -(d_max + 1)), CellLocation(d_max + 1, d_max + 1))
+      int d_max,
+      int diamond_height_limit) : follower(follower),
+                                  future_receives(future_receives),
+                                  future_receive_ends(future_receive_ends),
+                                  future_sends(future_sends),
+                                  future_send_ends(future_send_ends),
+                                  d_max(d_max),
+                                  diamond_height_limit(diamond_height_limit),
+                                  frontier(CellLocation(d_max, -d_max - 2), CellLocation(d_max, d_max + 2)),
+                                  final_known_limiters(CellLocation(d_max + 1, -(d_max + 1)), CellLocation(d_max + 1, d_max + 1))
   {
     assert(d_max >= 0);
+    assert(diamond_height_limit == no_diamond_height_limit || diamond_height_limit > 0);
   };
 
   void receive(Side from, int v)
@@ -135,19 +140,18 @@ public:
       }
     }
 
-    bool calculated_something = false;
-    while (true)
+    std::optional<CellDiamond> exposed_diamond_opt = frontier.get_next_exposed_diamond(target);
+    if (exposed_diamond_opt.has_value())
     {
-      std::optional<CellDiamond> exposed_diamond_opt = frontier.get_next_exposed_diamond(target);
-      if (!exposed_diamond_opt.has_value())
-      {
-        break;
-      }
       CellDiamond &exposed_diamond = exposed_diamond_opt.value();
+      if (!limited_by_sends && diamond_height_limit != no_diamond_height_limit)
+      {
+        exposed_diamond = limit_diamond_height(exposed_diamond, diamond_height_limit);
+        // std::cerr << "limiting " << diamond_height_limit << " " << exposed_diamond.second.d - exposed_diamond.first.d << std::endl;
+      }
 
       calculate_all_in_diamond(exposed_diamond);
       frontier.cover_triangle(exposed_diamond.second);
-      calculated_something = true;
     }
 
     for (Side s : {Side::Left, Side::Right})
@@ -168,7 +172,7 @@ public:
     {
       done = true;
     }
-    blocked_waiting_for_receive = !calculated_something && limited_by_receives && !limited_by_sends;
+    blocked_waiting_for_receive = !exposed_diamond_opt.has_value() && limited_by_receives && !limited_by_sends;
   }
 
   void try_lower_d_max(int new_d_max)
@@ -204,6 +208,7 @@ private:
   Frontier frontier;
   F *follower;
   int d_max;
+  int diamond_height_limit;
   inline static const int never_received = -1;
   bool done = false;
   bool blocked_waiting_for_receive = false;
@@ -211,6 +216,7 @@ private:
 
   void calculate_all_in_diamond(CellDiamond diamond)
   {
+    assert(is_valid_diamond(diamond));
     for (int d = diamond.first.d; d <= std::min(diamond.second.d, d_max); d++)
     {
       int k_min = std::max(diamond.first.k - (d - diamond.first.d), diamond.second.k - (diamond.second.d - d));
