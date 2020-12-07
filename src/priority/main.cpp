@@ -74,6 +74,11 @@ public:
 
     set(d, k, x);
 
+    if (d > deepest_calculated_d || deepest_calculated_d == no_known_d)
+    {
+      deepest_calculated_d = d;
+    }
+
     bool is_final_result = x >= in_1.size() && y >= in_2.size();
     if (is_final_result)
     {
@@ -85,6 +90,11 @@ public:
   int get_lowest_known_d()
   {
     return lowest_known_d;
+  }
+
+  int get_deepest_calculated_d()
+  {
+    return deepest_calculated_d;
   }
 
   void send(int d, int k, Side to)
@@ -152,6 +162,7 @@ private:
   int world_rank;
   int world_size;
   int lowest_known_d = no_known_d;
+  int deepest_calculated_d = no_known_d;
 
   void try_update_lowest_known_d(int d)
   {
@@ -228,9 +239,13 @@ void main_worker(std::string path_1, std::string path_2)
   MPIStrategyFollower follower(&storage, in_1, in_2, world_rank, world_size);
   Strategy strategy(&follower, future_receive_begins, future_receive_ends, future_send_begins, future_send_ends, d_max);
 
+  int largest_d_change = 0;
   while (true)
   {
+    int deepest_d_before = 0;
     strategy.run();
+    largest_d_change = std::max(largest_d_change, follower.get_deepest_calculated_d() - deepest_d_before);
+
     if (strategy.is_done())
     {
       break;
@@ -265,7 +280,7 @@ void main_worker(std::string path_1, std::string path_2)
   }
 
   DEBUG(1, world_rank << " | "
-                      << "main computation done " << follower.get_lowest_known_d() << " " << lowest_self_known_d
+                      << "main computation done " << follower.get_lowest_known_d() << " " << lowest_self_known_d << " " << follower.get_deepest_calculated_d() << " " << largest_d_change
                       << " self done in " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - t_sol_start).count() << std::endl);
 
   if (world_rank != master_rank)
