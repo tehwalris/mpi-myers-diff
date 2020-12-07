@@ -228,11 +228,6 @@ private:
           return;
         }
       }
-      if (follower->check_cancel())
-      {
-        done = true;
-        return;
-      }
     }
   }
 };

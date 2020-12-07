@@ -49,11 +49,6 @@ public:
     sends.emplace_back(CellLocation(d, k), to);
   }
 
-  bool check_cancel()
-  {
-    return false;
-  }
-
   int get_num_directly_calculated()
   {
     return num_calculated;
