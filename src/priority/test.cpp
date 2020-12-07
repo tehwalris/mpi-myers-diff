@@ -18,13 +18,11 @@ class TestStrategyFollower
 public:
   std::vector<std::pair<CellLocation, Side>> sends;
 
-  TestStrategyFollower(S *storage) : storage(storage){};
+  TestStrategyFollower(S *storage, int final_result_count) : storage(storage), final_result_count(final_result_count){};
 
   inline void set(int d, int k, int v)
   {
-    int &stored = storage->at(d, k);
-    assert(stored == S::undefined);
-    stored = v;
+    storage->set(d, k, v);
   }
 
   bool calculate(int d, int k)
@@ -32,20 +30,20 @@ public:
     assert(d >= 0 && abs(k) <= d);
     if (k > -d)
     {
-      get(d - 1, k - 1);
+      storage->get(d - 1, k - 1);
     }
     if (k < d)
     {
-      get(d - 1, k + 1);
+      storage->get(d - 1, k + 1);
     }
-    set(d, k, 0); // fake value
+    storage->set(d, k, 0); // fake value
     num_calculated++;
-    return false; // fake "found final result"
+    return num_calculated == final_result_count;
   }
 
   void send(int d, int k, Side to)
   {
-    get(d, k);
+    storage->get(d, k);
     sends.emplace_back(CellLocation(d, k), to);
   }
 
@@ -56,14 +54,8 @@ public:
 
 private:
   S *storage;
+  int final_result_count;
   int num_calculated = 0;
-
-  inline int get(int d, int k)
-  {
-    int stored = storage->at(d, k);
-    assert(stored != S::undefined);
-    return stored;
-  }
 };
 
 TEST_CASE("Strategy - concrete example (green)")
@@ -88,7 +80,7 @@ TEST_CASE("Strategy - concrete example (green)")
 
   const int d_max = 7;
   SimpleStorage storage(d_max);
-  TestStrategyFollower<SimpleStorage> follower(&storage);
+  TestStrategyFollower<SimpleStorage> follower(&storage, 12);
   Strategy strategy(&follower, future_receive_begins, future_receive_ends, future_send_begins, future_send_ends, d_max, Strategy<void *, void *, void *>::no_diamond_height_limit);
 
   const int dummy = 0;
@@ -161,7 +153,7 @@ TEST_CASE("Strategy - concrete example (green)")
   REQUIRE(follower.sends.size() == 4);
   REQUIRE(strategy.is_done());
   REQUIRE(!strategy.is_blocked_waiting_for_receive());
-  REQUIRE(!strategy.get_final_result_location().has_value());
+  REQUIRE(strategy.get_final_result_location().has_value());
 
   std::vector<std::pair<CellLocation, Side>> expected_sends{
       std::make_pair(CellLocation(1, 1), Side::Right),
@@ -189,13 +181,12 @@ TEST_CASE("Strategy - whole pyramid")
   PerSide<std::vector<CellLocation>::const_iterator> future_send_ends(future_sends.at(Side::Left).end(), future_sends.at(Side::Right).end());
 
   SimpleStorage storage(d_max);
-  TestStrategyFollower<SimpleStorage> follower(&storage);
+  TestStrategyFollower<SimpleStorage> follower(&storage, -1);
   Strategy strategy(&follower, future_receive_begins, future_receive_ends, future_send_begins, future_send_ends, d_max, Strategy<void *, void *, void *>::no_diamond_height_limit);
 
   REQUIRE(!strategy.is_done());
   REQUIRE(follower.get_num_directly_calculated() == 0);
   strategy.run();
-  REQUIRE(strategy.is_done());
   REQUIRE(follower.get_num_directly_calculated() == ((d_max + 1) * (d_max + 1) + (d_max + 1)) / 2);
 }
 

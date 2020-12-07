@@ -147,10 +147,13 @@ public:
       if (!limited_by_sends && diamond_height_limit != no_diamond_height_limit)
       {
         exposed_diamond = limit_diamond_height(exposed_diamond, diamond_height_limit);
-        // std::cerr << "limiting " << diamond_height_limit << " " << exposed_diamond.second.d - exposed_diamond.first.d << std::endl;
       }
 
       calculate_all_in_diamond(exposed_diamond);
+      if (done)
+      {
+        return;
+      }
       frontier.cover_triangle(exposed_diamond.second);
     }
 
@@ -168,20 +171,11 @@ public:
       }
     }
 
-    if (!limited_by_receives && !limited_by_sends)
+    if (!exposed_diamond_opt.has_value() && !limited_by_receives && !limited_by_sends)
     {
       done = true;
     }
     blocked_waiting_for_receive = !exposed_diamond_opt.has_value() && limited_by_receives && !limited_by_sends;
-  }
-
-  void try_lower_d_max(int new_d_max)
-  {
-    assert(new_d_max >= 0);
-    if (new_d_max < d_max)
-    {
-      d_max = new_d_max;
-    }
   }
 
   bool is_done()
@@ -217,7 +211,8 @@ private:
   void calculate_all_in_diamond(CellDiamond diamond)
   {
     assert(is_valid_diamond(diamond));
-    for (int d = diamond.first.d; d <= std::min(diamond.second.d, d_max); d++)
+    int d_local_max = std::min(diamond.second.d, d_max);
+    for (int d = diamond.first.d; d <= d_local_max; d++)
     {
       int k_min = std::max(diamond.first.k - (d - diamond.first.d), diamond.second.k - (diamond.second.d - d));
       int k_max = std::min(diamond.first.k + (d - diamond.first.d), diamond.second.k + (diamond.second.d - d));
@@ -229,7 +224,8 @@ private:
         {
           assert(!final_result_location.has_value());
           final_result_location = std::optional{CellLocation(d, k)};
-          try_lower_d_max(std::max(0, d - 1));
+          done = true;
+          return;
         }
       }
     }

@@ -5,7 +5,7 @@
 #include <cassert>
 #include <fstream>
 
-const int debug_level = 1;
+const int debug_level = 0;
 
 #ifndef NDEBUG
 #define DEBUG(level, x)          \
