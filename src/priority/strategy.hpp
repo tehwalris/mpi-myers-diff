@@ -171,7 +171,7 @@ public:
       }
     }
 
-    if (!limited_by_receives && !limited_by_sends)
+    if (!exposed_diamond_opt.has_value() && !limited_by_receives && !limited_by_sends)
     {
       done = true;
     }
