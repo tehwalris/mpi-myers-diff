@@ -211,8 +211,8 @@ void main_worker(std::string path_1, std::string path_2)
   PerSide<SendSideIterator<RoundRobinPartition> &> future_send_begins(left_send_begin, right_send_begin);
   PerSide<SendSideIterator<RoundRobinPartition> &> future_send_ends(left_send_end, right_send_end);
 
-  SimpleStorage storage(d_max);
-  MPIStrategyFollower<SimpleStorage> follower(&storage, in_1, in_2, world_rank, world_size);
+  FastStorage storage(d_max);
+  MPIStrategyFollower<FastStorage> follower(&storage, in_1, in_2, world_rank, world_size);
   Strategy strategy(&follower, future_receive_begins, future_receive_ends, future_send_begins, future_send_ends, d_max);
 
   while (true)
