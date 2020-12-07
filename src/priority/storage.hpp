@@ -36,7 +36,7 @@ public:
   FastStorage(int d_max) : d_max(d_max)
   {
     // allocate initial block 0
-    num_blocks = std::ceil(std::max(1.0, d_max / (double)alloc_n_layers));
+    num_blocks = std::ceil(std::max(1.0, (d_max + 1) / (double)alloc_n_layers));
     data_pointers.resize(num_blocks, nullptr);
     data_pointers[0] = allocate_block(0);
   }
@@ -54,7 +54,7 @@ public:
     int start_d = pyramid_size(d) - pyramid_size(block_idx * alloc_n_layers);
     int offset = (k + d) / 2;
 
-    assert(d < d_max);
+    assert(d <= d_max);
     assert(offset >= 0 && offset <= d + 1);
 
     return data_pointers[block_idx][start_d + offset];

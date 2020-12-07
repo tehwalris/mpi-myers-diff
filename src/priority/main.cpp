@@ -5,6 +5,8 @@
 #include "partition.hpp"
 #include "util.hpp"
 
+#define USE_FAST_STORAGE
+
 const int master_rank = 0;
 
 enum Tag
@@ -38,7 +40,9 @@ public:
   inline void set(int d, int k, int v)
   {
     int &stored = storage->at(d, k);
+#ifndef USE_FAST_STORAGE
     assert(stored == S::undefined);
+#endif
     stored = v;
   }
 
@@ -161,7 +165,9 @@ private:
   inline int get(int d, int k)
   {
     int stored = storage->at(d, k);
+#ifndef USE_FAST_STORAGE
     assert(stored != S::undefined);
+#endif
     return stored;
   }
 
@@ -211,8 +217,13 @@ void main_worker(std::string path_1, std::string path_2)
   PerSide<SendSideIterator<RoundRobinPartition> &> future_send_begins(left_send_begin, right_send_begin);
   PerSide<SendSideIterator<RoundRobinPartition> &> future_send_ends(left_send_end, right_send_end);
 
+#ifdef USE_FAST_STORAGE
   FastStorage storage(d_max);
-  MPIStrategyFollower<FastStorage> follower(&storage, in_1, in_2, world_rank, world_size);
+#else
+  SimpleStorage storage(d_max);
+#endif
+
+  MPIStrategyFollower follower(&storage, in_1, in_2, world_rank, world_size);
   Strategy strategy(&follower, future_receive_begins, future_receive_ends, future_send_begins, future_send_ends, d_max);
 
   while (true)
