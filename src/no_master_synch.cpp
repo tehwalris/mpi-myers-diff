@@ -1,5 +1,5 @@
 // Uncomment this line when performance is measured
-#define NDEBUG
+//#define NDEBUG
 
 #include <mpi.h>
 #include <iostream>
@@ -129,6 +129,52 @@ public:
 
         return data_pointers[block_idx] + start_d + offset;
     }
+
+};
+
+struct interval{
+  std::vector<std::pair<int, int>> m_interval_set;
+
+  size_t size(){
+    return m_interval_set.size();
+  }
+
+  void insert(int min, int max){
+    DEBUG(3, "INTERVAL: inserting (" << min << "," << max << ")");
+    if(m_interval_set.size() == 0){
+      m_interval_set.push_back(std::pair<int, int>(min, max));
+      return;
+    }
+    for(size_t i=0; i < m_interval_set.size(); i++){
+      auto &cur = m_interval_set.at(i);
+      DEBUG(3, "INTERVAL: cur (" << cur.first << "," << cur.second << ")");
+      if(cur.first > max){
+        DEBUG(3, "INTERVAL: Inserting");
+        m_interval_set.insert(m_interval_set.begin()+i, std::pair<int, int>(min, max));
+        break;
+      } else if(cur.first == max){
+        DEBUG(3, "INTERVAL: Prepending");
+        // Can prepend?
+        cur.first = min;
+        break;
+      } else if(cur.second == min){
+        DEBUG(3, "INTERVAL: Extending");
+        // Can extend?
+        cur.second = max;
+        if(i < m_interval_set.size()-1 && m_interval_set.at(i+1).first == max){
+          DEBUG(3, "INTERVAL: Merging");
+          // Can merge?
+          cur.second = m_interval_set.at(i+1).second;
+          m_interval_set.erase(m_interval_set.begin()+i+1);
+        }
+        break;
+      }
+    }
+    //for(auto i = m_interval_set.begin(); i != m_interval_set.end();i++){
+    //    DEBUG_NO_LINE(2,"(min: " << i->first << ", max: " << i->second << ")");
+    //}
+    DEBUG(2, "");
+  }
 
 };
 
@@ -270,7 +316,7 @@ bool Recv(int source_rank, int d, int k, Results &results, int worker_rank /*onl
         return true;
       }
 
-      MPI_Recv(msg.data(), msg.size(), MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+      MPI_Recv(msg.data(), msg.size(), MPI_INT, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
       if (status.MPI_TAG == Tag::StopWorkers){
         DEBUG(2, worker_rank << " | received stop signal from " << status.MPI_SOURCE);
         return true;
@@ -282,7 +328,7 @@ bool Recv(int source_rank, int d, int k, Results &results, int worker_rank /*onl
       x = msg.at(2);
       results.result_at(d_rcv, k_rcv) = x;
 
-      DEBUG(2, worker_rank << " | " << "receiving from "<< status.MPI_SOURCE <<": (" << d_rcv <<", "<< k_rcv <<"): "<< x);
+      DEBUG(2, worker_rank << " | " << "receiving from "<< status.MPI_SOURCE <<": (" << d_rcv <<", "<< k_rcv <<"): "<< x << " (Tag: " << status.MPI_TAG<<")");
       assert(x > 0);
     }
 
@@ -410,7 +456,7 @@ int calculate_table(const std::vector<int> &in_1, const std::vector<int> &in_2, 
 
   DEBUG(2, worker_rank << " | All workers active");
 
-  if(worker_rank > 0){
+  if(worker_rank > 0 && num_workers * MIN_ENTRIES - 1 < d_max){
     int d=num_workers * MIN_ENTRIES - 1;
     // Send entry (d, k_min) to worker_rank-1
     x = results.result_at(d, k_min);
@@ -576,12 +622,13 @@ int calculate_table(const std::vector<int> &in_1, const std::vector<int> &in_2, 
       }
     }
   }
+  return -1;
 }
 
 void main_worker(const std::string &path_1, const std::string &path_2, bool edit_script_to_file, const std::string &edit_script_path)
 {
   // This number must be greater or equal to 2
-  const int MIN_ENTRIES = 100; // min. number of initial entries to compute on one node per layer d before the next node is started
+  const int MIN_ENTRIES = 3; // min. number of initial entries to compute on one node per layer d before the next node is started
 
   int worker_rank;
   int comm_size;
@@ -640,7 +687,6 @@ void main_worker(const std::string &path_1, const std::string &path_2, bool edit
   t_sol_end = std::chrono::high_resolution_clock::now();
 
 
-
   // read result and send it to next worker
   t_script_start = std::chrono::high_resolution_clock::now();
   std::vector<struct edit_step> steps;
@@ -655,13 +701,42 @@ void main_worker(const std::string &path_1, const std::string &path_2, bool edit
   MPI_Type_contiguous(3, MPI_INT, &MPI_edit_step_t);
   MPI_Type_commit(&MPI_edit_step_t);
 
+
+  // For worker 0 to know if it has to wait for other workers
+  interval recv_part;
+
   std::vector<int> msg(3);
   MPI_Status status;
   while(true){
     if(!first){
       DEBUG(2, worker_rank << " | Waiting for work");
       while(true){
-        MPI_Recv(msg.data(), msg.size(), MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+        MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+        if(worker_rank == 0){
+          if(status.MPI_TAG == Tag::ReadOutData){
+            DEBUG(2, worker_rank << " | reading data. Tag: " << status.MPI_TAG);
+            int num;
+            MPI_Get_count(&status, MPI_edit_step_t, &num);
+            std::vector<struct edit_step> buf(num);
+            MPI_Recv(buf.data(), buf.size(), MPI_edit_step_t, status.MPI_SOURCE, Tag::ReadOutData, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            int d_recv = buf[0].x;
+            int e_len = buf[0].insert_val;
+            int size = buf.size() - 1;
+            DEBUG(2, worker_rank << " | Received Data. (d:" << d_recv << ", edit_len:" << e_len << ", mode:" <<buf[0].mode <<")");
+            assert(buf[0].mode == 2);
+            if(edit_len != e_len){
+              steps = std::vector<struct edit_step>(buf[0].insert_val);
+              edit_len = e_len;
+              recv_part.insert(edit_len, edit_len);
+            }
+            std::copy(buf.begin()+1, buf.end(), steps.begin()+buf[0].x);
+            recv_part.insert(d_recv, d_recv+size);
+            continue;
+          }
+        }
+        // Make sure node 0 does not receive another mesage than the probed one
+        MPI_Recv(msg.data(), msg.size(), MPI_INT, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
+        assert(status.MPI_TAG != Tag::ReadOutData);
         if (status.MPI_TAG == Tag::ReadOutStopWorkers){
           DEBUG(2, worker_rank << " | received stop signal from " << status.MPI_SOURCE);
           return;
@@ -672,17 +747,16 @@ void main_worker(const std::string &path_1, const std::string &path_2, bool edit
         d = msg.at(0);
         k = msg.at(1);
         int e_len = msg.at(2);
-        DEBUG(2, worker_rank << " | Received work. Waiting for Data");
-        if(steps.size() != e_len){
+        DEBUG(2, worker_rank << " | Received work. Start calculating (d:" << d << ", k:" << k <<")");
+        if(edit_len != e_len){
           steps = std::vector<struct edit_step>(e_len);
           edit_len = e_len;
         }
-        MPI_Recv(steps.data(), steps.size(), MPI_edit_step_t, MPI_ANY_SOURCE, Tag::ReadOutData, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        DEBUG(2, worker_rank << " | Received Data. Calculating..." );
         break;
       }
     }
     first = false;
+    int d_start = d;
     for(;d>0; d--){
       auto bounds = get_k_bounds(d, worker_rank, num_workers, MIN_ENTRIES);
       int k_min = bounds.first;
@@ -710,21 +784,59 @@ void main_worker(const std::string &path_1, const std::string &path_2, bool edit
       if(k > k_max || k < k_min){
         int offset = k > k_max ? +1 : -1; // neighbour left or right
         msg = {d-1, k, edit_len};
+        if(worker_rank > 0){
+          int length = d_start-d+1;
+          DEBUG(2, worker_rank << " | Sending Data to worker 0 (d:"<< d-1 << " d_start: " << d_start << " length: "<< length <<")");
+          std::vector<struct edit_step> buf(length+1);
+          buf[0] = {d-1, edit_len, 2};
+          std::copy(steps.begin()+d-1, steps.begin()+d_start, buf.begin()+1);
+          MPI_Send(buf.data(), buf.size(), MPI_edit_step_t, 0, Tag::ReadOutData, MPI_COMM_WORLD);
+        } else {
+          recv_part.insert(d-1, d_start);
+        }
         DEBUG(2, worker_rank << " | Sending message to " << worker_rank + offset << " (" << msg[0]<<","<<msg[1]<<","<<msg[2]<<")");
         MPI_Send(msg.data(), msg.size(), MPI_INT, worker_rank + offset, Tag::ReadOut, MPI_COMM_WORLD);
-        DEBUG(2, worker_rank << " | Sending Data to " << worker_rank + offset);
-        MPI_Send(steps.data(), steps.size(), MPI_edit_step_t, worker_rank + offset, Tag::ReadOutData, MPI_COMM_WORLD);
         break;
       }
     }
     if(d==0){
+      recv_part.insert(d, d_start);
       DEBUG(2, worker_rank << " | All done");
       stop_workers(num_workers, worker_rank, Tag::ReadOutStopWorkers);
+      DEBUG(1, worker_rank << " | recv_part size:" << recv_part.size());
+      assert(recv_part.size() > 0);
+      while(recv_part.size() != 1){
+        MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+        if(status.MPI_TAG == Tag::ReadOutData){
+          DEBUG(2, worker_rank << " | reading data. Tag: " << status.MPI_TAG);
+          int num;
+          MPI_Get_count(&status, MPI_edit_step_t, &num);
+          std::vector<struct edit_step> buf(num);
+          MPI_Recv(buf.data(), buf.size(), MPI_edit_step_t, status.MPI_SOURCE, Tag::ReadOutData, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+          int d_recv = buf[0].x;
+          int e_len = buf[0].insert_val;
+          int size = buf.size() - 1;
+          DEBUG(2, worker_rank << " | Received Data. (d:" << d_recv << ", edit_len:" << e_len << ", mode:" <<buf[0].mode <<")");
+          assert(buf[0].mode == 2);
+          if(edit_len != e_len){
+            steps = std::vector<struct edit_step>(buf[0].insert_val);
+            edit_len = e_len;
+            recv_part.insert(edit_len, edit_len);
+          }
+          std::copy(buf.begin()+1, buf.end(), steps.begin()+buf[0].x);
+          recv_part.insert(d_recv, d_recv+size);
+          continue;
+        } else {
+           // TODO: Uhm, what do do in this case? Can this happen?
+        }
+      }
       t_script_end = std::chrono::high_resolution_clock::now();
+
       break;
     }
   }
 
+  DEBUG(2, worker_rank << " | Finished reading out");
 
   if(worker_rank == 0){
 
@@ -744,6 +856,7 @@ void main_worker(const std::string &path_1, const std::string &path_2, bool edit
 
     for(int i=0, size = steps.size(); i < size; i++){
       struct edit_step step = steps.at(i);
+      assert(!(step.mode == 0) || step.x != 0);
       if(step.mode){
         std::cout << step.x << " + " << step.insert_val << std::endl;
       } else  {
