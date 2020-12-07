@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <chrono>                   // chrono::high_resolution_clock
+#include "priority/storage.hpp"
 
 // Uncomment this line when performance is measured
 //#define NDEBUG
@@ -27,72 +28,13 @@ const int debug_level = 0;
 #define DEBUG_NO_LINE(level, x)
 #endif
 
+#ifndef FRONTIER_STORAGE
+#define EDIT_SCRIPT
+#endif
+
 const int shutdown_sentinel = -1;
 const int unknown_len = -1;
 const int no_worker_rank = 0;
-
-class Results{
-private:
-    int alloc_n_layers = 20;
-    std::vector<int*> data_pointers;
-
-    // allocate the data block that begins at layer index d_begin
-    int* allocate_block(int d_begin){
-      int d_max = d_begin + alloc_n_layers;
-      int size = pyramid_size(d_max) - pyramid_size(d_begin);
-      DEBUG(3, "PYRAMID: allocate new blocks for layer "<<d_begin<<" to "<<d_max-1<<" of size "<< size);
-      
-      return new int[size](); // initialized to 0
-    }
-
-    // total number of elements in a pyramid with l layers
-    inline int pyramid_size(int l){
-      return (l*(l+1))/2;
-    }
-
-public:
-    int m_d_max;
-    int num_blocks;
-
-    Results(int d_max){
-        this->m_d_max = d_max;
-
-        // allocate initial block 0
-        this->num_blocks = std::ceil(std::max(1.0, d_max / (double) alloc_n_layers));
-        data_pointers.resize(num_blocks, nullptr);
-        data_pointers[0] = allocate_block(0); 
-    }
-
-    int &result_at(int d, int k){
-        DEBUG(3, "PYRAMID: ("<<d<<", "<<k<<")");
-        int block_idx = d / alloc_n_layers;
-
-        // allocate new block if needed
-        if (data_pointers.at(block_idx) == nullptr){
-          data_pointers.at(block_idx) = allocate_block(block_idx*alloc_n_layers);
-        }
-
-        int start_d = pyramid_size(d) - pyramid_size(block_idx*alloc_n_layers);
-        int offset = (k+d)/2;
-
-        assert(d < this->m_d_max);
-        assert(offset >= 0 && offset <= d+1);
-
-        return data_pointers[block_idx][start_d+offset];
-    }
-
-    // returns pointer to first that element.
-    // is guaranteed to continue for at least end of layer d.
-    // unlike result_at(d,k) does not perform allocation of next layers
-    int* get_pointer(int d, int k){
-        int block_idx = d / alloc_n_layers;
-        int start_d = pyramid_size(d) - pyramid_size(block_idx*alloc_n_layers);
-        int offset = (k+d) / 2;
-
-        return data_pointers[block_idx] + start_d + offset;
-    }
-
-};
 
 struct Edit_step{
     /** Position at which to perform the edit step */
@@ -136,8 +78,12 @@ int main(int argc, char *argv[])
 {
     std::ios_base::sync_with_stdio(false);
 
-    std::string path_1, path_2, edit_script_path;
+    std::string path_1, path_2;
+
+#ifdef EDIT_SCRIPT
+    std::string edit_script_path;
     bool edit_script_to_file = false;
+#endif
 
     if (argc < 3)
     {
@@ -148,10 +94,13 @@ int main(int argc, char *argv[])
     {
         path_1 = argv[1];
         path_2 = argv[2];
+
+#ifdef EDIT_SCRIPT
         if (argc >= 4) {
             edit_script_path = argv[3];
             edit_script_to_file = true;
         }
+#endif
     }
 
     // TIMERS
@@ -173,7 +122,12 @@ int main(int argc, char *argv[])
     int d_max = in_1.size() + in_2.size() + 1;
 
     int edit_len = unknown_len;
-    Results results(d_max);
+
+#ifdef FRONTIER_STORAGE
+    FrontierStorage results(d_max);
+#else
+    FastStorage results(d_max);
+#endif
 
     for (int d = 0; d < d_max; d++)
     {
@@ -188,13 +142,13 @@ int main(int argc, char *argv[])
             {
                 x = 0;
             }
-            else if (k == -d || k != d && results.result_at(d - 1, k - 1) < results.result_at(d - 1, k + 1))
+            else if (k == -d || k != d && results.get(d - 1, k - 1) < results.get(d - 1, k + 1))
             {
-                x = results.result_at(d - 1, k + 1);
+                x = results.get(d - 1, k + 1);
             }
             else
             {
-                x = results.result_at(d - 1, k - 1) + 1;
+                x = results.get(d - 1, k - 1) + 1;
             }
 
             int y = x - k;
@@ -207,7 +161,7 @@ int main(int argc, char *argv[])
 
             DEBUG(2, "x: " << x);
             DEBUG(2, "y; " << y);
-            results.result_at(d, k) = x;
+            results.set(d, k, x);
 
             if (x >= in_1.size() && y >= in_2.size())
             {
@@ -224,20 +178,21 @@ int main(int argc, char *argv[])
 done:
     t_script_start = std::chrono::high_resolution_clock::now();
 
+#ifdef EDIT_SCRIPT
     std::vector<struct Edit_step> steps(edit_len);
     int k = in_1.size() - in_2.size();
     for(int d = edit_len; d > 0; d--){
-        if (k == -d || k != d && results.result_at(d - 1, k - 1) < results.result_at(d - 1, k + 1))
+        if (k == -d || k != d && results.get(d - 1, k - 1) < results.get(d - 1, k + 1))
         {
             k = k + 1;
-            int x = results.result_at(d - 1, k);
+            int x = results.get(d - 1, k);
             int y = x - k;
             int val = in_2.at(y);
             DEBUG(2, "y: " << y << " in_2: " << val);
             steps[d-1] = {x, val, true};
         } else {
             k = k - 1;
-            int x = results.result_at(d - 1, k) + 1;
+            int x = results.get(d - 1, k) + 1;
             steps[d-1] = {x, -1, false};
         }
     }
@@ -268,9 +223,11 @@ done:
         edit_script_file.close();
     }
 
+    std::cout.rdbuf(cout_buf);
+#endif
+
     t_script_end = std::chrono::high_resolution_clock::now();
 
-    std::cout.rdbuf(cout_buf);
     std::cout << "\nmin edit length " << edit_len << std::endl << std::endl;
     std::cout << "Read Input [μs]: \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_in_end - t_in_start).count() << std::endl;
     std::cout << "Precompute [μs]: \t" << 0 << std::endl;

@@ -13,8 +13,14 @@ own_diff_executable_mpi_no_master = (
 own_diff_executable_mpi_priority = (
     Path(__file__).parent / "../bin/own-diff-mpi-priority.out"
 )
+own_diff_executable_mpi_priority_frontier = (
+    Path(__file__).parent / "../bin/own-diff-mpi-priority-frontier.out"
+)
 own_diff_executable_sequential = (
     Path(__file__).parent / "../bin/own-diff-sequential.out"
+)
+own_diff_executable_sequential_frontier = (
+    Path(__file__).parent / "../bin/own-diff-sequential-frontier.out"
 )
 own_diff_executable_sequential_fast_snakes = (
     Path(__file__).parent / "../bin/own-diff-sequential-fast-snakes.out"

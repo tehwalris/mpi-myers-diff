@@ -159,7 +159,12 @@ void main_worker(std::string path_1, std::string path_2)
   PerSide<SendSideIterator<RoundRobinPartition> &> future_send_begins(left_send_begin, right_send_begin);
   PerSide<SendSideIterator<RoundRobinPartition> &> future_send_ends(left_send_end, right_send_end);
 
+#ifdef FRONTIER_STORAGE
   FrontierStorage storage(d_max);
+#else
+  FastStorage storage(d_max);
+#endif
+
   MPIStrategyFollower follower(&storage, in_1, in_2, world_rank, world_size);
   const int diamond_height_limit = 20;
   Strategy strategy(&follower, future_receive_begins, future_receive_ends, future_send_begins, future_send_ends, d_max, diamond_height_limit);
