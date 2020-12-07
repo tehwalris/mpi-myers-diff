@@ -153,9 +153,25 @@ if __name__ == "__main__":
             "extra_fields": {"mpi_procs": args.mpi_procs},
         },
         {
+            "name": "mpi_priority_frontier",
+            "run": lambda p1, p2: run_algorithm.run_diff_algorithm_mpi(
+                p1,
+                p2,
+                args.mpi_procs,
+                run_algorithm.own_diff_executable_mpi_priority_frontier,
+            ),
+            "extra_fields": {"mpi_procs": args.mpi_procs},
+        },
+        {
             "name": "sequential",
             "run": lambda p1, p2: run_algorithm.run_own_diff_algorithm_sequential(
                 p1, p2, run_algorithm.own_diff_executable_sequential
+            ),
+        },
+        {
+            "name": "sequential_frontier",
+            "run": lambda p1, p2: run_algorithm.run_own_diff_algorithm_sequential(
+                p1, p2, run_algorithm.own_diff_executable_sequential_frontier
             ),
         },
         {
