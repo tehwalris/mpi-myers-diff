@@ -22,9 +22,7 @@ public:
 
   inline void set(int d, int k, int v)
   {
-    int &stored = storage->at(d, k);
-    assert(stored == S::undefined);
-    stored = v;
+    storage->set(d, k, v);
   }
 
   bool calculate(int d, int k)
@@ -32,20 +30,20 @@ public:
     assert(d >= 0 && abs(k) <= d);
     if (k > -d)
     {
-      get(d - 1, k - 1);
+      storage->get(d - 1, k - 1);
     }
     if (k < d)
     {
-      get(d - 1, k + 1);
+      storage->get(d - 1, k + 1);
     }
-    set(d, k, 0); // fake value
+    storage->set(d, k, 0); // fake value
     num_calculated++;
     return num_calculated == final_result_count;
   }
 
   void send(int d, int k, Side to)
   {
-    get(d, k);
+    storage->get(d, k);
     sends.emplace_back(CellLocation(d, k), to);
   }
 
@@ -58,13 +56,6 @@ private:
   S *storage;
   int final_result_count;
   int num_calculated = 0;
-
-  inline int get(int d, int k)
-  {
-    int stored = storage->at(d, k);
-    assert(stored != S::undefined);
-    return stored;
-  }
 };
 
 TEST_CASE("Strategy - concrete example (green)")

@@ -5,8 +5,6 @@
 #include "partition.hpp"
 #include "util.hpp"
 
-#define USE_FAST_STORAGE
-
 const int master_rank = 0;
 
 enum Tag
@@ -38,11 +36,7 @@ public:
 
   inline void set(int d, int k, int v)
   {
-    int &stored = storage->at(d, k);
-#ifndef USE_FAST_STORAGE
-    assert(stored == S::undefined);
-#endif
-    stored = v;
+    storage->set(d, k, v);
   }
 
   bool calculate(int d, int k)
@@ -54,13 +48,13 @@ public:
     {
       x = 0;
     }
-    else if (k == -d || k != d && get(d - 1, k - 1) < get(d - 1, k + 1))
+    else if (k == -d || k != d && storage->get(d - 1, k - 1) < storage->get(d - 1, k + 1))
     {
-      x = get(d - 1, k + 1);
+      x = storage->get(d - 1, k + 1);
     }
     else
     {
-      x = get(d - 1, k - 1) + 1;
+      x = storage->get(d - 1, k - 1) + 1;
     }
 
     int y = x - k;
@@ -71,7 +65,7 @@ public:
       y++;
     }
 
-    set(d, k, x);
+    storage->set(d, k, x);
 
     return x >= in_1.size() && y >= in_2.size() && k == in_1.size() - in_2.size();
   }
@@ -80,7 +74,7 @@ public:
   {
     int to_rank = to == Side::Left ? world_rank - 1 : world_rank + 1;
     assert(to_rank >= 0 && to_rank < world_size);
-    int x = get(d, k);
+    int x = storage->get(d, k);
     std::vector<int> msg{int(other_side(to)), x};
     MPI_Send(msg.data(), msg.size(), MPI_INT, to_rank, Tag::ReportWork, MPI_COMM_WORLD);
   }
@@ -125,15 +119,6 @@ private:
   S *storage;
   int world_rank;
   int world_size;
-
-  inline int get(int d, int k)
-  {
-    int stored = storage->at(d, k);
-#ifndef USE_FAST_STORAGE
-    assert(stored != S::undefined);
-#endif
-    return stored;
-  }
 };
 
 void main_worker(std::string path_1, std::string path_2)
@@ -174,12 +159,7 @@ void main_worker(std::string path_1, std::string path_2)
   PerSide<SendSideIterator<RoundRobinPartition> &> future_send_begins(left_send_begin, right_send_begin);
   PerSide<SendSideIterator<RoundRobinPartition> &> future_send_ends(left_send_end, right_send_end);
 
-#ifdef USE_FAST_STORAGE
   FastStorage storage(d_max);
-#else
-  SimpleStorage storage(d_max);
-#endif
-
   MPIStrategyFollower follower(&storage, in_1, in_2, world_rank, world_size);
   const int diamond_height_limit = 20;
   Strategy strategy(&follower, future_receive_begins, future_receive_ends, future_send_begins, future_send_ends, d_max, diamond_height_limit);

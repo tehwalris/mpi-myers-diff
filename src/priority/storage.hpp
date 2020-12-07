@@ -7,8 +7,6 @@
 class SimpleStorage
 {
 public:
-  inline static const int undefined = -1;
-
   SimpleStorage(int d_max) : d_max(d_max)
   {
     for (int i = 0; i <= d_max; i++)
@@ -17,6 +15,26 @@ public:
     }
   }
 
+  inline int get(int d, int k)
+  {
+    int v = at(d, k);
+    assert(v != undefined);
+    return v;
+  }
+
+  inline void set(int d, int k, int v)
+  {
+    assert(v >= 0);
+    int &stored_v = at(d, k);
+    assert(stored_v == undefined);
+    stored_v = v;
+  }
+
+private:
+  inline static const int undefined = -1;
+  int d_max;
+  std::vector<std::vector<int>> data;
+
   inline int &at(int d, int k)
   {
     assert(d >= 0 && d <= d_max);
@@ -24,10 +42,6 @@ public:
     assert((d - abs(k)) % 2 == 0);
     return data.at(d).at(k + d);
   }
-
-private:
-  int d_max;
-  std::vector<std::vector<int>> data;
 };
 
 class FastStorage
@@ -41,23 +55,14 @@ public:
     data_pointers[0] = allocate_block(0);
   }
 
-  int &at(int d, int k)
+  inline int get(int d, int k)
   {
-    int block_idx = d / alloc_n_layers;
+    return at(d, k);
+  }
 
-    // allocate new block if needed
-    if (data_pointers.at(block_idx) == nullptr)
-    {
-      data_pointers.at(block_idx) = allocate_block(block_idx * alloc_n_layers);
-    }
-
-    int start_d = pyramid_size(d) - pyramid_size(block_idx * alloc_n_layers);
-    int offset = (k + d) / 2;
-
-    assert(d <= d_max);
-    assert(offset >= 0 && offset <= d + 1);
-
-    return data_pointers[block_idx][start_d + offset];
+  inline void set(int d, int k, int v)
+  {
+    at(d, k) = v;
   }
 
 private:
@@ -78,5 +83,24 @@ private:
   inline int pyramid_size(int l)
   {
     return (l * (l + 1)) / 2;
+  }
+
+  inline int &at(int d, int k)
+  {
+    int block_idx = d / alloc_n_layers;
+
+    // allocate new block if needed
+    if (data_pointers.at(block_idx) == nullptr)
+    {
+      data_pointers.at(block_idx) = allocate_block(block_idx * alloc_n_layers);
+    }
+
+    int start_d = pyramid_size(d) - pyramid_size(block_idx * alloc_n_layers);
+    int offset = (k + d) / 2;
+
+    assert(d <= d_max);
+    assert(offset >= 0 && offset <= d + 1);
+
+    return data_pointers[block_idx][start_d + offset];
   }
 };
