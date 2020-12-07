@@ -12,8 +12,7 @@ const int master_rank = 0;
 enum Tag
 {
   ReportWork,
-  ReportBestKnown,
-  Interrupt,
+  ReportLcsLength,
 };
 
 template <class S>
@@ -74,27 +73,7 @@ public:
 
     set(d, k, x);
 
-    if (d > deepest_calculated_d || deepest_calculated_d == no_known_d)
-    {
-      deepest_calculated_d = d;
-    }
-
-    bool is_final_result = x >= in_1.size() && y >= in_2.size();
-    if (is_final_result)
-    {
-      try_update_lowest_known_d(d);
-    }
-    return is_final_result;
-  }
-
-  int get_lowest_known_d()
-  {
-    return lowest_known_d;
-  }
-
-  int get_deepest_calculated_d()
-  {
-    return deepest_calculated_d;
+    return x >= in_1.size() && y >= in_2.size() && k == in_1.size() - in_2.size();
   }
 
   void send(int d, int k, Side to)
@@ -106,19 +85,6 @@ public:
     MPI_Send(msg.data(), msg.size(), MPI_INT, to_rank, Tag::ReportWork, MPI_COMM_WORLD);
   }
 
-  void send_interrupt(Side to)
-  {
-    assert(lowest_known_d != no_known_d);
-    if ((world_rank == 0 && to == Side::Left) || (world_rank + 1 == world_size && to == Side::Right))
-    {
-      return;
-    }
-    int to_rank = to == Side::Left ? world_rank - 1 : world_rank + 1;
-    assert(to_rank >= 0 && to_rank < world_size);
-    std::vector<int> msg{int(to), lowest_known_d};
-    MPI_Send(msg.data(), msg.size(), MPI_INT, to_rank, Tag::Interrupt, MPI_COMM_WORLD);
-  }
-
   bool has_incoming_message()
   {
     int flag;
@@ -128,21 +94,19 @@ public:
 
   std::optional<std::pair<Side, int>> blocking_receive()
   {
-    // handle interrupt if one is already queued
+    // stop if result already found
     int flag;
-    MPI_Iprobe(MPI_ANY_SOURCE, Tag::Interrupt, MPI_COMM_WORLD, &flag, MPI_STATUS_IGNORE);
+    MPI_Iprobe(MPI_ANY_SOURCE, Tag::ReportLcsLength, MPI_COMM_WORLD, &flag, MPI_STATUS_IGNORE);
     if (flag)
     {
-      consume_and_forward_interrupt();
       return std::nullopt;
     }
 
-    // wait for any message (could still be an interrupt that arrives later)
+    // wait for any message (could still be the result that arrived later)
     MPI_Status status;
     MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-    if (status.MPI_TAG == Tag::Interrupt)
+    if (status.MPI_TAG != Tag::ReportWork)
     {
-      consume_and_forward_interrupt();
       return std::nullopt;
     }
 
@@ -161,17 +125,6 @@ private:
   S *storage;
   int world_rank;
   int world_size;
-  int lowest_known_d = no_known_d;
-  int deepest_calculated_d = no_known_d;
-
-  void try_update_lowest_known_d(int d)
-  {
-    if (lowest_known_d == no_known_d || d < lowest_known_d)
-    {
-      lowest_known_d = d;
-    }
-    assert(lowest_known_d >= 0);
-  }
 
   inline int get(int d, int k)
   {
@@ -180,15 +133,6 @@ private:
     assert(stored != S::undefined);
 #endif
     return stored;
-  }
-
-  void consume_and_forward_interrupt()
-  {
-    std::vector<int> msg(2);
-    MPI_Recv(msg.data(), msg.size(), MPI_INT, MPI_ANY_SOURCE, Tag::Interrupt, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    Side to = Side(msg.at(0));
-    try_update_lowest_known_d(msg.at(1));
-    send_interrupt(to);
   }
 };
 
@@ -240,12 +184,9 @@ void main_worker(std::string path_1, std::string path_2)
   const int diamond_height_limit = 20;
   Strategy strategy(&follower, future_receive_begins, future_receive_ends, future_send_begins, future_send_ends, d_max, diamond_height_limit);
 
-  int largest_d_change = 0;
   while (true)
   {
-    int deepest_d_before = follower.get_deepest_calculated_d();
     strategy.run();
-    largest_d_change = std::max(largest_d_change, follower.get_deepest_calculated_d() - deepest_d_before);
 
     if (strategy.is_done())
     {
@@ -254,50 +195,53 @@ void main_worker(std::string path_1, std::string path_2)
     if (strategy.is_blocked_waiting_for_receive() || follower.has_incoming_message())
     {
       std::optional<std::pair<Side, int>> result_opt = follower.blocking_receive();
-      if (!result_opt.has_value()) // received an interrupt
+      if (!result_opt.has_value()) // received an interrupt or final result
       {
-        int lowest_known_d = follower.get_lowest_known_d();
-        assert(lowest_known_d != follower.no_known_d);
-        if (lowest_known_d == 0)
-        {
-          break;
-        }
-        strategy.try_lower_d_max(lowest_known_d - 1);
-        continue;
+        break;
       }
       auto result = result_opt.value();
       strategy.receive(result.first, result.second);
     }
   }
 
-  int lowest_self_known_d = d_max_possible;
+  DEBUG(1, world_rank << " | "
+                      << "self done in " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - t_sol_start).count() << std::endl);
+
+  int lcs_length;
+  int lcs_found_by;
   if (strategy.get_final_result_location().has_value())
   {
-    follower.send_interrupt(Side::Left);
-    follower.send_interrupt(Side::Right);
     CellLocation loc = strategy.get_final_result_location().value();
-    assert(loc.d <= lowest_self_known_d);
-    lowest_self_known_d = loc.d;
+    lcs_length = loc.d;
+    lcs_found_by = world_rank;
+    if (world_rank != master_rank)
+    {
+      MPI_Send(&lcs_length, 1, MPI_INT, master_rank, Tag::ReportLcsLength, MPI_COMM_WORLD);
+    }
   }
-
-  DEBUG(1, world_rank << " | "
-                      << "main computation done " << follower.get_lowest_known_d() << " " << lowest_self_known_d << " " << follower.get_deepest_calculated_d() << " " << largest_d_change
-                      << " self done in " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - t_sol_start).count() << std::endl);
-
-  if (world_rank != master_rank)
+  else
   {
-    MPI_Gather(&lowest_self_known_d, 1, MPI_INT, nullptr, 1, MPI_INT, master_rank, MPI_COMM_WORLD);
-    return;
+    MPI_Status status;
+    MPI_Recv(&lcs_length, 1, MPI_INT, MPI_ANY_SOURCE, Tag::ReportLcsLength, MPI_COMM_WORLD, &status);
+    lcs_found_by = status.MPI_SOURCE;
   }
-
-  std::vector<int> all_lowest_known_ds(world_size);
-  MPI_Gather(&lowest_self_known_d, 1, MPI_INT, all_lowest_known_ds.data(), 1, MPI_INT, master_rank, MPI_COMM_WORLD);
-  int global_lowest_d = *std::min_element(all_lowest_known_ds.begin(), all_lowest_known_ds.end());
-  assert(global_lowest_d >= 0 && global_lowest_d <= d_max_possible);
 
   t_sol_end = std::chrono::high_resolution_clock::now();
 
-  std::cout << "min edit length " << global_lowest_d << std::endl;
+  if (world_rank != master_rank)
+  {
+    return;
+  }
+
+  for (int i = 0; i < world_size; i++)
+  {
+    if (i != world_rank && i != lcs_found_by)
+    {
+      MPI_Send(&lcs_length, 1, MPI_INT, i, Tag::ReportLcsLength, MPI_COMM_WORLD);
+    }
+  }
+
+  std::cout << "min edit length " << lcs_length << std::endl;
   std::cout << "Read Input [μs]: \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_in_end - t_in_start).count() << std::endl;
   std::cout << "Precompute [μs]: \t" << 0 << std::endl;
   std::cout << "Solution [μs]:   \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_sol_end - t_sol_start).count() << std::endl;
