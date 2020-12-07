@@ -1,4 +1,5 @@
 #include <mpi.h>
+#include <chrono>
 #include "strategy.hpp"
 #include "storage.hpp"
 #include "partition.hpp"
@@ -176,13 +177,20 @@ private:
 
 void main_worker(std::string path_1, std::string path_2)
 {
+  std::chrono::_V2::system_clock::time_point t_in_start, t_in_end, t_sol_start, t_sol_end;
+
   int world_rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
   int world_size;
   MPI_Comm_size(MPI_COMM_WORLD, &world_size);
 
+  t_in_start = std::chrono::high_resolution_clock::now();
   std::vector<int> in_1 = read_vec_from_file(path_1);
   std::vector<int> in_2 = read_vec_from_file(path_2);
+  t_in_end = std::chrono::high_resolution_clock::now();
+
+  // TODO Ideally the workers should all start at exactly the same time. This may not be the case, because they all read input separately. Currently t_sol_start is the time when the master started.
+  t_sol_start = std::chrono::high_resolution_clock::now();
 
   const int d_max_possible = in_1.size() + in_2.size() + 1; // TODO should this really have "+ 1"?
   const int d_max = d_max_possible;
@@ -246,18 +254,24 @@ void main_worker(std::string path_1, std::string path_2)
   DEBUG(1, world_rank << " | "
                       << "main computation done " << follower.get_lowest_known_d() << " " << lowest_self_known_d);
 
-  if (world_rank == master_rank)
-  {
-    std::vector<int> all_lowest_known_ds(world_size);
-    MPI_Gather(&lowest_self_known_d, 1, MPI_INT, all_lowest_known_ds.data(), 1, MPI_INT, master_rank, MPI_COMM_WORLD);
-    int global_lowest_d = *std::min_element(all_lowest_known_ds.begin(), all_lowest_known_ds.end());
-    assert(global_lowest_d >= 0 && global_lowest_d <= d_max_possible);
-    std::cout << "min edit length " << global_lowest_d << std::endl;
-  }
-  else
+  if (world_rank != master_rank)
   {
     MPI_Gather(&lowest_self_known_d, 1, MPI_INT, nullptr, 1, MPI_INT, master_rank, MPI_COMM_WORLD);
+    return;
   }
+
+  std::vector<int> all_lowest_known_ds(world_size);
+  MPI_Gather(&lowest_self_known_d, 1, MPI_INT, all_lowest_known_ds.data(), 1, MPI_INT, master_rank, MPI_COMM_WORLD);
+  int global_lowest_d = *std::min_element(all_lowest_known_ds.begin(), all_lowest_known_ds.end());
+  assert(global_lowest_d >= 0 && global_lowest_d <= d_max_possible);
+
+  t_sol_end = std::chrono::high_resolution_clock::now();
+
+  std::cout << "min edit length " << global_lowest_d << std::endl;
+  std::cout << "Read Input [μs]: \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_in_end - t_in_start).count() << std::endl;
+  std::cout << "Precompute [μs]: \t" << 0 << std::endl;
+  std::cout << "Solution [μs]:   \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_sol_end - t_sol_start).count() << std::endl;
+  std::cout << "Edit Script [μs]: \t" << 0 << std::endl;
 }
 
 int main(int argc, char *argv[])
