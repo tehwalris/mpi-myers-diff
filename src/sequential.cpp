@@ -28,8 +28,11 @@ const int debug_level = 0;
 #define DEBUG_NO_LINE(level, x)
 #endif
 
-#ifndef FRONTIER_STORAGE
+#ifdef FRONTIER_STORAGE
+typedef FrontierStorage Storage;
+#else
 #define EDIT_SCRIPT
+typedef FastStorage Storage;
 #endif
 
 const int shutdown_sentinel = -1;
@@ -123,11 +126,7 @@ int main(int argc, char *argv[])
 
     int edit_len = unknown_len;
 
-#ifdef FRONTIER_STORAGE
-    FrontierStorage results(d_max);
-#else
-    FastStorage results(d_max);
-#endif
+    Storage results(d_max);
 
     for (int d = 0; d < d_max; d++)
     {

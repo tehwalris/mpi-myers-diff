@@ -44,47 +44,30 @@ private:
   }
 };
 
-class FastStorage
+template<typename BlockInitializer>
+class _FastStorageBase: BlockInitializer
 {
 public:
-  FastStorage(int d_max) : d_max(d_max)
+  _FastStorageBase(int d_max) : d_max(d_max)
   {
-    // allocate initial block 0
     num_blocks = std::ceil(std::max(1.0, (d_max + 1) / (double)alloc_n_layers));
     data_pointers.resize(num_blocks, nullptr);
-    data_pointers[0] = allocate_block(0);
   }
 
   inline int get(int d, int k)
   {
-    return at(d, k);
+    int v = at(d, k);
+    assert(v >= 0);
+    return v;
   }
 
   inline void set(int d, int k, int v)
   {
+    assert(v >= 0);
     at(d, k) = v;
   }
 
-private:
-  int d_max;
-  int num_blocks;
-  int alloc_n_layers = 20;
-  std::vector<int *> data_pointers;
-
-  // allocate the data block that begins at layer index d_begin
-  int *allocate_block(int d_begin)
-  {
-    int d_max = d_begin + alloc_n_layers;
-    int size = pyramid_size(d_max) - pyramid_size(d_begin);
-    return new int[size]; // not initialized to 0
-  }
-
-  // total number of elements in a pyramid with l layers
-  inline int pyramid_size(int l)
-  {
-    return (l * (l + 1)) / 2;
-  }
-
+protected:
   inline int &at(int d, int k)
   {
     int block_idx = d / alloc_n_layers;
@@ -103,49 +86,122 @@ private:
 
     return data_pointers[block_idx][start_d + offset];
   }
+
+private:
+  int d_max;
+  int num_blocks;
+  int alloc_n_layers = 20;
+  std::vector<int *> data_pointers;
+
+  // allocate the data block that begins at layer index d_begin
+  int *allocate_block(int d_begin)
+  {
+    int d_max = d_begin + alloc_n_layers;
+    int size = pyramid_size(d_max) - pyramid_size(d_begin);
+    int* block = new int[size]; // not initialized to 0
+    BlockInitializer::initialize_block(block, size);
+    return block;
+  }
+
+  // total number of elements in a pyramid with l layers
+  inline int pyramid_size(int l)
+  {
+    return (l * (l + 1)) / 2;
+  }
 };
 
-class FrontierStorage
+class _NoopBlockInitializer
+{
+protected:
+  static void initialize_block(int *block, int size) {}
+};
+
+class _MinusOneBlockInitializer
+{
+protected:
+  static void initialize_block(int *block, int size) {
+    std::fill(block, block + size, -1);
+  }
+};
+
+class FastStorageWithHasValue: public _FastStorageBase<_MinusOneBlockInitializer>
 {
 public:
-  FrontierStorage(int d_max) : d_max(d_max), values_by_column(2 * d_max + 1)
+  FastStorageWithHasValue(int d_max): _FastStorageBase(d_max){}
+
+  inline bool has_value(int d, int k)
   {
-#ifndef NDEBUG
-    last_ds_by_column = std::vector<int>(2 * d_max + 1, column_never_used);
-#endif
+    int v = _FastStorageBase::at(d, k);
+    assert(v >= -1);
+    return v != -1;
   }
+};
+
+#ifndef NDEBUG
+typedef _FastStorageBase<_MinusOneBlockInitializer> FastStorage;
+#else
+typedef _FastStorageBase<_NoopBlockInitializer> FastStorage;
+#endif
+
+class _FrontierStorageBase
+{
+public:
+  _FrontierStorageBase(int d_max) : d_max(d_max), values_by_column(2 * d_max + 1) {}
 
   inline int get(int d, int k)
   {
-    assert(d >= 0 && d <= d_max && abs(k) <= d);
-    int i = d_max + k;
-
-#ifndef NDEBUG
-    assert(last_ds_by_column.at(i) == d);
-#endif
-
-    return values_by_column.at(i);
+    return values_by_column.at(i_from_d_k(d, k));
   }
 
   inline void set(int d, int k, int v)
   {
+    values_by_column.at(i_from_d_k(d, k)) = v;
+  }
+
+protected:
+  inline int i_from_d_k(int d, int k)
+  {
     assert(d >= 0 && d <= d_max && abs(k) <= d);
-    int i = d_max + k;
-
-#ifndef NDEBUG
-    int last_d = last_ds_by_column.at(i);
-    assert(last_d == column_never_used || last_d < d);
-    last_ds_by_column.at(i) = d;
-#endif
-
-    values_by_column.at(i) = v;
+    return d_max + k;
   }
 
 private:
   int d_max;
   std::vector<int> values_by_column;
-#ifndef NDEBUG
+};
+
+class FrontierStorageWithHasValue : public _FrontierStorageBase
+{
+public:
+  FrontierStorageWithHasValue(int d_max) : _FrontierStorageBase(d_max), last_ds_by_column(2 * d_max + 1, column_never_used) {}
+
+  inline int get(int d, int k)
+  {
+    assert(last_ds_by_column.at(_FrontierStorageBase::i_from_d_k(d, k)) == d);
+    return _FrontierStorageBase::get(d, k);
+  }
+
+  inline void set(int d, int k, int v)
+  {
+    int &last_d = last_ds_by_column.at(_FrontierStorageBase::i_from_d_k(d, k));
+    assert(last_d == column_never_used || last_d < d);
+    last_d = d;
+    _FrontierStorageBase::set(d, k, v);
+  }
+
+  inline bool has_value(int d, int k)
+  {
+    int last_d = last_ds_by_column.at(_FrontierStorageBase::i_from_d_k(d, k));
+    return last_d == d;
+  }
+
+private:
   std::vector<int> last_ds_by_column;
   inline static const int column_never_used = -1;
-#endif
 };
+
+#ifndef NDEBUG
+typedef FrontierStorageWithHasValue FrontierStorage;
+#else
+typedef _FrontierStorageBase FrontierStorage;
+#endif

@@ -8,8 +8,11 @@ CFLAGS="-std=c++17 -O3 -Wall -DNDEBUG -march=native -ffast-math"
 printf "\nCompiling MPI Main:\n"
 mpic++ src/main.cpp -o bin/own-diff-mpi-main.out $CFLAGS
 
-printf "\nCompiling MPI No Master:\n"
+printf "\nCompiling MPI No Master (FastStorage):\n"
 mpic++ src/no_master_synch.cpp -o bin/own-diff-mpi-no-master.out $CFLAGS
+
+printf "\nCompiling MPI No Master (FrontierStorage):\n"
+mpic++ src/no_master_synch.cpp -o bin/own-diff-mpi-no-master-frontier.out -DFRONTIER_STORAGE $CFLAGS
 
 printf "\nCompiling MPI Priority (FastStorage):\n"
 mpic++ src/priority/main.cpp -o bin/own-diff-mpi-priority.out $CFLAGS
