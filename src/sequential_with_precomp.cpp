@@ -6,6 +6,7 @@
 #include <chrono>   // chrono::high_resolution_clock
 #include <optional> // requires C++17
 #include <cmath>
+#include "snake_computation.hpp"
 
 // Uncomment this line when performance is measured
 //#define NDEBUG
@@ -217,11 +218,7 @@ int main(int argc, char *argv[])
 
             int y = x - k;
 
-            while (x < in_1.size() && y < in_2.size() && in_1.at(x) == in_2.at(y))
-            {
-                x++;
-                y++;
-            }
+            compute_end_of_snake(x, y, in_1, in_2);
 
             DEBUG(2, "x: " << x);
             DEBUG(2, "y; " << y);

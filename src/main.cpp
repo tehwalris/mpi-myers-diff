@@ -5,9 +5,7 @@
 #include <vector>
 #include <algorithm>
 #include <chrono>
-
-// Uncomment this line when performance is measured
-#define NDEBUG
+#include "snake_computation.hpp"
 
 const int debug_level = 0;
 
@@ -363,11 +361,7 @@ void main_worker()
 
       int y = x - k;
 
-      while (x < in_1.size() && y < in_2.size() && in_1.at(x) == in_2.at(y))
-      {
-        x++;
-        y++;
-      }
+      compute_end_of_snake(x, y, in_1, in_2);
 
       DEBUG(2, own_rank << " | "
                         << "x: " << x);
