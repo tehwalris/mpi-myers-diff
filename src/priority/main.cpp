@@ -168,7 +168,7 @@ void main_worker(std::string path_1, std::string path_2)
   Storage storage(d_max);
 
   MPIStrategyFollower follower(&storage, in_1, in_2, world_rank, world_size);
-  const int diamond_height_limit = 20;
+  const int diamond_height_limit = 21;
   Strategy strategy(&follower, future_receive_begins, future_receive_ends, future_send_begins, future_send_ends, d_max, diamond_height_limit);
 
   while (true)
@@ -239,14 +239,14 @@ int main(int argc, char *argv[])
 {
   std::ios_base::sync_with_stdio(false);
 
-  std::string path_1, path_2;
+  std::string path_1 = "test_cases/temp_random/in_1.txt", path_2 = "test_cases/temp_random/in_1.txt";
 
-  if (argc < 3)
+  if (argc > 1 && argc < 3)
   {
     std::cerr << "You must provide two paths to files to be compared as arguments" << std::endl;
     exit(1);
   }
-  else
+  else if (argc == 3)
   {
     path_1 = argv[1];
     path_2 = argv[2];
