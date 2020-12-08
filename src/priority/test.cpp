@@ -18,7 +18,10 @@ class TestStrategyFollower
 public:
   std::vector<std::pair<CellLocation, Side>> sends;
 
-  TestStrategyFollower(S *storage, int final_result_count) : storage(storage), final_result_count(final_result_count){};
+  TestStrategyFollower(
+      S *storage,
+      int final_result_count) : storage(storage),
+                                final_result_count(final_result_count) {}
 
   inline void set(int d, int k, int v)
   {

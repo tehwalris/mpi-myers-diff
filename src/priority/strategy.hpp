@@ -27,24 +27,32 @@ public:
     assert(!point_is_on_inside_of_triangle(covered_triangle_bottoms.front(), query_triangle_bottom));
     assert(!point_is_on_inside_of_triangle(covered_triangle_bottoms.back(), query_triangle_bottom));
 
+    int best_index = -1, lowest_abs_k = 0;
     for (int i = 1; i < covered_triangle_bottoms.size(); i++)
     {
       CellLocation prev_bottom = covered_triangle_bottoms.at(i - 1);
       CellLocation next_bottom = covered_triangle_bottoms.at(i);
 
       CellLocation exposed_top = intersect_triangles(prev_bottom, next_bottom);
-      if (!point_is_on_inside_of_triangle(exposed_top, query_triangle_bottom))
+      if (point_is_on_inside_of_triangle(exposed_top, query_triangle_bottom) && (best_index == -1 || abs(exposed_top.k) < lowest_abs_k))
       {
-        continue;
+        best_index = i;
+        lowest_abs_k = abs(exposed_top.k);
       }
-      exposed_top.d += 2;
-      assert(!point_is_outside_of_triangle(exposed_top, query_triangle_bottom));
-
-      CellLocation exposed_bottom = intersect_triangles(query_triangle_bottom, triangle_through_points(prev_bottom, next_bottom));
-      return std::optional{std::make_pair(exposed_top, exposed_bottom)};
     }
 
-    return std::nullopt;
+    if (best_index == -1)
+    {
+      return std::nullopt;
+    }
+
+    CellLocation prev_bottom = covered_triangle_bottoms.at(best_index - 1);
+    CellLocation next_bottom = covered_triangle_bottoms.at(best_index);
+    CellLocation exposed_top = intersect_triangles(prev_bottom, next_bottom);
+    exposed_top.d += 2;
+    assert(!point_is_outside_of_triangle(exposed_top, query_triangle_bottom));
+    CellLocation exposed_bottom = intersect_triangles(query_triangle_bottom, triangle_through_points(prev_bottom, next_bottom));
+    return std::optional{std::make_pair(exposed_top, exposed_bottom)};
   }
 
   void cover_triangle(CellLocation triangle_bottom)
@@ -159,13 +167,13 @@ public:
 
     for (Side s : {Side::Left, Side::Right})
     {
-      if (future_sends.at(s) == future_send_ends.at(s))
+      while (future_sends.at(s) != future_send_ends.at(s))
       {
-        continue;
-      }
-      CellLocation send_loc = *future_sends.at(s);
-      if (send_loc.d < d_max && !point_is_outside_of_triangle(send_loc, target))
-      {
+        CellLocation send_loc = *future_sends.at(s);
+        if (send_loc.d >= d_max || point_is_outside_of_triangle(send_loc, target))
+        {
+          break;
+        }
         follower->send(send_loc.d, send_loc.k, s);
         future_sends.at(s)++;
       }
