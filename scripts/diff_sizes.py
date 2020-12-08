@@ -64,17 +64,17 @@ if __name__ == "__main__":
             exit(1)
 
     counter = 0
-    print(f"{'Folder':<50}Edit Distance")
+    print(colored(f"{'Folder':<60}Edit Distance", attrs=["bold"]))
     for folder in get_test_case_dirs():
         try:
             result = update_test_case_diff(folder.path, always_create_diff)
         except Exception:
             traceback.print_exc()
-            print(f"{folder.name:<50}{colored('Failed', 'red')} to generate diff")
+            print(f"{folder.name:<60}{colored('Failed', 'red')} to generate diff")
             continue
 
         if result is not None:
             counter += 1
-            print(f"{folder.name:<50}{result}")
+            print(f"{folder.name:<60}{result}")
 
     print(f"\nGenerated {counter} Files")
