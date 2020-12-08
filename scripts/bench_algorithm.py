@@ -6,6 +6,7 @@ import argparse
 import csv
 import random
 from tqdm import tqdm
+from copy import deepcopy
 
 parser = argparse.ArgumentParser(
     description="Benchmark our diff algorithm with random test cases"
@@ -49,8 +50,9 @@ parser.add_argument(
 parser.add_argument(
     "--mpi-procs",
     type=int,
-    default=multiprocessing.cpu_count(),
-    help="number of processes to run our distributed algorithm with",
+    nargs="+",
+    default=[multiprocessing.cpu_count()],
+    help="number of processes to run our distributed algorithm with. If multiple (space separated) numbers are supplied, every MPI program is benchmarked for each.",
 )
 parser.add_argument(
     "--num-repetitions",
@@ -130,61 +132,66 @@ if __name__ == "__main__":
                     all_generation_configs.append(generation_config)
     print(f"{len(all_generation_configs)} unique test cases")
 
-    diff_programs = [
+    mpi_diff_programs = [
         {
             "name": "mpi_master",
             "run": lambda p1, p2: run_algorithm.run_diff_algorithm_mpi(
-                p1, p2, args.mpi_procs, run_algorithm.own_diff_executable_mpi_master
+                p1, p2, e["mpi_procs"], run_algorithm.own_diff_executable_mpi_master
             ),
-            "extra_fields": {"mpi_procs": args.mpi_procs},
         },
         {
             "name": "mpi_no_master",
-            "run": lambda p1, p2: run_algorithm.run_diff_algorithm_mpi(
-                p1, p2, args.mpi_procs, run_algorithm.own_diff_executable_mpi_no_master
+            "run": lambda p1, p2, e: run_algorithm.run_diff_algorithm_mpi(
+                p1, p2, e["mpi_procs"], run_algorithm.own_diff_executable_mpi_no_master
             ),
-            "extra_fields": {"mpi_procs": args.mpi_procs},
         },
         {
             "name": "mpi_priority",
-            "run": lambda p1, p2: run_algorithm.run_diff_algorithm_mpi(
-                p1, p2, args.mpi_procs, run_algorithm.own_diff_executable_mpi_priority
+            "run": lambda p1, p2, e: run_algorithm.run_diff_algorithm_mpi(
+                p1, p2, e["mpi_procs"], run_algorithm.own_diff_executable_mpi_priority
             ),
-            "extra_fields": {"mpi_procs": args.mpi_procs},
         },
         {
             "name": "mpi_priority_frontier",
-            "run": lambda p1, p2: run_algorithm.run_diff_algorithm_mpi(
+            "run": lambda p1, p2, e: run_algorithm.run_diff_algorithm_mpi(
                 p1,
                 p2,
-                args.mpi_procs,
+                e["mpi_procs"],
                 run_algorithm.own_diff_executable_mpi_priority_frontier,
             ),
-            "extra_fields": {"mpi_procs": args.mpi_procs},
         },
+    ]
+    sequential_diff_programs = [
         {
             "name": "sequential",
-            "run": lambda p1, p2: run_algorithm.run_own_diff_algorithm_sequential(
+            "run": lambda p1, p2, _: run_algorithm.run_own_diff_algorithm_sequential(
                 p1, p2, run_algorithm.own_diff_executable_sequential
             ),
         },
         {
             "name": "sequential_frontier",
-            "run": lambda p1, p2: run_algorithm.run_own_diff_algorithm_sequential(
+            "run": lambda p1, p2, _: run_algorithm.run_own_diff_algorithm_sequential(
                 p1, p2, run_algorithm.own_diff_executable_sequential_frontier
             ),
         },
         {
             "name": "sequential_fast_snakes",
-            "run": lambda p1, p2: run_algorithm.run_own_diff_algorithm_sequential(
+            "run": lambda p1, p2, _: run_algorithm.run_own_diff_algorithm_sequential(
                 p1, p2, run_algorithm.own_diff_executable_sequential_fast_snakes
             ),
         },
         {
             "name": "diffutils",
-            "run": run_algorithm.run_diffutils,
+            "run": lambda p1, p2, _: run_algorithm.run_diffutils(p1, p2),
         },
     ]
+
+    diff_programs = sequential_diff_programs.copy()
+    for program_template in mpi_diff_programs:
+        for mpi_procs in args.mpi_procs:
+            program = deepcopy(program_template)
+            program.setdefault("extra_fields", {})["mpi_procs"] = mpi_procs
+            diff_programs.append(program)
 
     if args.limit_programs is not None:
         possible_names = set(p["name"] for p in diff_programs)
@@ -197,7 +204,7 @@ if __name__ == "__main__":
             )
 
         diff_programs = [p for p in diff_programs if p["name"] in selected_names]
-        assert len(diff_programs) == len(selected_names)
+        assert len(diff_programs) >= len(selected_names)
 
     all_diff_program_extra_fields = sorted(
         {k for p in diff_programs for k in p.get("extra_fields", {}).keys()}
@@ -236,10 +243,16 @@ if __name__ == "__main__":
                 for repetition_i in range(args.num_repetitions):
                     verbose_print("  diff_program", diff_program["name"])
 
+                    extra_fields = {
+                        k: diff_program.get("extra_fields", {}).get(k, "")
+                        for k in all_diff_program_extra_fields
+                    }
+
                     try:
                         program_result = diff_program["run"](
                             test_case_dir / "in_1.txt",
                             test_case_dir / "in_2.txt",
+                            extra_fields,
                         )
                         verbose_print(
                             "    micros_until_len", program_result.micros_until_len
@@ -263,10 +276,7 @@ if __name__ == "__main__":
                         "regen_i": regen_i,
                         "repetition_i": repetition_i,
                         "diff_program": diff_program["name"],
-                        **{
-                            k: diff_program.get("extra_fields", {}).get(k, "")
-                            for k in all_diff_program_extra_fields
-                        },
+                        **extra_fields,
                         "micros_input": program_result.micros_input,
                         "micros_precompute": program_result.micros_precompute,
                         "micros_until_len": program_result.micros_until_len,
