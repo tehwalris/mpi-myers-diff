@@ -42,6 +42,12 @@ parser.add_argument(
     help="number of different change strengths to try while keeping all other parameters fixed",
 )
 parser.add_argument(
+    "--only-change-strength",
+    type=float,
+    default=None,
+    help="only change strength to benchmark with (--target-change-strength-steps must be 1 to use this option)",
+)
+parser.add_argument(
     "--target-chunkiness-steps",
     type=int,
     default=3,
@@ -103,7 +109,13 @@ if __name__ == "__main__":
     )
     file_size_steps = np.unique(np.floor(file_size_steps).astype(int))
 
-    change_strength_steps = np.linspace(0, 1, args.target_change_strength_steps + 1)[1:]
+    if args.only_change_strength is not None:
+        assert args.target_change_strength_steps == 1
+        change_strength_steps = np.array([args.only_change_strength])
+    else:
+        change_strength_steps = np.linspace(
+            0, 1, args.target_change_strength_steps + 1
+        )[1:]
 
     chunkiness_steps = np.linspace(0, 1, args.target_chunkiness_steps)
 
