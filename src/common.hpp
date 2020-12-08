@@ -15,6 +15,6 @@
    
    cf. diffutils: analyze.c::discard_confusing_lines
    */
-void discard_lines_without_match_seq(std::vector<int> &in_1, std::vector<int> &in_2, 
-                                    std::vector<bool> &deletions, std::vector<std::pair<size_t, int>> &insertions,
-                                    std::vector<size_t> &real_indices_1, std::vector<size_t> &real_indices_2);
+void discard_lines_without_match_seq(std::vector<int> &in_1, std::vector<int> &in_2,
+                                     std::vector<bool> &deletions, std::vector<std::pair<size_t, int>> &insertions,
+                                     std::vector<size_t> &real_indices_1, std::vector<size_t> &real_indices_2);

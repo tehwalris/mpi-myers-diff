@@ -6,9 +6,9 @@
 #include "util.hpp"
 
 #ifdef FRONTIER_STORAGE
-  typedef FrontierStorage Storage;
+typedef FrontierStorage Storage;
 #else
-  typedef FastStorage Storage;
+typedef FastStorage Storage;
 #endif
 
 const int master_rank = 0;

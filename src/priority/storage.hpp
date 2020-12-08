@@ -44,8 +44,8 @@ private:
   }
 };
 
-template<typename BlockInitializer>
-class _FastStorageBase: BlockInitializer
+template <typename BlockInitializer>
+class _FastStorageBase : BlockInitializer
 {
 public:
   _FastStorageBase(int d_max) : d_max(d_max)
@@ -98,7 +98,7 @@ private:
   {
     int d_max = d_begin + alloc_n_layers;
     int size = pyramid_size(d_max) - pyramid_size(d_begin);
-    int* block = new int[size]; // not initialized to 0
+    int *block = new int[size]; // not initialized to 0
     BlockInitializer::initialize_block(block, size);
     return block;
   }
@@ -119,15 +119,16 @@ protected:
 class _MinusOneBlockInitializer
 {
 protected:
-  static void initialize_block(int *block, int size) {
+  static void initialize_block(int *block, int size)
+  {
     std::fill(block, block + size, -1);
   }
 };
 
-class FastStorageWithHasValue: public _FastStorageBase<_MinusOneBlockInitializer>
+class FastStorageWithHasValue : public _FastStorageBase<_MinusOneBlockInitializer>
 {
 public:
-  FastStorageWithHasValue(int d_max): _FastStorageBase(d_max){}
+  FastStorageWithHasValue(int d_max) : _FastStorageBase(d_max) {}
 
   inline bool has_value(int d, int k)
   {

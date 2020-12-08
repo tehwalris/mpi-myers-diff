@@ -108,31 +108,39 @@ generation_configs = [
     },
 ]
 
+
 def measure_test_case(test_case_name: str, csv_folder: Path):
     csv_output_file = open(csv_folder / (test_case_name + ".csv"), "w", newline="")
     csv_writer = csv.writer(csv_output_file)
 
-    csv_writer.writerow(["d","k","comparisons"])
+    csv_writer.writerow(["d", "k", "comparisons"])
 
     test_case_dir = test_case_folder / test_case_name
-    output = run_sequential_measure_snakes(test_case_dir / "in_1.txt", test_case_dir / "in_2.txt")
-    
+    output = run_sequential_measure_snakes(
+        test_case_dir / "in_1.txt", test_case_dir / "in_2.txt"
+    )
+
     for t in output.tuples:
         csv_writer.writerow(t)
 
     csv_output_file.close()
 
+
 if __name__ == "__main__":
     args = parser.parse_args()
     csv_folder = Path(args.output_folder)
 
-    if args.test_case:      # measure single test case
+    if args.test_case:  # measure single test case
         measure_test_case(args.test_case, csv_folder)
-    else:           # measure all test cases given in generation_configs
+    else:  # measure all test cases given in generation_configs
         for generation_config in generation_configs:
-            test_case_name = test_case_name_from_config(generation_config, temporary=False, detailed_name=True)
+            test_case_name = test_case_name_from_config(
+                generation_config, temporary=False, detailed_name=True
+            )
             test_case_dir = test_case_folder / test_case_name
-            if not test_case_dir.exists():      # don't regenerate
-                generate_and_save_test_case(generation_config, temporary=False, detailed_name=True)
-            
+            if not test_case_dir.exists():  # don't regenerate
+                generate_and_save_test_case(
+                    generation_config, temporary=False, detailed_name=True
+                )
+
             measure_test_case(test_case_name, csv_folder)

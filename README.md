@@ -137,8 +137,8 @@ python -m scripts.bench_algorithm --output-csv temp-bench.csv
 
 To get info about arguments pass `--help`.
 
-
 ## On Euler
+
 It is required to first request an account to be granted access. In the following paragraph `username`refers to your nethz account.
 
 connect with `ssh username@euler.ethz.ch`. You need to be in ETH VPN.
@@ -151,19 +151,23 @@ git clone https://gitlab.ethz.ch/pascalm/2020-dphpc-project.git
 
 Euler uses Modules have to be loaded (compiler, libraries, python, etc.) first.
 
-Execute the script  [`load_modules_euler.sh`](./euler/load_modules_euler.sh) to load the required Modules. Afterwards, you need to create the python virtual environment and install its requirements (see [script setup](#setup)) if it doesn't exist already.
+Execute the script [`load_modules_euler.sh`](./euler/load_modules_euler.sh) to load the required Modules. Afterwards, you need to create the python virtual environment and install its requirements (see [script setup](#setup)) if it doesn't exist already.
+
 ```shell
-source ./euler/load_modules_euler.sh 
+source ./euler/load_modules_euler.sh
 ```
 
 Compile all our binaries into the bin folder. If this script fails it means that the compilers haven't been loaded correctly.
+
 ```shell
-./scripts/compile_all.sh 
+./scripts/compile_all.sh
 ```
+
 ---
 
 How to copy files between PC and remote Euler:
 (Note that `rsync -r` copies all the files from a folder which also includes generated files that would be in the `.gitignore` like `.venv` or `__pycache__`. You would need to exclude them all.)
+
 ```shell
 # rsync [options] source destination
 # -r for folder
@@ -178,13 +182,12 @@ rsync -r local_dir/ username@euler.ethz.ch:/cluster/home/username/dphpc/
 rsync -Pavr --exclude={.venv,__pycache__,.vscode} scripts/ username@euler.ethz.ch:/cluster/home/username/dphpc/scripts
 ```
 
-
-
 If you need to load additional Modules use:
+
 ```shell
 # upgrade to the new modulestack:
-> source /cluster/apps/local/env2lmod.sh 
-> module available gcc 
+> source /cluster/apps/local/env2lmod.sh
+> module available gcc
 
 ------------------------------------------------------------------------------------------- /cluster/apps/lmodules/Core -------------------------------------------------------------------------------------------
    gcc/4.8.2    gcc/4.8.5    gcc/5.4.0    gcc/6.3.0    gcc/7.3.0    gcc/8.2.0 (L,D)
@@ -202,11 +205,12 @@ Use "module keyword key1 key2 ..." to search for all possible modules matching a
 > module load gcc/8.2.0
 ```
 
-
 ### Submit Jobs
+
 First, test out that the code works by executing it directly on the login node.
 
 Submit job with:
+
 ```shell
 # bsub -n CORES -W (HH:MM or MINUTES. Default is 4h) command args
 # make sure that -n and our --mpi-procs match.
@@ -227,7 +231,6 @@ bkill JOBID
 The output and some additional information of the job can be found in the working directory where you submitted it in a file called `lsf.oJOBID`. And the csv should be stored in the path that you specified.
 
 For more information check out the [Euler Wiki](https://scicomp.ethz.ch/wiki/Getting_started_with_clusters).
-
 
 ## Output Formats for Tests
 

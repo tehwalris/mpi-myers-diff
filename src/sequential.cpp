@@ -4,7 +4,7 @@
 #include <vector>
 #include <algorithm>
 #include <cmath>
-#include <chrono>                   // chrono::high_resolution_clock
+#include <chrono> // chrono::high_resolution_clock
 #include "priority/storage.hpp"
 
 // Uncomment this line when performance is measured
@@ -13,16 +13,16 @@
 const int debug_level = 0;
 
 #ifndef NDEBUG
-#define DEBUG(level, x)          \
-  if (debug_level >= level)      \
-  {                              \
-    std::cerr << x << std::endl; \
-  }
-#define DEBUG_NO_LINE(level, x)  \
-  if (debug_level >= level)      \
-  {                              \
-    std::cerr << x; \
-  }
+#define DEBUG(level, x)              \
+    if (debug_level >= level)        \
+    {                                \
+        std::cerr << x << std::endl; \
+    }
+#define DEBUG_NO_LINE(level, x) \
+    if (debug_level >= level)   \
+    {                           \
+        std::cerr << x;         \
+    }
 #else
 #define DEBUG(level, x)
 #define DEBUG_NO_LINE(level, x)
@@ -39,7 +39,8 @@ const int shutdown_sentinel = -1;
 const int unknown_len = -1;
 const int no_worker_rank = 0;
 
-struct Edit_step{
+struct Edit_step
+{
     /** Position at which to perform the edit step */
     int x;
     /** Value to insert. This value is ignored when in delete mode */
@@ -99,7 +100,8 @@ int main(int argc, char *argv[])
         path_2 = argv[2];
 
 #ifdef EDIT_SCRIPT
-        if (argc >= 4) {
+        if (argc >= 4)
+        {
             edit_script_path = argv[3];
             edit_script_to_file = true;
         }
@@ -119,7 +121,6 @@ int main(int argc, char *argv[])
     DEBUG(2, "in_1.size(): " << in_1.size());
     DEBUG(2, "in_2.size(): " << in_2.size());
 
-    
     t_sol_start = std::chrono::high_resolution_clock::now();
 
     int d_max = in_1.size() + in_2.size() + 1;
@@ -180,7 +181,8 @@ done:
 #ifdef EDIT_SCRIPT
     std::vector<struct Edit_step> steps(edit_len);
     int k = in_1.size() - in_2.size();
-    for(int d = edit_len; d > 0; d--){
+    for (int d = edit_len; d > 0; d--)
+    {
         if (k == -d || k != d && results.get(d - 1, k - 1) < results.get(d - 1, k + 1))
         {
             k = k + 1;
@@ -188,17 +190,20 @@ done:
             int y = x - k;
             int val = in_2.at(y);
             DEBUG(2, "y: " << y << " in_2: " << val);
-            steps[d-1] = {x, val, true};
-        } else {
+            steps[d - 1] = {x, val, true};
+        }
+        else
+        {
             k = k - 1;
             int x = results.get(d - 1, k) + 1;
-            steps[d-1] = {x, -1, false};
+            steps[d - 1] = {x, -1, false};
         }
     }
 
     std::ofstream edit_script_file;
     auto cout_buf = std::cout.rdbuf();
-    if (edit_script_to_file) {
+    if (edit_script_to_file)
+    {
         edit_script_file.open(edit_script_path);
         if (!edit_script_file.is_open())
         {
@@ -209,16 +214,21 @@ done:
         std::cout.rdbuf(edit_script_file.rdbuf()); //redirect std::cout to file
     }
 
-    for(int i=0; i < steps.size(); i++){
+    for (int i = 0; i < steps.size(); i++)
+    {
         struct Edit_step step = steps.at(i);
-        if(step.mode){
+        if (step.mode)
+        {
             std::cout << step.x << " + " << step.insert_val << std::endl;
-        } else  {
+        }
+        else
+        {
             std::cout << step.x << " -" << std::endl;
         }
     }
 
-    if (edit_script_to_file) {
+    if (edit_script_to_file)
+    {
         edit_script_file.close();
     }
 
@@ -227,11 +237,12 @@ done:
 
     t_script_end = std::chrono::high_resolution_clock::now();
 
-    std::cout << "\nmin edit length " << edit_len << std::endl << std::endl;
+    std::cout << "\nmin edit length " << edit_len << std::endl
+              << std::endl;
     std::cout << "Read Input [μs]: \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_in_end - t_in_start).count() << std::endl;
     std::cout << "Precompute [μs]: \t" << 0 << std::endl;
     std::cout << "Solution [μs]:   \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_sol_end - t_sol_start).count() << std::endl;
     std::cout << "Edit Script [μs]: \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_script_end - t_script_start).count() << std::endl;
-    
+
     return 0;
 }

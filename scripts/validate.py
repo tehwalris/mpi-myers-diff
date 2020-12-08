@@ -19,12 +19,6 @@ parser = argparse.ArgumentParser(
 parser.add_argument(
     "--num-rand-tests", type=int, default=0, help="number of randomized tests to run"
 )
-# parser.add_argument(
-#     "--early-stop",
-#     default=False,
-#     action="store_true",
-#     help="skip running further tests as soon as one fails",
-# )
 parser.add_argument(
     "--mpi-procs",
     type=int,
@@ -33,14 +27,15 @@ parser.add_argument(
 parser.add_argument(
     "--regen-with",
     type=str,
-    help="Regenerates the edit scripts with the provided diff executable"
+    help="Regenerates the edit scripts with the provided diff executable",
 )
 parser.add_argument(
-    "test_cases", 
+    "test_cases",
     type=str,
     nargs="*",
     help="List of folder names of test case to run (relative to test_cases folder). If not specified, all test cases will be evaluated.",
 )
+
 
 def gen_random_generation_config():
     config = {
@@ -95,9 +90,10 @@ def apply_edit_script(in1, in2, edit, out):
     out.write("".join(output_lines))
     out.close()
 
+
 def validate_diff_size(path_str, diff):
     with open(path_str + "/" + edit_filename, "rb") as edit:
-        
+
         actual = sum(1 for i in edit)
         expected = int(diff.readline().strip())
         if actual == expected:
@@ -108,15 +104,16 @@ def validate_diff_size(path_str, diff):
             return False
 
 
-
 # return 2 booleans:
 # edit_script corrent?, diff size correct?
 def validate_test(path_str, test_case):
-    with open(path_str + "/in_1.txt", "r") as in1, \
-        open(path_str + "/in_2.txt", "r") as in2, \
-        open(path_str + "/out.txt", "w") as out, \
-        open(path_str + "/" + diff_filename, "r") as diff, \
-        open(path_str + "/" + edit_filename, "r") as edit:
+    with open(path_str + "/in_1.txt", "r") as in1, open(
+        path_str + "/in_2.txt", "r"
+    ) as in2, open(path_str + "/out.txt", "w") as out, open(
+        path_str + "/" + diff_filename, "r"
+    ) as diff, open(
+        path_str + "/" + edit_filename, "r"
+    ) as edit:
 
         apply_edit_script(in1, in2, edit, out)
 
@@ -124,14 +121,16 @@ def validate_test(path_str, test_case):
         diff_size_correct = False
         output_correct = False
         try:
-            result = check_call("cmp --silent out.txt in_2.txt", shell=True, cwd=path_str)
-            print(f"{test_case:<80}{colored('OK', 'green'):<25}\t", end='')
+            result = check_call(
+                "cmp --silent out.txt in_2.txt", shell=True, cwd=path_str
+            )
+            print(f"{test_case:<80}{colored('OK', 'green'):<25}\t", end="")
             output_correct = True
             diff_size_correct = validate_diff_size(path_str, diff)
 
         except subprocess.CalledProcessError as e:
             print(f"{test_case:<80}{colored('Failed', 'red')}")
-        
+
         return output_correct, diff_size_correct
 
 
@@ -153,18 +152,27 @@ def main():
             if args.mpi_procs:
                 # run with MPI
                 run_args += ["mpiexec", "-np", args.mpi_procs]
-            run_args += [args.regen_with, folder.path + "/in_1.txt", folder.path + "/in_2.txt", edit_path]
+            run_args += [
+                args.regen_with,
+                folder.path + "/in_1.txt",
+                folder.path + "/in_2.txt",
+                edit_path,
+            ]
             try:
-                subprocess.run(run_args, check=True, capture_output=True, timeout=5.)
+                subprocess.run(run_args, check=True, capture_output=True, timeout=5.0)
             except subprocess.CalledProcessError as e:
-                print(f"{folder.name:<80}{colored('Failed', 'red')}: Execution of diff algorithm failed with exit code {e.returncode} and stderr: \n {e.stderr}")
+                print(
+                    f"{folder.name:<80}{colored('Failed', 'red')}: Execution of diff algorithm failed with exit code {e.returncode} and stderr: \n {e.stderr}"
+                )
                 continue
             except subprocess.TimeoutExpired as e:
-                print(f"{folder.name:<80}{colored('Failed', 'red')}: Execution of diff algorithm timed out after {e.timeout} seconds.")
+                print(
+                    f"{folder.name:<80}{colored('Failed', 'red')}: Execution of diff algorithm timed out after {e.timeout} seconds."
+                )
                 continue
 
         edit_exists = os.path.isfile(edit_path)
-        
+
         diff_path = folder.path + "/" + diff_filename
         diff_exists = os.path.isfile(diff_path)
         if not diff_exists:
@@ -177,11 +185,12 @@ def main():
         else:
             print(f"{folder.name:<80}No edit script")
 
-
     # run random tests
     if args.num_rand_tests > 0:
         if not args.regen_with:
-            print(f"Cannot run random test cases since no executable was provided with --regen-with")
+            print(
+                f"Cannot run random test cases since no executable was provided with --regen-with"
+            )
             exit(1)
 
     for i in range(args.num_rand_tests):
@@ -201,14 +210,23 @@ def main():
         if args.mpi_procs:
             # run with MPI
             run_args += ["mpiexec", "-np", args.mpi_procs]
-        run_args += [args.regen_with, test_case_dir / "in_1.txt", test_case_dir / "in_2.txt", edit_path]
+        run_args += [
+            args.regen_with,
+            test_case_dir / "in_1.txt",
+            test_case_dir / "in_2.txt",
+            edit_path,
+        ]
         try:
-            subprocess.run(run_args, check=True, capture_output=True, timeout=5.)
+            subprocess.run(run_args, check=True, capture_output=True, timeout=5.0)
         except subprocess.CalledProcessError as e:
-            print(f"random test {i} {colored('Failed', 'red')}: Execution of diff algorithm failed with exit code {e.returncode} and stderr: \n {e.stderr}")
+            print(
+                f"random test {i} {colored('Failed', 'red')}: Execution of diff algorithm failed with exit code {e.returncode} and stderr: \n {e.stderr}"
+            )
             continue
         except subprocess.TimeoutExpired as e:
-            print(f"random test {i} {colored('Failed', 'red')}: Execution of diff algorithm timed out after {e.timeout} seconds.")
+            print(
+                f"random test {i} {colored('Failed', 'red')}: Execution of diff algorithm timed out after {e.timeout} seconds."
+            )
             continue
 
         edit_exists = os.path.isfile(edit_path)

@@ -82,10 +82,7 @@ def run_own_diff_algorithm_sequential(file_1_path, file_2_path, executable_path)
     args = [executable_path, file_1_path, file_2_path]
 
     with subprocess.Popen(
-        args, 
-        universal_newlines=True,
-        stdout=subprocess.PIPE, 
-        stderr=subprocess.PIPE
+        args, universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
     ) as proc:
         try:
             all_output, error = proc.communicate()
@@ -201,11 +198,11 @@ class DiffutilsOutput(RegexExtractedOutput):
         super().__init__(output, diffutils_output_fields)
 
 
-class MeasureSnakesOutput():
+class MeasureSnakesOutput:
     tuples = []
 
     def __init__(self, output: str):
         self.tuples = []
         for line in output.splitlines():
-            if line.startswith('d,k,comparisons='):
-                self.tuples.append(tuple(map(int, line.split('=')[1].split(','))))
+            if line.startswith("d,k,comparisons="):
+                self.tuples.append(tuple(map(int, line.split("=")[1].split(","))))

@@ -3,8 +3,8 @@
 #include <fstream>
 #include <assert.h>
 #include <algorithm>
-#include <chrono>                   // chrono::high_resolution_clock
-#include <optional>                 // requires C++17
+#include <chrono>   // chrono::high_resolution_clock
+#include <optional> // requires C++17
 #include <cmath>
 
 // Uncomment this line when performance is measured
@@ -13,16 +13,16 @@
 const int debug_level = 0;
 
 #ifndef NDEBUG
-#define DEBUG(level, x)          \
-  if (debug_level >= level)      \
-  {                              \
-    std::cerr << x << std::endl; \
-  }
-#define DEBUG_NO_LINE(level, x)  \
-  if (debug_level >= level)      \
-  {                              \
-    std::cerr << x; \
-  }
+#define DEBUG(level, x)              \
+    if (debug_level >= level)        \
+    {                                \
+        std::cerr << x << std::endl; \
+    }
+#define DEBUG_NO_LINE(level, x) \
+    if (debug_level >= level)   \
+    {                           \
+        std::cerr << x;         \
+    }
 #else
 #define DEBUG(level, x)
 #define DEBUG_NO_LINE(level, x)
@@ -32,71 +32,77 @@ const int shutdown_sentinel = -1;
 const int unknown_len = -1;
 const int no_worker_rank = 0;
 
-
-class Results{
+class Results
+{
 private:
     int alloc_n_layers = 20;
-    std::vector<int*> data_pointers;
+    std::vector<int *> data_pointers;
 
     // allocate the data block that begins at layer index d_begin
-    int* allocate_block(int d_begin){
-      int d_max = d_begin + alloc_n_layers;
-      int size = pyramid_size(d_max) - pyramid_size(d_begin);
-      DEBUG(3, "PYRAMID: allocate new blocks for layer "<<d_begin<<" to "<<d_max-1<<" of size "<< size);
-      
-      return new int[size](); // initialized to 0
+    int *allocate_block(int d_begin)
+    {
+        int d_max = d_begin + alloc_n_layers;
+        int size = pyramid_size(d_max) - pyramid_size(d_begin);
+        DEBUG(3, "PYRAMID: allocate new blocks for layer " << d_begin << " to " << d_max - 1 << " of size " << size);
+
+        return new int[size](); // initialized to 0
     }
 
     // total number of elements in a pyramid with l layers
-    inline int pyramid_size(int l){
-      return (l*(l+1))/2;
+    inline int pyramid_size(int l)
+    {
+        return (l * (l + 1)) / 2;
     }
 
 public:
     int m_d_max;
     int num_blocks;
 
-    Results(int d_max){
+    Results(int d_max)
+    {
         this->m_d_max = d_max;
 
         // allocate initial block 0
-        this->num_blocks = std::ceil(std::max(1.0, d_max / (double) alloc_n_layers));
+        this->num_blocks = std::ceil(std::max(1.0, d_max / (double)alloc_n_layers));
         data_pointers.resize(num_blocks, nullptr);
-        data_pointers[0] = allocate_block(0); 
+        data_pointers[0] = allocate_block(0);
     }
 
-    int &result_at(int d, int k){
-        DEBUG(3, "PYRAMID: ("<<d<<", "<<k<<")");
+    int &result_at(int d, int k)
+    {
+        DEBUG(3, "PYRAMID: (" << d << ", " << k << ")");
         int block_idx = d / alloc_n_layers;
 
         // allocate new block if needed
-        if (data_pointers.at(block_idx) == nullptr){
-          data_pointers.at(block_idx) = allocate_block(block_idx*alloc_n_layers);
+        if (data_pointers.at(block_idx) == nullptr)
+        {
+            data_pointers.at(block_idx) = allocate_block(block_idx * alloc_n_layers);
         }
 
-        int start_d = pyramid_size(d) - pyramid_size(block_idx*alloc_n_layers);
-        int offset = (k+d)/2;
+        int start_d = pyramid_size(d) - pyramid_size(block_idx * alloc_n_layers);
+        int offset = (k + d) / 2;
 
         assert(d < this->m_d_max);
-        assert(offset >= 0 && offset <= d+1);
+        assert(offset >= 0 && offset <= d + 1);
 
-        return data_pointers[block_idx][start_d+offset];
+        return data_pointers[block_idx][start_d + offset];
     }
 
     // returns pointer to first that element.
     // is guaranteed to continue for at least end of layer d.
     // unlike result_at(d,k) does not perform allocation of next layers
-    int* get_pointer(int d, int k){
+    int *get_pointer(int d, int k)
+    {
         int block_idx = d / alloc_n_layers;
-        int start_d = pyramid_size(d) - pyramid_size(block_idx*alloc_n_layers);
-        int offset = (k+d) / 2;
+        int start_d = pyramid_size(d) - pyramid_size(block_idx * alloc_n_layers);
+        int offset = (k + d) / 2;
 
         return data_pointers[block_idx] + start_d + offset;
     }
-
 };
 
-struct Edit_step{
+struct Edit_step
+{
     /** Position at which to perform the edit step */
     int x;
     /** Value to insert. This value is ignored when in delete mode */
@@ -150,7 +156,8 @@ int main(int argc, char *argv[])
     {
         path_1 = argv[1];
         path_2 = argv[2];
-        if (argc >= 4) {
+        if (argc >= 4)
+        {
             edit_script_path = argv[3];
             edit_script_to_file = true;
         }
@@ -159,14 +166,12 @@ int main(int argc, char *argv[])
     // start TIMER
     auto chrono_start = std::chrono::high_resolution_clock::now();
 
-
     std::vector<int> in_1, in_2;
     read_file(path_1, in_1);
     read_file(path_2, in_2);
 
     DEBUG(2, "in_1.size(): " << in_1.size());
     DEBUG(2, "in_2.size(): " << in_2.size());
-
 
     size_t real_in_1_size = in_1.size();
     size_t real_in_2_size = in_2.size();
@@ -182,7 +187,6 @@ int main(int argc, char *argv[])
     DEBUG(2, "Remaining in in_2 after discard: " << in_2.size());
 
     int trivial_edits = (real_in_1_size - in_1.size()) + (real_in_2_size - in_2.size());
-
 
     int d_max = in_1.size() + in_2.size() + 1;
 
@@ -231,7 +235,8 @@ int main(int argc, char *argv[])
                 // stop TIMER
                 auto chrono_end = std::chrono::high_resolution_clock::now();
                 auto chrono_t = std::chrono::duration_cast<std::chrono::microseconds>(chrono_end - chrono_start).count();
-                std::cout << "Solution [μs]: \t" << chrono_t << std::endl << std::endl;
+                std::cout << "Solution [μs]: \t" << chrono_t << std::endl
+                          << std::endl;
 
                 goto done;
             }
@@ -245,7 +250,8 @@ done:
     std::vector<std::pair<size_t, int>> lcs_insertions;
 
     int k = in_1.size() - in_2.size();
-    for(int d = edit_len; d > 0; d--){
+    for (int d = edit_len; d > 0; d--)
+    {
         if (k == -d || k != d && results.result_at(d - 1, k - 1) < results.result_at(d - 1, k + 1))
         {
             k = k + 1;
@@ -255,7 +261,9 @@ done:
             size_t real_y = real_indices_2.at(y);
             lcs_insertions.push_back(std::make_pair(real_y, val));
             DEBUG(2, "real_y: " << real_y << " in_2: " << val);
-        } else {
+        }
+        else
+        {
             k = k - 1;
             int x = results.result_at(d - 1, k);
             deletions.at(real_indices_1.at(x)) = true;
@@ -263,7 +271,8 @@ done:
     }
 
     std::ofstream edit_script_file;
-    if (edit_script_to_file) {
+    if (edit_script_to_file)
+    {
         edit_script_file.open(edit_script_path);
         if (!edit_script_file.is_open())
         {
@@ -274,24 +283,26 @@ done:
         std::cout.rdbuf(edit_script_file.rdbuf()); //redirect std::cout to file
     }
 
-    
     size_t x = 0, y = 0;
     size_t trivial_idx = 0;
-    int lcs_idx = lcs_insertions.size()-1;  // lcs_insertions are ordered in reverse
+    int lcs_idx = lcs_insertions.size() - 1; // lcs_insertions are ordered in reverse
 
-    auto get_next_insertion = [&trivial_insertions, &lcs_insertions, &trivial_idx, &lcs_idx]() -> std::optional<std::pair<size_t, int>> { 
-        if (trivial_idx >= trivial_insertions.size()) {     // no more trivial insertions
-            if (lcs_idx >= 0) 
+    auto get_next_insertion = [&trivial_insertions, &lcs_insertions, &trivial_idx, &lcs_idx]() -> std::optional<std::pair<size_t, int>> {
+        if (trivial_idx >= trivial_insertions.size())
+        { // no more trivial insertions
+            if (lcs_idx >= 0)
                 return lcs_insertions[lcs_idx--];
-            else    // reached the end of both insertion queues
+            else // reached the end of both insertion queues
                 return std::nullopt;
         }
-        else {
-            if (lcs_idx < 0)       // no more lcs insertions
+        else
+        {
+            if (lcs_idx < 0) // no more lcs insertions
                 return trivial_insertions[trivial_idx++];
-            else {
+            else
+            {
                 // select insertion with smaller y index
-                if (trivial_insertions[trivial_idx].first < lcs_insertions[lcs_idx].first) 
+                if (trivial_insertions[trivial_idx].first < lcs_insertions[lcs_idx].first)
                     return trivial_insertions[trivial_idx++];
                 else
                     return lcs_insertions[lcs_idx--];
@@ -300,28 +311,34 @@ done:
     };
 
     std::optional<std::pair<size_t, int>> next_insertion = get_next_insertion();
-    while (x < real_in_1_size || y < real_in_2_size) {
-        if (!deletions[x] && (!next_insertion.has_value() || next_insertion->first != y)) {
+    while (x < real_in_1_size || y < real_in_2_size)
+    {
+        if (!deletions[x] && (!next_insertion.has_value() || next_insertion->first != y))
+        {
             // no change
             x++;
             y++;
         }
-        else {
+        else
+        {
             // Insertions
-            while (next_insertion.has_value() && next_insertion->first == y) {
-                std::cout << x << " + " << next_insertion->second << std::endl;       // after x -> no need to adjust x
+            while (next_insertion.has_value() && next_insertion->first == y)
+            {
+                std::cout << x << " + " << next_insertion->second << std::endl; // after x -> no need to adjust x
                 y++;
                 next_insertion = get_next_insertion();
             }
             // Deletions
-            while (deletions[x]) {      // insertions cannot happen, since y isn't incremented
-                std::cout << x+1 << " -" << std::endl;      // 1-based indices in output
+            while (deletions[x])
+            {                                            // insertions cannot happen, since y isn't incremented
+                std::cout << x + 1 << " -" << std::endl; // 1-based indices in output
                 x++;
             }
         }
     }
 
-    if (edit_script_to_file) {
+    if (edit_script_to_file)
+    {
         edit_script_file.close();
     }
 

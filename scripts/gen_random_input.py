@@ -9,7 +9,7 @@ import itertools
 def generate_input_1(
     length,
     distribution,
-    values_range= None,
+    values_range=None,
 ):
     if values_range is None:
         values_range = length
@@ -23,6 +23,7 @@ def generate_input_1(
     weights /= weights.sum()
 
     return np.random.choice(values_range, size=length, replace=True, p=weights)
+
 
 # a: Sequence[int], b: Sequence[int], chunkiness: float
 def random_interleaving(a, b, chunkiness):
@@ -64,6 +65,7 @@ def random_interleaving(a, b, chunkiness):
     assert len(output) == len(a) + len(b)
     return output
 
+
 # sum: int, count: int
 def random_positive_integers_to_sum(sum, count):
     assert 1 <= count <= sum
@@ -76,6 +78,7 @@ def random_positive_integers_to_sum(sum, count):
     assert (values > 0).all()
     assert values.sum() == sum
     return values
+
 
 # size: int, p_true: float, chunkiness: float
 def random_chunky_mask(size, p_true, chunkiness):
@@ -120,13 +123,14 @@ def random_chunky_mask(size, p_true, chunkiness):
     assert base_mask.sum() == chunky_mask.sum()
     return chunky_mask
 
+
 # len: int, strategy: ["independent", "remove", "add", "addremove"], change_strength: float, chunkiness: float, distribution: ["uniform", "zipf"]
 def generate_input_pair(
     length_1,
-    strategy, # ["independent", "remove", "add", "addremove"]
+    strategy,  # ["independent", "remove", "add", "addremove"]
     change_strength,  # 0 - no changes, 1 - many changes
     chunkiness,  # 0 - mostly individual random changes, 1 - mostly consecutive changes
-    distribution # ["uniform", "zipf"],
+    distribution,  # ["uniform", "zipf"],
 ):
     assert 0 < change_strength <= 1
 
@@ -161,6 +165,7 @@ def generate_input_pair(
     assert len(values_1) == length_1
     return (values_1, generate_input_2(values_1, strategy, change_strength))
 
+
 # config: Dict, temporary: bool, detailed_name: bool
 def test_case_name_from_config(config, temporary, detailed_name):
     parts = []
@@ -179,10 +184,9 @@ def test_case_name_from_config(config, temporary, detailed_name):
         )
     return "_".join(str(p) for p in parts)
 
+
 # config: Dict, temporary: bool = False, detailed_name: bool = False
-def generate_and_save_test_case(
-    config, temporary=False, detailed_name=False
-):
+def generate_and_save_test_case(config, temporary=False, detailed_name=False):
     all_test_cases_dir = Path(__file__).parent / "../test_cases"
 
     test_case_dir = all_test_cases_dir / test_case_name_from_config(
@@ -191,7 +195,8 @@ def generate_and_save_test_case(
     test_case_dir.mkdir(exist_ok=True)
     for path in test_case_dir.glob("in_*.txt"):
         path.unlink()
-    if os.path.exists(test_case_dir / "diff_size.txt"): os.remove(test_case_dir / "diff_size.txt")
+    if os.path.exists(test_case_dir / "diff_size.txt"):
+        os.remove(test_case_dir / "diff_size.txt")
 
     for i, values in enumerate(generate_input_pair(**config)):
         with (test_case_dir / f"in_{i + 1}.txt").open("w", encoding="utf8") as f:

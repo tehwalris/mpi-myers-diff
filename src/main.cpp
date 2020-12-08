@@ -17,16 +17,15 @@ const int debug_level = 0;
   {                              \
     std::cerr << x << std::endl; \
   }
-#define DEBUG_NO_LINE(level, x)  \
-  if (debug_level >= level)      \
-  {                              \
-    std::cerr << x; \
+#define DEBUG_NO_LINE(level, x) \
+  if (debug_level >= level)     \
+  {                             \
+    std::cerr << x;             \
   }
 #else
 #define DEBUG(level, x)
 #define DEBUG_NO_LINE(level, x)
 #endif
-
 
 const int shutdown_sentinel = -1;
 const int unknown_len = -1;
@@ -38,52 +37,54 @@ enum Tag
   ReportWork,
 };
 
-struct Results{
+struct Results
+{
 
-    std::vector<int> m_data;
-    int m_d_max;
+  std::vector<int> m_data;
+  int m_d_max;
 
-    Results(int d_max){
-        m_d_max = d_max;
-        int size = (d_max*d_max+3*d_max+2)/2;
-        m_data = std::vector<int>(size);
-    }
+  Results(int d_max)
+  {
+    m_d_max = d_max;
+    int size = (d_max * d_max + 3 * d_max + 2) / 2;
+    m_data = std::vector<int>(size);
+  }
 
-    int &result_at(int d, int k){
-        assert(d < m_d_max);
-        int start = (d*(d+1))/2;
-        int access = (k+d)/2;
-        DEBUG(3, "PYRAMID: d_max:" << m_d_max << " d:" << d << " k:" << k << " start:" << start << " access:" << access);
-        assert(access >= 0 && access <= d+1);
-        assert(start+access < m_data.size());
+  int &result_at(int d, int k)
+  {
+    assert(d < m_d_max);
+    int start = (d * (d + 1)) / 2;
+    int access = (k + d) / 2;
+    DEBUG(3, "PYRAMID: d_max:" << m_d_max << " d:" << d << " k:" << k << " start:" << start << " access:" << access);
+    assert(access >= 0 && access <= d + 1);
+    assert(start + access < m_data.size());
 
-        return m_data.at(start+access);
-    }
-
+    return m_data.at(start + access);
+  }
 };
 
-struct Edit_step{
-    /** Position at which to perform the edit step */
-    int x;
-    /** Value to insert. This value is ignored when in delete mode */
-    int insert_val;
-    /** Mode of this edit step. True means addition, false deletion */
-    bool mode;
+struct Edit_step
+{
+  /** Position at which to perform the edit step */
+  int x;
+  /** Value to insert. This value is ignored when in delete mode */
+  int insert_val;
+  /** Mode of this edit step. True means addition, false deletion */
+  bool mode;
 };
 
 void print_vector(const std::vector<int> &vec)
 {
-    for (int i = 0; i < vec.size(); i++)
+  for (int i = 0; i < vec.size(); i++)
+  {
+    if (i != 0)
     {
-        if (i != 0)
-        {
-            DEBUG_NO_LINE(2, " ");
-        }
-        DEBUG_NO_LINE(2, vec.at(i));
+      DEBUG_NO_LINE(2, " ");
     }
-    DEBUG_NO_LINE(2, std::endl);
+    DEBUG_NO_LINE(2, vec.at(i));
+  }
+  DEBUG_NO_LINE(2, std::endl);
 }
-
 
 void read_file(const std::string path, std::vector<int> &output_vec)
 {
@@ -110,7 +111,6 @@ void main_master(const std::string path_1, const std::string path_2, bool edit_s
 
   // Input Timer
   t_in_start = std::chrono::high_resolution_clock::now();
-
 
   std::vector<int> in_1, in_2;
   read_file(path_1, in_1);
@@ -212,7 +212,7 @@ void main_master(const std::string path_1, const std::string path_2, bool edit_s
         edit_len = d;
 
         // stop TIMER
-        t_sol_end = std::chrono::high_resolution_clock::now();        
+        t_sol_end = std::chrono::high_resolution_clock::now();
         goto done;
       }
     }
@@ -229,59 +229,69 @@ done:
       MPI_Send(msg.data(), msg.size(), MPI_INT, i, Tag::AssignWork, MPI_COMM_WORLD);
     }
   }
-    std::vector<struct Edit_step> steps(edit_len);
-    int k = in_1.size() - in_2.size();
-    for(int d = edit_len; d > 0; d--){
-        if (k == -d || k != d && results.result_at(d - 1, k - 1) < results.result_at(d - 1, k + 1))
-        {
-            k = k + 1;
-            int x = results.result_at(d - 1, k);
-            int y = x - k;
-            int val = in_2.at(y);
-            DEBUG(2, "y: " << y << " in_2: " << val);
-            steps[d-1] = {x, val, true};
-        } else {
-            k = k - 1;
-            int x = results.result_at(d - 1, k) + 1;
-            steps[d-1] = {x, -1, false};
-        }
+  std::vector<struct Edit_step> steps(edit_len);
+  int k = in_1.size() - in_2.size();
+  for (int d = edit_len; d > 0; d--)
+  {
+    if (k == -d || k != d && results.result_at(d - 1, k - 1) < results.result_at(d - 1, k + 1))
+    {
+      k = k + 1;
+      int x = results.result_at(d - 1, k);
+      int y = x - k;
+      int val = in_2.at(y);
+      DEBUG(2, "y: " << y << " in_2: " << val);
+      steps[d - 1] = {x, val, true};
+    }
+    else
+    {
+      k = k - 1;
+      int x = results.result_at(d - 1, k) + 1;
+      steps[d - 1] = {x, -1, false};
+    }
+  }
+
+  std::ofstream edit_script_file;
+  auto cout_buf = std::cout.rdbuf();
+  if (edit_script_to_file)
+  {
+    edit_script_file.open(edit_script_path);
+    if (!edit_script_file.is_open())
+    {
+      std::cerr << "Could not open edit script file " << edit_script_path << std::endl;
+      exit(1);
     }
 
-    std::ofstream edit_script_file;
-    auto cout_buf = std::cout.rdbuf();
-    if (edit_script_to_file) {
-        edit_script_file.open(edit_script_path);
-        if (!edit_script_file.is_open())
-        {
-            std::cerr << "Could not open edit script file " << edit_script_path << std::endl;
-            exit(1);
-        }
+    std::cout.rdbuf(edit_script_file.rdbuf()); //redirect std::cout to file
+  }
 
-        std::cout.rdbuf(edit_script_file.rdbuf()); //redirect std::cout to file
+  for (int i = 0; i < steps.size(); i++)
+  {
+    struct Edit_step step = steps.at(i);
+    if (step.mode)
+    {
+      std::cout << step.x << " + " << step.insert_val << std::endl;
     }
-
-    for(int i=0; i < steps.size(); i++){
-        struct Edit_step step = steps.at(i);
-        if(step.mode){
-            std::cout << step.x << " + " << step.insert_val << std::endl;
-        } else  {
-            std::cout << step.x << " -" << std::endl;
-        }
+    else
+    {
+      std::cout << step.x << " -" << std::endl;
     }
+  }
 
-    if (edit_script_to_file) {
-        edit_script_file.close();
-    }
+  if (edit_script_to_file)
+  {
+    edit_script_file.close();
+  }
 
-    t_script_end = std::chrono::high_resolution_clock::now();
+  t_script_end = std::chrono::high_resolution_clock::now();
 
-    // Output Timers
-    std::cout.rdbuf(cout_buf); // redirect output back to stdout
-    std::cout << "\nmin edit length " << edit_len << std::endl << std::endl;
-    std::cout << "Read Input [μs]: \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_in_end - t_in_start).count() << std::endl;
-    std::cout << "Precompute [μs]: \t" << 0 << std::endl;
-    std::cout << "Solution [μs]:   \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_sol_end - t_sol_start).count() << std::endl;
-    std::cout << "Edit Script [μs]: \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_script_end - t_script_start).count() << std::endl;
+  // Output Timers
+  std::cout.rdbuf(cout_buf); // redirect output back to stdout
+  std::cout << "\nmin edit length " << edit_len << std::endl
+            << std::endl;
+  std::cout << "Read Input [μs]: \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_in_end - t_in_start).count() << std::endl;
+  std::cout << "Precompute [μs]: \t" << 0 << std::endl;
+  std::cout << "Solution [μs]:   \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_sol_end - t_sol_start).count() << std::endl;
+  std::cout << "Edit Script [μs]: \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_script_end - t_script_start).count() << std::endl;
 }
 
 void main_worker()
@@ -417,7 +427,8 @@ int main(int argc, char *argv[])
   {
     path_1 = argv[1];
     path_2 = argv[2];
-    if (argc >= 4) {
+    if (argc >= 4)
+    {
       edit_script_path = argv[3];
       edit_script_to_file = true;
     }
