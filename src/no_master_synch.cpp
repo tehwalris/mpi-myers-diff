@@ -51,6 +51,7 @@ enum Tag
   ReadOut = 3,
   ReadOutData = 4,
   ReadOutStopWorkers = 5,
+  ReadOutLcsLength = 6,
 };
 
 std::pair<int, int> get_k_bounds(const int d, const int worker_rank, const int num_workers, const int MIN_ENTRIES){
@@ -211,8 +212,7 @@ bool Recv(int source_rank, int d, int k, Storage &results, int d_max, int worker
         return true;
     }
     // check if already received
-    x = results.result_at(d, k);
-    if (x > 0) return false;
+    if (results.has_value(d, k)) return false;
 
     DEBUG(2, worker_rank << " | WAIT for " << source_rank << " ("<< d << ", "<< k << ")");
     int d_rcv = -1;
@@ -542,7 +542,6 @@ void main_worker(const std::string &path_1, const std::string &path_2, bool edit
   int comm_size;
   MPI_Comm_rank(MPI_COMM_WORLD, &worker_rank);
   MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
-  assert(comm_size > 1);
   int num_workers = comm_size;
 
   std::vector<int> in_1;
@@ -780,6 +779,24 @@ void main_worker(const std::string &path_1, const std::string &path_2, bool edit
 
 t_script_start = std::chrono::high_resolution_clock::now();
 t_script_end = t_script_start;
+
+bool found_solution = false;
+if (edit_len != -1) {
+  int d = edit_len;
+  auto bounds = get_k_bounds(d, worker_rank, num_workers, MIN_ENTRIES);
+  int k = in_1.size() - in_2.size();
+  if (k >= bounds.first && k <= bounds.second) {
+    found_solution = true;
+  }
+}
+
+if (worker_rank != 0 && found_solution) {
+  MPI_Send(&edit_len, 1, MPI_INT, 0, Tag::ReadOutLcsLength, MPI_COMM_WORLD);
+}
+
+if (worker_rank == 0 && !found_solution) {
+  MPI_Recv(&edit_len, 1, MPI_INT, MPI_ANY_SOURCE, Tag::ReadOutLcsLength, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+}
   
 #endif
 
