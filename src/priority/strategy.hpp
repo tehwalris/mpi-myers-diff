@@ -131,8 +131,8 @@ public:
     CellLocation target = intersect_diagonals(limiters.at(Side::Left), limiters.at(Side::Right));
     target.d -= 2;
 
-    // TODO This probably always prioritizes the left send if both are possible, even if the left one is further away.
     bool limited_by_sends = false;
+    CellLocation target_from_send_limit(std::numeric_limits<int>::max(), 0);
     for (Side s : {Side::Left, Side::Right})
     {
       if (future_sends.at(s) == future_send_ends.at(s))
@@ -142,10 +142,18 @@ public:
       CellLocation send_loc = *future_sends.at(s);
       if (send_loc.d < d_max && !point_is_outside_of_triangle(send_loc, target))
       {
-        target = send_loc;
-        limited_by_sends = true;
-        break;
+        // If we can send both left and right, we have to choose which one we prioritize.
+        // Unblock the worker that has made less progress. If both have made equal progress, make a "pseudorandom" choice (parity of d).
+        if (send_loc.d < target_from_send_limit.d || (send_loc.d == target_from_send_limit.d && send_loc.d % 2 == 0))
+        {
+          target_from_send_limit = send_loc;
+          limited_by_sends = true;
+        }
       }
+    }
+    if (limited_by_sends)
+    {
+      target = target_from_send_limit;
     }
 
     std::optional<CellDiamond> exposed_diamond_opt = frontier.get_next_exposed_diamond(target);
