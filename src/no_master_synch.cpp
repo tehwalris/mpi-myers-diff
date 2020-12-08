@@ -782,8 +782,7 @@ t_script_end = t_script_start;
 
 bool found_solution = false;
 if (edit_len != -1) {
-  int d = edit_len;
-  auto bounds = get_k_bounds(d, worker_rank, num_workers, MIN_ENTRIES);
+  auto bounds = get_k_bounds(edit_len, worker_rank, num_workers, MIN_ENTRIES);
   int k = in_1.size() - in_2.size();
   if (k >= bounds.first && k <= bounds.second) {
     found_solution = true;
