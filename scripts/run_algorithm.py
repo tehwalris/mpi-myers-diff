@@ -25,6 +25,9 @@ own_diff_executable_sequential_frontier = (
 own_diff_executable_sequential_fast_snakes = (
     Path(__file__).parent / "../bin/own-diff-sequential-fast-snakes.out"
 )
+own_diff_executable_sequential_measure_snakes = (
+    Path(__file__).parent / "../bin/own-diff-sequential-measure-snakes.out"
+)
 diffutils_executable = Path(__file__).parent / "../bin/diffutils.out"
 
 # https://stackoverflow.com/questions/32222681/how-to-kill-a-process-group-using-python-subprocess
@@ -106,6 +109,14 @@ def run_diffutils(file_1_path, file_2_path):
     return DiffutilsOutput(result.stdout)
 
 
+def run_sequential_measure_snakes(file_1_path, file_2_path):
+    all_output = subprocess.check_output(
+        [own_diff_executable_sequential_measure_snakes, file_1_path, file_2_path],
+        text=True,
+    )
+    return MeasureSnakesOutput(all_output)
+
+
 class RegexExtractedOutput:
     def __init__(self, output: str, field_configs):
         found_fields = set()
@@ -185,3 +196,13 @@ diffutils_output_fields = [
 class DiffutilsOutput(RegexExtractedOutput):
     def __init__(self, output: str):
         super().__init__(output, diffutils_output_fields)
+
+
+class MeasureSnakesOutput():
+    tuples = []
+
+    def __init__(self, output: str):
+        self.tuples = []
+        for line in output.splitlines():
+            if line.startswith('d,k,comparisons='):
+                self.tuples.append(tuple(map(int, line.split('=')[1].split(','))))
