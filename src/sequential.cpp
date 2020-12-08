@@ -129,6 +129,8 @@ int main(int argc, char *argv[])
 
     Storage results(d_max);
 
+    const int in_1_size = in_1.size(), in_2_size = in_2.size();
+
     for (int d = 0; d < d_max; d++)
     {
         DEBUG(2, "calculating layer " << d);
@@ -153,7 +155,7 @@ int main(int argc, char *argv[])
 
             int y = x - k;
 
-            while (x < in_1.size() && y < in_2.size() && in_1.at(x) == in_2.at(y))
+            while (x < in_1_size && y < in_2_size && in_1.at(x) == in_2.at(y))
             {
                 x++;
                 y++;
