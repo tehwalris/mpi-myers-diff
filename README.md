@@ -218,6 +218,10 @@ bsub -n 32 -W 4:00 python -m scripts.bench_algorithm --output-csv=/cluster/home/
 
 # Check the status of the job:
 bbjobs
+bbjobs JOBID
+
+# show all pending jobs:
+bjobs
 
 # Check the output of the currently running job:
 # Useful to see the progress bar and estimate remaining time.
