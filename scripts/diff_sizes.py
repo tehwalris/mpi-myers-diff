@@ -39,10 +39,18 @@ def update_test_case_diff(test_case_folder_path, always_create_diff=True):
         return int(f.read().rstrip())
 
 
-def get_test_case_dirs():
-    for folder in os.scandir(test_case_folder):
+class TestCaseDir:
+    def __init__(self, name, path):
+        self.name = name
+        self.path = path
+
+def get_test_case_dirs(search_root=test_case_folder):
+    for folder in os.scandir(search_root):
         if folder.is_dir():
-            yield folder
+            if (Path(folder.path) / "in_1.txt").is_file():
+                yield TestCaseDir(folder.name, folder.path)
+            for subfolder in get_test_case_dirs(folder.path):
+                yield TestCaseDir(f'{folder.name}/{subfolder.name}', subfolder.path)
 
 
 if __name__ == "__main__":

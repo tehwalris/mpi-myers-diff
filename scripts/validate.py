@@ -6,7 +6,7 @@ from pathlib import Path
 from termcolor import colored
 from subprocess import check_call
 import argparse
-from .diff_sizes import update_test_case_diff
+from .diff_sizes import update_test_case_diff, get_test_case_dirs
 from .gen_random_input import generate_and_save_test_case
 
 test_case_folder = Path(__file__).parent / "../test_cases"
@@ -27,16 +27,19 @@ parser.add_argument(
 # )
 parser.add_argument(
     "--mpi-procs",
+    type=int,
     help="number of processes to run a distributed algorithm with",
 )
 parser.add_argument(
     "--regen-with",
+    type=str,
     help="Regenerates the edit scripts with the provided diff executable"
 )
 parser.add_argument(
     "test_cases", 
+    type=str,
     nargs="*",
-    help="Provide a list of test_case folder names if only specific test cases should be checked. Otherwise all test cases are evaluated."
+    help="List of folder names of test case to run (relative to test_cases folder). If not specified, all test cases will be evaluated.",
 )
 
 def gen_random_generation_config():
@@ -122,59 +125,57 @@ def validate_test(path_str, test_case):
         output_correct = False
         try:
             result = check_call("cmp --silent out.txt in_2.txt", shell=True, cwd=path_str)
-            print(f"{test_case:<20}{colored('OK', 'green'):<25}\t", end='')
+            print(f"{test_case:<80}{colored('OK', 'green'):<25}\t", end='')
             output_correct = True
             diff_size_correct = validate_diff_size(path_str, diff)
 
         except subprocess.CalledProcessError as e:
-            print(f"{test_case:<20}{colored('Failed', 'red')}")
+            print(f"{test_case:<80}{colored('Failed', 'red')}")
         
         return output_correct, diff_size_correct
 
 
 def main():
-
     args = parser.parse_args()
 
     # go through all test cases
-    print(f"{'Folder':<20}{'Output correct':<18}\t{'Diff size correct':<18}")
-    for folder in os.scandir(test_case_folder):
-        if folder.is_dir():
-            if args.test_cases and not folder.name in args.test_cases:
+    print(f"{'Folder':<80}{'Output correct':<18}\t{'Diff size correct':<18}")
+    for folder in get_test_case_dirs():
+        if args.test_cases and not folder.name in args.test_cases:
+            continue
+        if args.num_rand_tests and folder.name == "temp_random":
+            continue
+
+        edit_path = folder.path + "/" + edit_filename
+
+        if args.regen_with:
+            run_args = []
+            if args.mpi_procs:
+                # run with MPI
+                run_args += ["mpiexec", "-np", args.mpi_procs]
+            run_args += [args.regen_with, folder.path + "/in_1.txt", folder.path + "/in_2.txt", edit_path]
+            try:
+                subprocess.run(run_args, check=True, capture_output=True, timeout=5.)
+            except subprocess.CalledProcessError as e:
+                print(f"{folder.name:<80}{colored('Failed', 'red')}: Execution of diff algorithm failed with exit code {e.returncode} and stderr: \n {e.stderr}")
                 continue
-            if args.num_rand_tests and folder.name == "temp_random":
+            except subprocess.TimeoutExpired as e:
+                print(f"{folder.name:<80}{colored('Failed', 'red')}: Execution of diff algorithm timed out after {e.timeout} seconds.")
                 continue
 
-            edit_path = folder.path + "/" + edit_filename
+        edit_exists = os.path.isfile(edit_path)
+        
+        diff_path = folder.path + "/" + diff_filename
+        diff_exists = os.path.isfile(diff_path)
+        if not diff_exists:
+            # generate diff
+            update_test_case_diff(folder.path)
 
-            if args.regen_with:
-                run_args = []
-                if args.mpi_procs:
-                    # run with MPI
-                    run_args += ["mpiexec", "-np", args.mpi_procs]
-                run_args += [args.regen_with, folder.path + "/in_1.txt", folder.path + "/in_2.txt", edit_path]
-                try:
-                    subprocess.run(run_args, check=True, capture_output=True, timeout=5.)
-                except subprocess.CalledProcessError as e:
-                    print(f"{folder.name:<20}{colored('Failed', 'red')}: Execution of diff algorithm failed with exit code {e.returncode} and stderr: \n {e.stderr}")
-                    continue
-                except subprocess.TimeoutExpired as e:
-                    print(f"{folder.name:<20}{colored('Failed', 'red')}: Execution of diff algorithm timed out after {e.timeout} seconds.")
-                    continue
-
-            edit_exists = os.path.isfile(edit_path)
-            
-            diff_path = folder.path + "/" + diff_filename
-            diff_exists = os.path.isfile(diff_path)
-            if not diff_exists:
-                # generate diff
-                update_test_case_diff(folder.path)
-
-            # edit script exists -> validate
-            if edit_exists:
-                validate_test(folder.path, folder.name)
-            else:
-                print(f"{folder.name:<20}No edit script")
+        # edit script exists -> validate
+        if edit_exists:
+            validate_test(folder.path, folder.name)
+        else:
+            print(f"{folder.name:<80}No edit script")
 
 
     # run random tests
