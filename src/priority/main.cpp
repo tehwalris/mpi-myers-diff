@@ -239,7 +239,7 @@ int main(int argc, char *argv[])
 {
   std::ios_base::sync_with_stdio(false);
 
-  std::string path_1 = "test_cases/temp_random/in_1.txt", path_2 = "test_cases/temp_random/in_1.txt";
+  std::string path_1 = "test_cases/temp_random/in_1.txt", path_2 = "test_cases/temp_random/in_2.txt";
 
   if (argc > 1 && argc < 3)
   {
