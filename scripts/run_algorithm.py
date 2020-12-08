@@ -10,6 +10,9 @@ own_diff_executable_mpi_master = Path(__file__).parent / "../bin/own-diff-mpi-ma
 own_diff_executable_mpi_no_master = (
     Path(__file__).parent / "../bin/own-diff-mpi-no-master.out"
 )
+own_diff_executable_mpi_no_master_frontier = (
+    Path(__file__).parent / "../bin/own-diff-mpi-no-master-frontier.out"
+)
 own_diff_executable_mpi_priority = (
     Path(__file__).parent / "../bin/own-diff-mpi-priority.out"
 )
