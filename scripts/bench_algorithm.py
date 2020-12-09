@@ -158,6 +158,15 @@ if __name__ == "__main__":
             ),
         },
         {
+            "name": "mpi_no_master_frontier",
+            "run": lambda p1, p2, e: run_algorithm.run_diff_algorithm_mpi(
+                p1,
+                p2,
+                e["mpi_procs"],
+                run_algorithm.own_diff_executable_mpi_no_master_frontier,
+            ),
+        },
+        {
             "name": "mpi_priority",
             "run": lambda p1, p2, e: run_algorithm.run_diff_algorithm_mpi(
                 p1, p2, e["mpi_procs"], run_algorithm.own_diff_executable_mpi_priority
