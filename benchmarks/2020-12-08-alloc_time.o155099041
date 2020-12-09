@@ -1,0 +1,42 @@
+Sender: LSF System <lsfadmin@eu-ms-003-44>
+Subject: Job 155099041: <./bin/alloc_time_test.out> in cluster <euler> Done
+
+Job <./bin/alloc_time_test.out> was submitted from host <eu-login-05> by user <pascalm> in cluster <euler> at Tue Dec  8 18:21:03 2020
+Job was executed on host(s) <eu-ms-003-44>, in queue <normal.4h>, as user <pascalm> in cluster <euler> at Tue Dec  8 19:28:43 2020
+</cluster/home/pascalm> was used as the home directory.
+</cluster/home/pascalm/dphpc> was used as the working directory.
+Started at Tue Dec  8 19:28:43 2020
+Terminated at Tue Dec  8 19:28:46 2020
+Results reported at Tue Dec  8 19:28:46 2020
+
+Your job looked like:
+
+------------------------------------------------------------
+# LSBATCH: User input
+./bin/alloc_time_test.out
+------------------------------------------------------------
+
+Successfully completed.
+
+Resource usage summary:
+
+    CPU time :                                   1.31 sec.
+    Max Memory :                                 2199 MB
+    Average Memory :                             -
+    Total Requested Memory :                     1024.00 MB
+    Delta Memory :                               -1175.00 MB
+    Max Swap :                                   -
+    Max Processes :                              -
+    Max Threads :                                -
+    Run time :                                   5 sec.
+    Turnaround time :                            4063 sec.
+
+The output (if any) follows:
+
+1 big allocation:  0 ms,               1 small allocations =        0 ms
+1 big allocation:  0 ms,              10 small allocations =        0 ms
+1 big allocation:  0 ms,             100 small allocations =        0 ms
+1 big allocation:  0 ms,            1000 small allocations =        0 ms
+1 big allocation:  0 ms,           10000 small allocations =        0 ms
+1 big allocation:  0 ms,          100000 small allocations =   110000 ms
+1 big allocation:  0 ms,         1000000 small allocations =   950000 ms
