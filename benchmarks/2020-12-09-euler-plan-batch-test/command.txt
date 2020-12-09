@@ -1,0 +1,2 @@
+python -m scripts.bench_algorithm prepare --num-regens 1 --target-chunkiness-steps 1 --target-change-strength-steps 4 --min-file-size 20000 --max-file-size 120000 --target-file-size-steps 6
+python -m scripts.bench_algorithm plan-batch --output-dir temp-bench-out --limit-programs sequential_frontier_simd,mpi_priority_frontier,mpi_priority_frontier_simd,mpi_no_master_frontier_simd --mpi-procs 1 4 8 16 32 64 --num-repetitions 3 --job-start-command-format 'bsub -R "rusage[mem=256]" -n %procs% %command%'
