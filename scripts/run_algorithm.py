@@ -78,7 +78,7 @@ _add_missing_fields_of_programs()
 
 def limit_diff_programs(diff_programs, limit_str, error_str):
     possible_names = set(p["name"] for p in diff_programs)
-    selected_names = set(s.strip() for s in limit_str(","))
+    selected_names = set(s.strip() for s in limit_str.split(","))
 
     unknown_names = selected_names - possible_names
     if unknown_names:
@@ -87,7 +87,7 @@ def limit_diff_programs(diff_programs, limit_str, error_str):
     limited_diff_programs = [p for p in diff_programs if p["name"] in selected_names]
     assert len(diff_programs) >= len(selected_names)
 
-    limited_diff_programs.sort(lambda p: p["name"])
+    limited_diff_programs.sort(key=lambda p: p["name"])
 
     return limited_diff_programs
 
