@@ -1,5 +1,9 @@
 {
   "python.formatting.provider": "black",
+  "[python]": {
+    "editor.formatOnPaste": false, // to avoid error message on pasting into python file (see https://github.com/Microsoft/vscode-python/issues/1883)
+    "editor.formatOnSaveMode": "file"
+  },
   "python.pythonPath": "scripts/.venv/bin/python",
   "cSpell.words": [
     "diffutils",
