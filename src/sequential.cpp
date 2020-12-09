@@ -6,6 +6,7 @@
 #include <cmath>
 #include <chrono> // chrono::high_resolution_clock
 #include "priority/storage.hpp"
+#include "priority/calculate.hpp"
 
 // Uncomment this line when performance is measured
 //#define NDEBUG
@@ -135,49 +136,17 @@ int main(int argc, char *argv[])
     {
         DEBUG(2, "calculating layer " << d);
 
-        for (int k = -d; k <= d; k += 2)
+        std::optional<int> lcs_k_opt = calculate_row_shared(results, in_1, in_2, d, -d, d);
+        if (lcs_k_opt.has_value())
         {
-            DEBUG(2, "d " << d << " k " << k);
-
-            int x;
-            if (d == 0)
-            {
-                x = 0;
-            }
-            else if (k == -d || k != d && results.get(d - 1, k - 1) < results.get(d - 1, k + 1))
-            {
-                x = results.get(d - 1, k + 1);
-            }
-            else
-            {
-                x = results.get(d - 1, k - 1) + 1;
-            }
-
-            int y = x - k;
-
-            while (x < in_1_size && y < in_2_size && in_1.at(x) == in_2.at(y))
-            {
-                x++;
-                y++;
-            }
-
-            DEBUG(2, "x: " << x);
-            DEBUG(2, "y; " << y);
-            results.set(d, k, x);
-
-            if (x >= in_1.size() && y >= in_2.size())
-            {
-                DEBUG(2, "found lcs");
-                edit_len = d;
-
-                // stop TIMER
-                t_sol_end = std::chrono::high_resolution_clock::now();
-                goto done;
-            }
+            DEBUG(2, "found lcs");
+            edit_len = d;
+            goto done;
         }
     }
 
 done:
+    t_sol_end = std::chrono::high_resolution_clock::now();
     t_script_start = std::chrono::high_resolution_clock::now();
 
 #ifdef EDIT_SCRIPT
