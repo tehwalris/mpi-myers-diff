@@ -105,7 +105,12 @@ def kill_process(pid):
 
 
 def run_diff_algorithm_mpi(
-    file_1_path, file_2_path, mpi_processes, mpi_executable_path, edit_script_path=None
+    file_1_path,
+    file_2_path,
+    mpi_processes,
+    mpi_executable_path,
+    edit_script_path=None,
+    min_entries=None,
 ):
     args = ["mpirun"]
 
@@ -120,6 +125,10 @@ def run_diff_algorithm_mpi(
 
     if edit_script_path is not None:
         args.append(edit_script_path)
+
+    if min_entries is not None:
+        args.append("-min_entries")
+        args.append(str(min_entries))
 
     with subprocess.Popen(
         args,
