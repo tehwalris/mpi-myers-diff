@@ -144,88 +144,20 @@ if __name__ == "__main__":
                     all_generation_configs.append(generation_config)
     print(f"{len(all_generation_configs)} unique test cases")
 
-    mpi_diff_programs = [
-        {
-            "name": "mpi_master",
-            "run": lambda p1, p2: run_algorithm.run_diff_algorithm_mpi(
-                p1, p2, e["mpi_procs"], run_algorithm.own_diff_executable_mpi_master
-            ),
-        },
-        {
-            "name": "mpi_no_master",
-            "run": lambda p1, p2, e: run_algorithm.run_diff_algorithm_mpi(
-                p1, p2, e["mpi_procs"], run_algorithm.own_diff_executable_mpi_no_master
-            ),
-        },
-        {
-            "name": "mpi_no_master_frontier",
-            "run": lambda p1, p2, e: run_algorithm.run_diff_algorithm_mpi(
-                p1,
-                p2,
-                e["mpi_procs"],
-                run_algorithm.own_diff_executable_mpi_no_master_frontier,
-            ),
-        },
-        {
-            "name": "mpi_priority",
-            "run": lambda p1, p2, e: run_algorithm.run_diff_algorithm_mpi(
-                p1, p2, e["mpi_procs"], run_algorithm.own_diff_executable_mpi_priority
-            ),
-        },
-        {
-            "name": "mpi_priority_frontier",
-            "run": lambda p1, p2, e: run_algorithm.run_diff_algorithm_mpi(
-                p1,
-                p2,
-                e["mpi_procs"],
-                run_algorithm.own_diff_executable_mpi_priority_frontier,
-            ),
-        },
-    ]
-    sequential_diff_programs = [
-        {
-            "name": "sequential",
-            "run": lambda p1, p2, _: run_algorithm.run_own_diff_algorithm_sequential(
-                p1, p2, run_algorithm.own_diff_executable_sequential
-            ),
-        },
-        {
-            "name": "sequential_frontier",
-            "run": lambda p1, p2, _: run_algorithm.run_own_diff_algorithm_sequential(
-                p1, p2, run_algorithm.own_diff_executable_sequential_frontier
-            ),
-        },
-        {
-            "name": "sequential_fast_snakes",
-            "run": lambda p1, p2, _: run_algorithm.run_own_diff_algorithm_sequential(
-                p1, p2, run_algorithm.own_diff_executable_sequential_fast_snakes
-            ),
-        },
-        {
-            "name": "diffutils",
-            "run": lambda p1, p2, _: run_algorithm.run_diffutils(p1, p2),
-        },
-    ]
-
-    diff_programs = sequential_diff_programs.copy()
-    for program_template in mpi_diff_programs:
+    diff_programs = run_algorithm.sequential_diff_programs.copy()
+    for program_template in run_algorithm.mpi_diff_programs:
         for mpi_procs in args.mpi_procs:
             program = deepcopy(program_template)
-            program.setdefault("extra_fields", {})["mpi_procs"] = mpi_procs
+            assert "extra_fields" not in "program"
+            program["extra_fields"] = {"mpi_procs": mpi_procs}
             diff_programs.append(program)
 
     if args.limit_programs is not None:
-        possible_names = set(p["name"] for p in diff_programs)
-        selected_names = set(s.strip() for s in args.limit_programs.split(","))
-
-        unknown_names = selected_names - possible_names
-        if unknown_names:
-            raise ValueError(
-                f'unknown program names passed to --limit-programs: {", ".join(sorted(unknown_names))}'
-            )
-
-        diff_programs = [p for p in diff_programs if p["name"] in selected_names]
-        assert len(diff_programs) >= len(selected_names)
+        diff_programs = run_algorithm.limit_diff_programs(
+            diff_programs,
+            args.limit_programs,
+            "unknown program names passed to --limit-programs",
+        )
 
     all_diff_program_extra_fields = sorted(
         {k for p in diff_programs for k in p.get("extra_fields", {}).keys()}

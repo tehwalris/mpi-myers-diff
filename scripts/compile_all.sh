@@ -5,8 +5,8 @@ cd $DIR/..
 
 CFLAGS="-std=c++17 -O3 -Wall -DNDEBUG -march=native -ffast-math"
 
-printf "\nCompiling MPI Main:\n"
-mpic++ src/main.cpp -o bin/own-diff-mpi-main.out $CFLAGS
+printf "\nCompiling MPI Master:\n"
+mpic++ src/main.cpp -o bin/own-diff-mpi-master.out $CFLAGS
 
 printf "\nCompiling MPI No Master (FastStorage):\n"
 mpic++ src/no_master_synch.cpp -o bin/own-diff-mpi-no-master.out $CFLAGS
