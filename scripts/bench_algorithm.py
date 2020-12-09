@@ -1,4 +1,4 @@
-from .gen_random_input import generate_and_save_test_case
+from .gen_random_input import generate_and_save_test_case, generate_input_pair
 from . import run_algorithm
 import multiprocessing
 import numpy as np
@@ -7,77 +7,128 @@ import csv
 import random
 from tqdm import tqdm
 from copy import deepcopy
+from pathlib import Path
+import shutil
+import json
+import sys
+import time
+
+default_bench_dir = Path(__file__).parent / "../test_cases/temp_bench"
+flush_every_seconds = 5
 
 parser = argparse.ArgumentParser(
     description="Benchmark our diff algorithm with random test cases"
 )
-parser.add_argument(
-    "--output-csv",
-    type=str,
-    required=True,
-    help="path where to write the benchmark results as a CSV file",
-)
-parser.add_argument(
+subparsers = parser.add_subparsers(required=True, title="subcommands")
+parser_prepare = subparsers.add_parser("prepare")
+parser_queue = subparsers.add_parser("queue")
+parser_run = subparsers.add_parser("run")
+
+parser_prepare.add_argument(
     "--min-file-size",
     type=int,
     default=1,
     help="minimum length of a single generated input sequence",
 )
-parser.add_argument(
+parser_prepare.add_argument(
     "--max-file-size",
     type=int,
     default=5000,
     help="maximum length of a single generated input sequence",
 )
-parser.add_argument(
+parser_prepare.add_argument(
     "--target-file-size-steps",
     type=int,
     default=10,
     help="number of different file sizes to try while keeping all other parameters fixed",
 )
-parser.add_argument(
+parser_prepare.add_argument(
     "--target-change-strength-steps",
     type=int,
     default=5,
     help="number of different change strengths to try while keeping all other parameters fixed",
 )
-parser.add_argument(
+parser_prepare.add_argument(
     "--only-change-strength",
     type=float,
     default=None,
     help="only change strength to benchmark with (--target-change-strength-steps must be 1 to use this option)",
 )
-parser.add_argument(
+parser_prepare.add_argument(
     "--target-chunkiness-steps",
     type=int,
     default=3,
     help="number of different chunkiness levels to try while keeping all other parameters fixed",
 )
-parser.add_argument(
+parser_prepare.add_argument(
+    "--num-regens",
+    type=int,
+    default=3,
+    help="number of times to re-generate an input using the same config",
+)
+parser_prepare.add_argument(
+    "--output-dir",
+    type=Path,
+    default=default_bench_dir,
+    help="path to directory where to write the generated inputs for benchmarking",
+)
+
+parser_queue.add_argument(
+    "--output-csv-dir",
+    type=Path,
+    required=True,
+    help="path to directory where to write the benchmark results as multiple CSV files",
+)
+
+parser_run.add_argument(
+    "--output-csv",
+    type=Path,
+    required=True,
+    help="path where to write the benchmark results as a CSV file",
+)
+parser_run.add_argument(
+    "--no-progress-bar",
+    default=False,
+    action="store_true",
+    help="hide the progress bar",
+)
+
+queue_run_shared_arguments = set()
+
+
+def add_queue_run_shared_argument(arg_name, *args, **kwargs):
+    assert arg_name.startswith("--")
+    arg_name_snake = arg_name[2:].replace("-", "_")
+    queue_run_shared_arguments.add(arg_name_snake)
+    for p in parser_queue, parser_run:
+        p.add_argument(arg_name, *args, **kwargs)
+
+
+add_queue_run_shared_argument(
+    "--input-dir",
+    type=Path,
+    default=default_bench_dir,
+    help="path to directory where to read the generated inputs for benchmarking",
+)
+add_queue_run_shared_argument(
+    "--limit-programs",
+    type=str,
+    help="comma separated list of programs to benchmark",
+)
+add_queue_run_shared_argument(
     "--mpi-procs",
     type=int,
     nargs="+",
     default=[multiprocessing.cpu_count()],
     help="number of processes to run our distributed algorithm with. If multiple (space separated) numbers are supplied, every MPI program is benchmarked for each.",
 )
-parser.add_argument(
+add_queue_run_shared_argument(
     "--num-repetitions",
     type=int,
     default=3,
     help="number of times to re-run each diff program with exactly the same input",
 )
-parser.add_argument(
-    "--num-regens",
-    type=int,
-    default=3,
-    help="number of times to re-generate an input using the same config",
-)
-parser.add_argument(
-    "--limit-programs",
-    type=str,
-    help="comma separated list of programs to benchmark",
-)
-parser.add_argument(
+add_queue_run_shared_argument(
     "--verbose",
     default=False,
     action="store_true",
@@ -97,13 +148,27 @@ class CSVOutputWriter:
         self._writer.writerow(data)
 
 
-if __name__ == "__main__":
-    args = parser.parse_args()
+class NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        else:
+            return super(NpEncoder, self).default(obj)
 
-    def verbose_print(*a, **kw):
-        if args.verbose:
-            print(*a, **kw)
 
+class NoopProgressBar:
+    def update(*args, **kwargs):
+        pass
+
+    def close(*args, **kwargs):
+        pass
+
+
+def prepare_benchmark(args):
     file_size_steps = np.linspace(
         args.min_file_size, args.max_file_size, args.target_file_size_steps
     )
@@ -144,6 +209,56 @@ if __name__ == "__main__":
                     all_generation_configs.append(generation_config)
     print(f"{len(all_generation_configs)} unique test cases")
 
+    shuffled_generation_configs = list(
+        {"i": i, "config": c} for i, c in enumerate(all_generation_configs)
+    )
+    random.shuffle(shuffled_generation_configs)
+
+    shutil.rmtree(args.output_dir, ignore_errors=True)
+    args.output_dir.mkdir()
+    with (args.output_dir / "index.json").open("w", encoding="utf-8") as f:
+        json.dump(
+            {
+                "shuffled_generation_configs": shuffled_generation_configs,
+                "num_regens": args.num_regens,
+            },
+            f,
+            cls=NpEncoder,
+        )
+
+    assert args.num_regens >= 1
+    gen_combination_factors = [len(all_generation_configs), args.num_regens]
+    total_gen_combinations = np.prod(gen_combination_factors)
+    print(
+        f'{" * ".join(str(v) for v in gen_combination_factors)} = {total_gen_combinations} total input file pairs'
+    )
+
+    progress_bar = tqdm(total=total_gen_combinations)
+    for entry in shuffled_generation_configs:
+        for regen_i in range(args.num_regens):
+            test_case_dir = args.output_dir / f"config-{entry['i']}-regen-{regen_i}"
+            test_case_dir.mkdir()
+            for i, values in enumerate(generate_input_pair(**entry["config"])):
+                with (test_case_dir / f"in_{i + 1}.txt").open(
+                    "w", encoding="utf8"
+                ) as f:
+                    for v in values:
+                        f.write(f"{v}\n")
+            progress_bar.update()
+
+    progress_bar.close()
+
+
+def queue_benchmark(args):
+    # TODO implement queueing
+    pass
+
+
+def run_benchmark(args):
+    def verbose_print(*a, **kw):
+        if args.verbose:
+            print(*a, **kw)
+
     diff_programs = run_algorithm.sequential_diff_programs.copy()
     for program_template in run_algorithm.mpi_diff_programs:
         for mpi_procs in args.mpi_procs:
@@ -164,11 +279,20 @@ if __name__ == "__main__":
     )
     print(f"{len(diff_programs)} diff programs")
 
+    try:
+        with (args.input_dir / "index.json").open("r", encoding="utf-8") as f:
+            benchmark_input_index = json.load(f)
+    except Exception:
+        print('Failed to load benchmark inputs. Did you run "prepare"?')
+        raise
+    shuffled_generation_configs = benchmark_input_index["shuffled_generation_configs"]
+    num_regens = benchmark_input_index["num_regens"]
+    assert num_regens >= 1
+
     test_combination_factors = [
-        len(all_generation_configs),
+        len(shuffled_generation_configs),
         len(diff_programs),
-        args.num_repetitions,
-        args.num_regens,
+        num_regens,
     ]
     total_test_combinations = np.prod(test_combination_factors)
     print(
@@ -178,22 +302,35 @@ if __name__ == "__main__":
     csv_output_file = open(args.output_csv, "w", newline="")
     csv_output_writer = CSVOutputWriter(csv_output_file)
 
-    failed_file = open(args.output_csv.split(".")[:-1][0] + "-FAILED.txt", "w")
+    def get_extra_file_path(suffix):
+        return ".".join(args.output_csv.name.split(".")[:-1]) + suffix
 
-    progress_bar = tqdm(total=total_test_combinations, smoothing=0)
+    failed_file = open(get_extra_file_path("-FAILED.txt"), "w")
 
-    shuffled_generation_configs = list(enumerate(all_generation_configs.copy()))
-    random.shuffle(shuffled_generation_configs)
+    if args.no_progress_bar:
+        progress_bar = NoopProgressBar()
+    else:
+        progress_bar = tqdm(total=total_test_combinations, smoothing=0)
+
+    last_flush_time = time.monotonic()
     break_flag = False
-    for generation_config_i, generation_config in shuffled_generation_configs:
-        for regen_i in range(args.num_regens):
+    for _entry in shuffled_generation_configs:
+        generation_config_i = _entry["i"]
+        generation_config = _entry["config"]
+
+        for regen_i in range(num_regens):
             verbose_print("generation_config", generation_config)
-            test_case_dir = generate_and_save_test_case(
-                generation_config, temporary=True, detailed_name=False
+            test_case_dir = (
+                args.input_dir / f"config-{generation_config_i}-regen-{regen_i}"
             )
 
             for diff_program in diff_programs:
                 for repetition_i in range(args.num_repetitions):
+                    if time.monotonic() - last_flush_time > flush_every_seconds:
+                        csv_output_file.flush()
+                        failed_file.flush()
+                        last_flush_time = time.monotonic()
+
                     verbose_print("  diff_program", diff_program["name"])
 
                     extra_fields = {
@@ -247,3 +384,16 @@ if __name__ == "__main__":
     progress_bar.close()
     csv_output_file.close()
     failed_file.close()
+
+
+parser_prepare.set_defaults(func=prepare_benchmark)
+parser_run.set_defaults(func=run_benchmark)
+parser_queue.set_defaults(func=queue_benchmark)
+
+if __name__ == "__main__":
+    if len(sys.argv) == 1:
+        print("subcommand is required")
+        parser.print_usage()
+        exit(1)
+    args = parser.parse_args()
+    args.func(args)

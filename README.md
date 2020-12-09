@@ -129,11 +129,13 @@ The script [`bench_algorithm.py`](./scripts/bench_algorithm.py) benchmarks our d
 To run with default settings:
 
 ```shell
-mpic++ src/main.cpp -O3 -DNDEBUG -o own-diff-mpi.out
-g++ src/sequential.cpp -O3 -DNDEBUG -o own-diff-sequential.out
+./scripts/compile_all.sh
 ./scripts/diffutils_compile.sh
-python -m scripts.bench_algorithm --output-csv temp-bench.csv
+python -m scripts.bench_algorithm prepare
+python -m scripts.bench_algorithm run --output-csv temp-bench.csv
 ```
+
+The "prepare" phase generates random test cases. If you do "prepare" once and "run" multiple times, the same concrete inputs will be used for each run.
 
 To get info about arguments pass `--help`.
 
