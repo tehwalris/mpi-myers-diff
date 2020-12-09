@@ -305,6 +305,9 @@ def plan_batch_benchmark(args):
     def path_to_str(p):
         return str(p.resolve().relative_to(args.paths_relative_to.absolute()))
 
+    def join_command(split_command):
+        return " ".join(shlex.quote(arg) for arg in split_command)
+
     job_start_commands = []
     for program in diff_programs:
         mpi_procs = program.get("extra_fields", {}).get("mpi_procs", 1)
@@ -331,12 +334,12 @@ def plan_batch_benchmark(args):
             str(mpi_procs),
         ).replace(
             r"%command%",
-            shlex.quote(shlex.join(bench_command)),
+            shlex.quote(join_command(bench_command)),
         )
 
         job_start_commands.append(job_start_command)
 
-    print(shlex.join(["mkdir", "-p", path_to_str(args.output_dir)]))
+    print(join_command(["mkdir", "-p", path_to_str(args.output_dir)]))
     for job_start_command in job_start_commands:
         print(job_start_command)
 
