@@ -2,6 +2,7 @@
 #include <optional>
 #include <cmath>
 #include <cassert>
+#include "../snake_computation.hpp"
 
 template <class S>
 inline std::optional<int> calculate_row_shared(
@@ -37,11 +38,7 @@ inline std::optional<int> calculate_row_shared(
 
     int y = x - k;
 
-    while (x < in_1_size && y < in_2_size && in_1[x] == in_2[y])
-    {
-      x++;
-      y++;
-    }
+    compute_end_of_snake(x, y, in_1, in_2);
 
     this_row[k] = x;
 

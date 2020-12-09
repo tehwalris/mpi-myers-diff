@@ -1,6 +1,3 @@
-// Uncomment this line when performance is measured
-//#define NDEBUG
-
 #include <mpi.h>
 #include <iostream>
 #include <sstream>
@@ -13,6 +10,7 @@
 #include <new>
 #include <cmath>
 #include "priority/storage.hpp"
+#include "snake_computation.hpp"
 
 const int debug_level = 0;
 
@@ -186,10 +184,6 @@ void stop_workers(const int num_workers, const int worker_rank, const Tag tag)
 // returns true if it found the solution
 inline bool compute_entry(int d, int k, Storage &data, const std::vector<int> &in_1, const std::vector<int> &in_2)
 {
-
-  int in1_size = in_1.size();
-  int in2_size = in_2.size();
-
   int x;
   if (d == 0)
   {
@@ -206,11 +200,7 @@ inline bool compute_entry(int d, int k, Storage &data, const std::vector<int> &i
 
   int y = x - k;
 
-  while (x < in1_size && y < in2_size && in_1.at(x) == in_2.at(y))
-  {
-    x++;
-    y++;
-  }
+  compute_end_of_snake(x, y, in_1, in_2);
 
   DEBUG_NO_LINE(3, "(" << d << ", " << k << "): ");
   DEBUG_NO_LINE(3, "x: " << x);
@@ -219,7 +209,7 @@ inline bool compute_entry(int d, int k, Storage &data, const std::vector<int> &i
   data.set(d, k, x);
 
   // LCS found
-  if (x >= in1_size && y >= in2_size)
+  if (x >= in_1.size() && y >= in_2.size())
   {
     return true;
   }
