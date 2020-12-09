@@ -100,11 +100,12 @@ def kill_process(pid):
 def run_diff_algorithm_mpi(
     file_1_path, file_2_path, mpi_processes, mpi_executable_path, edit_script_path=None
 ):
+    args = ["mpiexec"]
 
-    args = [
-        "mpiexec",
-        "-np",
-        str(mpi_processes),
+    if mpi_processes is not None:
+        args += ["-np", str(mpi_processes)]
+
+    args += [
         mpi_executable_path,
         file_1_path,
         file_2_path,

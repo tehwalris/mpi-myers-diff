@@ -92,6 +92,12 @@ parser_run.add_argument(
     action="store_true",
     help="hide the progress bar",
 )
+parser_run.add_argument(
+    "--no-direct-mpi-procs-limit",
+    default=False,
+    action="store_true",
+    help="don't pass -np to MPI run. Instead just assume that the number of processes is being limited to --mpi-procs somehow externally (eg. by a batch system). --mpi-procs is then effectively only written to the output CSV.",
+)
 
 queue_run_shared_arguments = set()
 
@@ -337,6 +343,13 @@ def run_benchmark(args):
                         k: diff_program.get("extra_fields", {}).get(k, "")
                         for k in all_diff_program_extra_fields
                     }
+
+                    extra_fields_for_run = deepcopy(extra_fields)
+                    if (
+                        args.no_direct_mpi_procs_limit
+                        and "mpi_procs" in extra_fields_for_run
+                    ):
+                        extra_fields_for_run["mpi_procs"] = None
 
                     try:
                         program_result = diff_program["run"](
