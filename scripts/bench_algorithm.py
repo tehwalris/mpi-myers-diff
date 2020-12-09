@@ -299,9 +299,6 @@ def plan_batch_benchmark(args):
     assert r"%procs%" in args.job_start_command_format
     assert r"%command%" in args.job_start_command_format
 
-    explicitly_forwarded_args = set(["input_dir", "limit_programs"])
-    assert explicitly_forwarded_args.issubset(plan_batch_run_shared_args)
-
     def path_to_str(p):
         return str(p.resolve().relative_to(args.paths_relative_to.absolute()))
 
@@ -320,6 +317,8 @@ def plan_batch_benchmark(args):
             "run",
             "--input-dir",
             path_to_str(args.input_dir),
+            "--num-repetitions",
+            str(args.num_repetitions),
             "--limit-programs",
             program["name"],
             "--mpi-procs",
@@ -328,6 +327,9 @@ def plan_batch_benchmark(args):
             "--output-csv",
             path_to_str(args.output_dir / f'{program["name"]}_{mpi_procs}.csv'),
         ]
+
+        if args.verbose:
+            bench_command.append("--verbose")
 
         job_start_command = args.job_start_command_format.replace(
             r"%procs%",
