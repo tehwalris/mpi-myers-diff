@@ -309,7 +309,8 @@ def run_benchmark(args):
     csv_output_writer = CSVOutputWriter(csv_output_file)
 
     def get_extra_file_path(suffix):
-        return ".".join(args.output_csv.name.split(".")[:-1]) + suffix
+        name = ".".join(args.output_csv.name.split(".")[:-1]) + suffix
+        return args.output_csv.parent / name
 
     failed_file = open(get_extra_file_path("-FAILED.txt"), "w")
 
