@@ -58,14 +58,21 @@ def _add_missing_fields_of_programs():
 
 mpi_diff_programs = [
     {"name": "mpi_master"},
+    {"name": "mpi_master_simd"},
     {"name": "mpi_no_master"},
+    {"name": "mpi_no_master_simd"},
     {"name": "mpi_no_master_frontier"},
+    {"name": "mpi_no_master_frontier_simd"},
     {"name": "mpi_priority"},
+    {"name": "mpi_priority_simd"},
     {"name": "mpi_priority_frontier"},
+    {"name": "mpi_priority_frontier_simd"},
 ]
 sequential_diff_programs = [
     {"name": "sequential"},
+    {"name": "sequential_simd"},
     {"name": "sequential_frontier"},
+    {"name": "sequential_frontier_simd"},
     {"name": "sequential_fast_snakes"},
     {
         "name": "diffutils",
