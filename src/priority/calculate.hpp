@@ -16,7 +16,7 @@ inline std::optional<int> calculate_row_shared(
   assert(k_min <= k_max);
 
   int in_1_size = in_1.size(), in_2_size = in_2.size();
-  int *last_row = storage.get_raw_row(d - 1);
+  int *last_row = d > 0 ? storage.get_raw_row(d - 1) : nullptr;
   int *this_row = storage.get_raw_row(d);
 
   for (int k = k_min; k <= k_max; k += 2)
