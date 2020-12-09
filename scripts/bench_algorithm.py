@@ -12,6 +12,7 @@ import shutil
 import json
 import sys
 import time
+import shlex
 
 default_bench_dir = Path(__file__).parent / "../test_cases/temp_bench"
 flush_every_seconds = 5
@@ -21,7 +22,7 @@ parser = argparse.ArgumentParser(
 )
 subparsers = parser.add_subparsers(required=True, title="subcommands")
 parser_prepare = subparsers.add_parser("prepare")
-parser_queue = subparsers.add_parser("queue")
+parser_plan_batch = subparsers.add_parser("plan-batch")
 parser_run = subparsers.add_parser("run")
 
 parser_prepare.add_argument(
@@ -73,11 +74,29 @@ parser_prepare.add_argument(
     help="path to directory where to write the generated inputs for benchmarking",
 )
 
-parser_queue.add_argument(
-    "--output-csv-dir",
+parser_plan_batch.add_argument(
+    "--output-dir",
     type=Path,
     required=True,
     help="path to directory where to write the benchmark results as multiple CSV files",
+)
+parser_plan_batch.add_argument(
+    "--job-start-command-format",
+    default=r"bsub -n %procs% %command%",
+    help=r"command for starting a single batch job. %procs% and %command% will be replaced.",
+)
+parser_plan_batch.add_argument(
+    "--paths-relative-to",
+    type=Path,
+    default=Path.cwd(),
+    help="refer to programs and files using paths relative to the supplied path",
+)
+parser_plan_batch.add_argument(
+    "--mpi-procs",
+    type=int,
+    nargs="+",
+    required=True,
+    help="number of processes to run our distributed algorithm with. If multiple (space separated) numbers are supplied, every MPI program is benchmarked for each.",
 )
 
 parser_run.add_argument(
@@ -98,43 +117,43 @@ parser_run.add_argument(
     action="store_true",
     help="don't pass -np to MPI run. Instead just assume that the number of processes is being limited to --mpi-procs somehow externally (eg. by a batch system). --mpi-procs is then effectively only written to the output CSV.",
 )
-
-queue_run_shared_arguments = set()
-
-
-def add_queue_run_shared_argument(arg_name, *args, **kwargs):
-    assert arg_name.startswith("--")
-    arg_name_snake = arg_name[2:].replace("-", "_")
-    queue_run_shared_arguments.add(arg_name_snake)
-    for p in parser_queue, parser_run:
-        p.add_argument(arg_name, *args, **kwargs)
-
-
-add_queue_run_shared_argument(
-    "--input-dir",
-    type=Path,
-    default=default_bench_dir,
-    help="path to directory where to read the generated inputs for benchmarking",
-)
-add_queue_run_shared_argument(
-    "--limit-programs",
-    type=str,
-    help="comma separated list of programs to benchmark",
-)
-add_queue_run_shared_argument(
+parser_run.add_argument(
     "--mpi-procs",
     type=int,
     nargs="+",
     default=[None],
     help="number of processes to run our distributed algorithm with. If multiple (space separated) numbers are supplied, every MPI program is benchmarked for each.",
 )
-add_queue_run_shared_argument(
+
+plan_batch_run_shared_args = set()
+
+
+def add_plan_batch_run_shared_argument(arg_name, *args, **kwargs):
+    assert arg_name.startswith("--")
+    arg_name_snake = arg_name[2:].replace("-", "_")
+    plan_batch_run_shared_args.add(arg_name_snake)
+    for p in parser_plan_batch, parser_run:
+        p.add_argument(arg_name, *args, **kwargs)
+
+
+add_plan_batch_run_shared_argument(
+    "--input-dir",
+    type=Path,
+    default=default_bench_dir,
+    help="path to directory where to read the generated inputs for benchmarking",
+)
+add_plan_batch_run_shared_argument(
+    "--limit-programs",
+    type=str,
+    help="comma separated list of programs to benchmark",
+)
+add_plan_batch_run_shared_argument(
     "--num-repetitions",
     type=int,
     default=3,
     help="number of times to re-run each diff program with exactly the same input",
 )
-add_queue_run_shared_argument(
+add_plan_batch_run_shared_argument(
     "--verbose",
     default=False,
     action="store_true",
@@ -172,6 +191,25 @@ class NoopProgressBar:
 
     def close(*args, **kwargs):
         pass
+
+
+def get_diff_programs_for_args(args):
+    diff_programs = run_algorithm.sequential_diff_programs.copy()
+    for program_template in run_algorithm.mpi_diff_programs:
+        for mpi_procs in args.mpi_procs:
+            program = deepcopy(program_template)
+            assert "extra_fields" not in "program"
+            program["extra_fields"] = {"mpi_procs": mpi_procs}
+            diff_programs.append(program)
+
+    if args.limit_programs is not None:
+        diff_programs = run_algorithm.limit_diff_programs(
+            diff_programs,
+            args.limit_programs,
+            "unknown program names passed to --limit-programs",
+        )
+
+    return diff_programs
 
 
 def prepare_benchmark(args):
@@ -255,9 +293,52 @@ def prepare_benchmark(args):
     progress_bar.close()
 
 
-def queue_benchmark(args):
-    # TODO implement queueing
-    pass
+def plan_batch_benchmark(args):
+    diff_programs = get_diff_programs_for_args(args)
+
+    assert r"%procs%" in args.job_start_command_format
+    assert r"%command%" in args.job_start_command_format
+
+    explicitly_forwarded_args = set(["input_dir", "limit_programs"])
+    assert explicitly_forwarded_args.issubset(plan_batch_run_shared_args)
+
+    def path_to_str(p):
+        return str(p.resolve().relative_to(args.paths_relative_to.absolute()))
+
+    job_start_commands = []
+    for program in diff_programs:
+        mpi_procs = program.get("extra_fields", {}).get("mpi_procs", 1)
+        assert isinstance(mpi_procs, int)
+
+        bench_command = [
+            "python",
+            "-m",
+            "scripts.bench_algorithm",
+            "run",
+            "--input-dir",
+            path_to_str(args.input_dir),
+            "--limit-programs",
+            program["name"],
+            "--mpi-procs",
+            str(mpi_procs),
+            "--no-direct-mpi-procs-limit",
+            "--output-csv",
+            path_to_str(args.output_dir / f'{program["name"]}_{mpi_procs}.csv'),
+        ]
+
+        job_start_command = args.job_start_command_format.replace(
+            r"%procs%",
+            str(mpi_procs),
+        ).replace(
+            r"%command%",
+            shlex.quote(shlex.join(bench_command)),
+        )
+
+        job_start_commands.append(job_start_command)
+
+    print(shlex.join(["mkdir", "-p", path_to_str(args.output_dir)]))
+    for job_start_command in job_start_commands:
+        print(job_start_command)
 
 
 def run_benchmark(args):
@@ -265,20 +346,7 @@ def run_benchmark(args):
         if args.verbose:
             print(*a, **kw)
 
-    diff_programs = run_algorithm.sequential_diff_programs.copy()
-    for program_template in run_algorithm.mpi_diff_programs:
-        for mpi_procs in args.mpi_procs:
-            program = deepcopy(program_template)
-            assert "extra_fields" not in "program"
-            program["extra_fields"] = {"mpi_procs": mpi_procs}
-            diff_programs.append(program)
-
-    if args.limit_programs is not None:
-        diff_programs = run_algorithm.limit_diff_programs(
-            diff_programs,
-            args.limit_programs,
-            "unknown program names passed to --limit-programs",
-        )
+    diff_programs = get_diff_programs_for_args(args)
 
     all_diff_program_extra_fields = sorted(
         {k for p in diff_programs for k in p.get("extra_fields", {}).keys()}
@@ -402,7 +470,7 @@ def run_benchmark(args):
 
 parser_prepare.set_defaults(func=prepare_benchmark)
 parser_run.set_defaults(func=run_benchmark)
-parser_queue.set_defaults(func=queue_benchmark)
+parser_plan_batch.set_defaults(func=plan_batch_benchmark)
 
 if __name__ == "__main__":
     if len(sys.argv) == 1:
