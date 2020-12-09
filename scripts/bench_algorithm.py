@@ -368,8 +368,9 @@ def run_benchmark(args):
 
     test_combination_factors = [
         len(shuffled_generation_configs),
-        len(diff_programs),
         num_regens,
+        len(diff_programs),
+        args.num_repetitions,
     ]
     total_test_combinations = np.prod(test_combination_factors)
     print(
