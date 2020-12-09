@@ -18,6 +18,10 @@ inline static void compute_end_of_snake(int &x, int &y, const std::vector<int> &
     // SIMD no extract
     if (x < in1_size && y < in2_size && in_1.at(x) == in_2.at(y))
     {
+        // already checked in if
+        x++;
+        y++;
+
         // hopefully computed before
         __m256i ones = _mm256_set1_epi64x(-1); // compiler optimized
         __m128i ones_sse = _mm_set1_epi64x(-1);
