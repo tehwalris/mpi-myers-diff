@@ -77,7 +77,7 @@ public:
   static const int no_diamond_height_limit = -1;
 
   Strategy(
-      F *follower,
+      F &follower,
       PerSide<IR> future_receives,
       PerSide<IR> future_receive_ends,
       PerSide<IS> future_sends,
@@ -105,7 +105,7 @@ public:
 
     final_known_limiters.at(from) = CellLocation(loc.d + 2, loc.k);
 
-    follower->set(loc.d, loc.k, v);
+    follower.set(loc.d, loc.k, v);
     frontier.cover_triangle(loc);
   }
 
@@ -182,7 +182,7 @@ public:
         {
           break;
         }
-        follower->send(send_loc.d, send_loc.k, s);
+        follower.send(send_loc.d, send_loc.k, s);
         future_sends.at(s)++;
       }
     }
@@ -216,7 +216,7 @@ private:
   PerSide<IS> future_send_ends;
   PerSide<CellLocation> final_known_limiters;
   Frontier frontier;
-  F *follower;
+  F &follower;
   int d_max;
   int diamond_height_limit;
   inline static const int never_received = -1;
@@ -233,16 +233,13 @@ private:
       int k_min = std::max(diamond.first.k - (d - diamond.first.d), diamond.second.k - (diamond.second.d - d));
       int k_max = std::min(diamond.first.k + (d - diamond.first.d), diamond.second.k + (diamond.second.d - d));
       assert(k_max >= k_min && (k_max - k_min) % 2 == 0);
-      for (int k = k_min; k <= k_max; k += 2)
+      std::optional<int> final_result_k = follower.calculate_row(d, k_min, k_max);
+      if (final_result_k.has_value())
       {
-        bool just_found_final_result = follower->calculate(d, k);
-        if (just_found_final_result)
-        {
-          assert(!final_result_location.has_value());
-          final_result_location = std::optional{CellLocation(d, k)};
-          done = true;
-          return;
-        }
+        assert(!final_result_location.has_value());
+        final_result_location = std::optional{CellLocation(d, final_result_k.value())};
+        done = true;
+        return;
       }
     }
   }

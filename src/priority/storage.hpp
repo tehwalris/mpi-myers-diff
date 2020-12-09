@@ -30,6 +30,11 @@ public:
     stored_v = v;
   }
 
+  inline int *get_raw_row(int d)
+  {
+    return &at(d, 0);
+  }
+
 private:
   inline static const int undefined = -1;
   int d_max;
@@ -65,6 +70,11 @@ public:
   {
     assert(v >= 0);
     at(d, k) = v;
+  }
+
+  inline int *get_raw_row(int d)
+  {
+    return &at(d, 0);
   }
 
 protected:
@@ -157,6 +167,11 @@ public:
   inline void set(int d, int k, int v)
   {
     values_by_column.at(i_from_d_k(d, k)) = v;
+  }
+
+  inline int *get_raw_row(int d)
+  {
+    return values_by_column.data() + d_max;
   }
 
 protected:
