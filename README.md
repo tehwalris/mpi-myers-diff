@@ -282,7 +282,7 @@ in_1                    in_2                    Edit Script
 
 ## Jupyter notebooks
 
-To view and edit Jupyter notebooks, activate your Python virtual environment and run `jupyter-lab`. For information about setting up the virtual environment, see the "Scripts" section above.
+To view and edit Jupyter notebooks, activate your Python virtual environment and run `jupyter-lab`. For information about setting up the virtual environment, see the [Scripts section](#setup) above.
 
 ## Useful commands
 
