@@ -125,7 +125,7 @@ add_queue_run_shared_argument(
     "--mpi-procs",
     type=int,
     nargs="+",
-    default=[multiprocessing.cpu_count()],
+    default=[None],
     help="number of processes to run our distributed algorithm with. If multiple (space separated) numbers are supplied, every MPI program is benchmarked for each.",
 )
 add_queue_run_shared_argument(
@@ -355,7 +355,7 @@ def run_benchmark(args):
                         program_result = diff_program["run"](
                             test_case_dir / "in_1.txt",
                             test_case_dir / "in_2.txt",
-                            extra_fields,
+                            extra_fields_for_run,
                         )
                         verbose_print(
                             "    micros_until_len", program_result.micros_until_len
