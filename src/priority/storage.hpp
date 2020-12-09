@@ -42,8 +42,7 @@ private:
 
   inline int &at(int d, int k)
   {
-    assert(d >= 0 && d <= d_max);
-    assert(abs(k) <= d);
+    assert(d >= 0 && d <= d_max && abs(k) <= d);
     assert((d - abs(k)) % 2 == 0);
     return data.at(d).at(k + d);
   }
@@ -74,12 +73,15 @@ public:
 
   inline int *get_raw_row(int d)
   {
+    assert(d >= 0 && d <= d_max);
     return &at(d, 0);
   }
 
 protected:
   inline int &at(int d, int k)
   {
+    assert(d >= 0 && d <= d_max && abs(k) <= d);
+
     int block_idx = d / alloc_n_layers;
 
     // allocate new block if needed
@@ -88,11 +90,11 @@ protected:
       data_pointers.at(block_idx) = allocate_block(block_idx * alloc_n_layers);
     }
 
-    int start_d = pyramid_size(d) - pyramid_size(block_idx * alloc_n_layers);
-    int offset = (k + d) / 2;
+    int start_d = 2 * (pyramid_size(d) - pyramid_size(block_idx * alloc_n_layers));
+    int offset = k + d;
 
     assert(d <= d_max);
-    assert(offset >= 0 && offset <= d + 1);
+    assert(offset >= 0 && offset <= 2 * d + 1);
 
     return data_pointers[block_idx][start_d + offset];
   }
@@ -107,7 +109,7 @@ private:
   int *allocate_block(int d_begin)
   {
     int d_max = d_begin + alloc_n_layers;
-    int size = pyramid_size(d_max) - pyramid_size(d_begin);
+    int size = 2 * (pyramid_size(d_max) - pyramid_size(d_begin));
     int *block = new int[size]; // not initialized to 0
     BlockInitializer::initialize_block(block, size);
     return block;
@@ -171,6 +173,7 @@ public:
 
   inline int *get_raw_row(int d)
   {
+    assert(d >= 0 && d <= d_max);
     return values_by_column.data() + d_max;
   }
 
