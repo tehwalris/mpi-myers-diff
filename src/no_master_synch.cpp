@@ -41,6 +41,11 @@ const int shutdown_sentinel = 1;
 const int unknown_len = -1;
 const int no_worker_rank = 0;
 
+// This number must be greater or equal to 2
+// use -min_entries 10 to set it manually
+int MIN_ENTRIES = 200; // min. number of initial entries to compute on one node per layer d before the next node is started
+
+
 enum Tag
 {
   ResultEntry = 0,
@@ -52,7 +57,7 @@ enum Tag
   ReadOutLcsLength = 6,
 };
 
-std::pair<int, int> get_k_bounds(const int d, const int worker_rank, const int num_workers, const int MIN_ENTRIES)
+std::pair<int, int> get_k_bounds(const int d, const int worker_rank, const int num_workers)
 {
   int k_min;
   int k_max;
@@ -274,7 +279,7 @@ bool Recv(int source_rank, int d, int k, Storage &results, int d_max, int worker
 * returns: edit length or -1 if another worker found the solution
 */
 int calculate_table(const std::vector<int> &in_1, const std::vector<int> &in_2, Storage &results, int d_max,
-                    const int worker_rank, const int num_workers, const int MIN_ENTRIES)
+                    const int worker_rank, const int num_workers)
 {
 
   int d_start = (worker_rank)*MIN_ENTRIES;   // first included layer
@@ -318,7 +323,7 @@ int calculate_table(const std::vector<int> &in_1, const std::vector<int> &in_2, 
         return -1;
     }
 #ifndef NDEBUG
-    auto bounds = get_k_bounds(d, worker_rank, num_workers, MIN_ENTRIES);
+    auto bounds = get_k_bounds(d, worker_rank, num_workers);
     int calc_k_min = bounds.first;
     int calc_k_max = bounds.second;
     DEBUG(2, worker_rank << " | d:" << d << " actual_k_min:" << k_min << " calc_k_min:" << calc_k_min << " actual_k_max:" << k_max << " calc_k_max:" << calc_k_max);
@@ -385,7 +390,7 @@ int calculate_table(const std::vector<int> &in_1, const std::vector<int> &in_2, 
         return -1;
     }
 #ifndef NDEBUG
-    auto bounds = get_k_bounds(d, worker_rank, num_workers, MIN_ENTRIES);
+    auto bounds = get_k_bounds(d, worker_rank, num_workers);
     int calc_k_min = bounds.first;
     int calc_k_max = bounds.second;
     DEBUG(2, worker_rank << " | d:" << d << " actual_k_min:" << k_min << " calc_k_min:" << calc_k_min << " actual_k_max:" << k_max << " calc_k_max:" << calc_k_max);
@@ -592,7 +597,7 @@ int calculate_table(const std::vector<int> &in_1, const std::vector<int> &in_2, 
     }
 
 #ifndef NDEBUG
-    auto bounds = get_k_bounds(d, worker_rank, num_workers, MIN_ENTRIES);
+    auto bounds = get_k_bounds(d, worker_rank, num_workers);
     int calc_k_min = bounds.first;
     int calc_k_max = bounds.second;
     DEBUG(2, worker_rank << " | d:" << d << " actual_k_min:" << k_min << " calc_k_min:" << calc_k_min << " actual_k_max:" << k_max << " calc_k_max:" << calc_k_max);
@@ -615,8 +620,6 @@ int calculate_table(const std::vector<int> &in_1, const std::vector<int> &in_2, 
 
 void main_worker(const std::string &path_1, const std::string &path_2, bool edit_script_to_file, const std::string &edit_script_path)
 {
-  // This number must be greater or equal to 2
-  const int MIN_ENTRIES = 200; // min. number of initial entries to compute on one node per layer d before the next node is started
 
   int worker_rank;
   int comm_size;
@@ -666,7 +669,7 @@ void main_worker(const std::string &path_1, const std::string &path_2, bool edit
   int d_max = in_1.size() + in_2.size() + 1;
   Storage results(d_max);
 
-  int edit_len = calculate_table(in_1, in_2, results, d_max, worker_rank, num_workers, MIN_ENTRIES);
+  int edit_len = calculate_table(in_1, in_2, results, d_max, worker_rank, num_workers);
   DEBUG(2, worker_rank << " | Done calculating");
 
   // TODO pascalm timer of worker 0 is not the time it took until the solution, but the time until
@@ -760,7 +763,7 @@ void main_worker(const std::string &path_1, const std::string &path_2, bool edit
     int d_start = d;
     for (; d > 0; d--)
     {
-      auto bounds = get_k_bounds(d, worker_rank, num_workers, MIN_ENTRIES);
+      auto bounds = get_k_bounds(d, worker_rank, num_workers);
       int k_min = bounds.first;
       int k_max = bounds.second;
       DEBUG(2, worker_rank << " | d: " << d << " k: " << k << " k_min:" << k_min << " k_max:" << k_max);
@@ -781,7 +784,7 @@ void main_worker(const std::string &path_1, const std::string &path_2, bool edit
         steps[d - 1] = {x, -1, 0};
       }
       DEBUG(2, worker_rank << " | Added step x:" << steps[d - 1].x << " val:" << steps[d - 1].insert_val << " mode:" << steps[d - 1].mode);
-      bounds = get_k_bounds(d - 1, worker_rank, num_workers, MIN_ENTRIES);
+      bounds = get_k_bounds(d - 1, worker_rank, num_workers);
       k_min = bounds.first;
       k_max = bounds.second;
       DEBUG(2, worker_rank << " | next: d: " << d - 1 << " k: " << k << " k_min: " << k_min << " k_max: " << k_max);
@@ -894,7 +897,7 @@ void main_worker(const std::string &path_1, const std::string &path_2, bool edit
   bool found_solution = false;
   if (edit_len != -1)
   {
-    auto bounds = get_k_bounds(edit_len, worker_rank, num_workers, MIN_ENTRIES);
+    auto bounds = get_k_bounds(edit_len, worker_rank, num_workers);
     int k = in_1.size() - in_2.size();
     if (k >= bounds.first && k <= bounds.second)
     {
@@ -936,18 +939,32 @@ int main(int argc, char *argv[])
   if (argc < 3)
   {
     std::cerr << "You must provide two paths to files to be compared as arguments" << std::endl;
+    std::cerr << "args: file1 file2 (edit_script_file) (-min_entries 20)" << std::endl;
     exit(1);
   }
-  else
+
+  path_1 = argv[1];
+  path_2 = argv[2];
+
+  // parse additional args
+  if (argc >= 4)
   {
-    path_1 = argv[1];
-    path_2 = argv[2];
-    if (argc >= 4)
+    for (int i = 3; i < argc; i++)
     {
-      edit_script_path = argv[3];
-      edit_script_to_file = true;
+      // check if any arg is -min_entires X
+      if (std::strcmp(argv[i], "-min_entries") == 0)
+      {
+        MIN_ENTRIES = std::atoi(argv[++i]); // skip next arg
+      } 
+      else
+      {
+        edit_script_path = argv[i];
+        edit_script_to_file = true;
+      }
+      
     }
   }
+    
 
   MPI_Init(nullptr, nullptr);
 
