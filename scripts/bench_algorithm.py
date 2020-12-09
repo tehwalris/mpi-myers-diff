@@ -20,7 +20,7 @@ flush_every_seconds = 5
 parser = argparse.ArgumentParser(
     description="Benchmark our diff algorithm with random test cases"
 )
-subparsers = parser.add_subparsers(required=True, title="subcommands")
+subparsers = parser.add_subparsers(title="subcommands")
 parser_prepare = subparsers.add_parser("prepare")
 parser_plan_batch = subparsers.add_parser("plan-batch")
 parser_run = subparsers.add_parser("run")
