@@ -384,7 +384,8 @@ def run_benchmark(args):
         name = ".".join(args.output_csv.name.split(".")[:-1]) + suffix
         return args.output_csv.parent / name
 
-    failed_file = open(get_extra_file_path("-FAILED.txt"), "w")
+    failed_file_path = get_extra_file_path("-FAILED.txt")
+    failed_file = open(failed_file_path, "w")
 
     if args.no_progress_bar:
         progress_bar = NoopProgressBar()
@@ -393,6 +394,7 @@ def run_benchmark(args):
 
     last_flush_time = time.monotonic()
     break_flag = False
+    some_benchmarks_failed = False
     for _entry in shuffled_generation_configs:
         generation_config_i = _entry["i"]
         generation_config = _entry["config"]
@@ -439,6 +441,7 @@ def run_benchmark(args):
                     except Exception as e:  # catch all
                         progress_bar.update()
 
+                        some_benchmarks_failed = True
                         print(diff_program["name"] + "\t", file=failed_file, end="")
                         print(generation_config, file=failed_file, end="")
                         print("\t" + repr(e), file=failed_file)
@@ -470,6 +473,9 @@ def run_benchmark(args):
     progress_bar.close()
     csv_output_file.close()
     failed_file.close()
+
+    if not some_benchmarks_failed:
+        failed_file_path.unlink()
 
 
 parser_prepare.set_defaults(func=prepare_benchmark)
