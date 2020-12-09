@@ -6,7 +6,7 @@
 			"label": "mpicc build active file",
 			"command": "/usr/bin/mpic++",
 			"args": [
-				//"-std=gnu++17",
+				"-std=gnu++17",
 				"-g",
 				"${file}",
 				"-o",
@@ -29,10 +29,10 @@
 			"label": "mpicc build active file release",
 			"command": "/usr/bin/mpic++",
 			"args": [
-				//"-std=gnu++17",
+				"-std=gnu++17",
 				"-O3",
 				"-march=native",
-				"-DNDEBUG",		// deactivate debug output & asserts
+				"-DNDEBUG", // deactivate debug output & asserts
 				"${file}",
 				"-o",
 				"${workspaceFolder}/bin/${fileBasenameNoExtension}_rel"
@@ -76,7 +76,7 @@
 			"args": [
 				"-O3",
 				"-march=native",
-				"-DNDEBUG",		// deactivate debug output & asserts
+				"-DNDEBUG", // deactivate debug output & asserts
 				"-std=gnu++17",
 				"${file}",
 				"-o",
@@ -90,8 +90,6 @@
 			],
 			"group": "build"
 		},
-
-
 		{
 			"type": "shell",
 			"label": "test algorithm",
