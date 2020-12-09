@@ -616,7 +616,7 @@ int calculate_table(const std::vector<int> &in_1, const std::vector<int> &in_2, 
 void main_worker(const std::string &path_1, const std::string &path_2, bool edit_script_to_file, const std::string &edit_script_path)
 {
   // This number must be greater or equal to 2
-  const int MIN_ENTRIES = 3; // min. number of initial entries to compute on one node per layer d before the next node is started
+  const int MIN_ENTRIES = 200; // min. number of initial entries to compute on one node per layer d before the next node is started
 
   int worker_rank;
   int comm_size;
