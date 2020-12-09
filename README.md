@@ -129,13 +129,39 @@ The script [`bench_algorithm.py`](./scripts/bench_algorithm.py) benchmarks our d
 To run with default settings:
 
 ```shell
-mpic++ src/main.cpp -O3 -DNDEBUG -o own-diff-mpi.out
-g++ src/sequential.cpp -O3 -DNDEBUG -o own-diff-sequential.out
+./scripts/compile_all.sh
 ./scripts/diffutils_compile.sh
-python -m scripts.bench_algorithm --output-csv temp-bench.csv
+python -m scripts.bench_algorithm prepare
+python -m scripts.bench_algorithm run --output-csv temp-bench.csv
 ```
 
 To get info about arguments pass `--help`.
+
+The "prepare" phase generates random test cases. If you do "prepare" once and "run" multiple times, the same concrete inputs will be used for each run.
+
+For running benchmarks on Euler, it's nice to run the benchmarks for different programs as separate batch jobs. That way the benchmark process is not wasting reserved cores by benchmarking a sequential program most of the time. Instead of using `bench_algorithm run`, you can use `bench_algorithm plan-batch`. It takes similar options, but instead of actually running anything, it gives you the commands to start the right batch jobs:
+
+```shell
+./scripts/compile_all.sh
+./scripts/diffutils_compile.sh
+python -m scripts.bench_algorithm prepare
+python -m scripts.bench_algorithm plan-batch --output-dir temp-bench-out --limit-programs sequential_frontier,mpi_priority_frontier,mpi_no_master_frontier --mpi-procs 4 8 64
+```
+
+The `bench_algorithm plan-batch` command above will print the following:
+
+```
+mkdir -p temp-bench-out
+bsub -n 4 'python -m scripts.bench_algorithm run --input-dir test_cases/temp_bench --limit-programs mpi_no_master_frontier --mpi-procs 4 --no-direct-mpi-procs-limit --output-csv temp-bench-out/mpi_no_master_frontier_4.csv'
+bsub -n 8 'python -m scripts.bench_algorithm run --input-dir test_cases/temp_bench --limit-programs mpi_no_master_frontier --mpi-procs 8 --no-direct-mpi-procs-limit --output-csv temp-bench-out/mpi_no_master_frontier_8.csv'
+bsub -n 64 'python -m scripts.bench_algorithm run --input-dir test_cases/temp_bench --limit-programs mpi_no_master_frontier --mpi-procs 64 --no-direct-mpi-procs-limit --output-csv temp-bench-out/mpi_no_master_frontier_64.csv'
+bsub -n 4 'python -m scripts.bench_algorithm run --input-dir test_cases/temp_bench --limit-programs mpi_priority_frontier --mpi-procs 4 --no-direct-mpi-procs-limit --output-csv temp-bench-out/mpi_priority_frontier_4.csv'
+bsub -n 8 'python -m scripts.bench_algorithm run --input-dir test_cases/temp_bench --limit-programs mpi_priority_frontier --mpi-procs 8 --no-direct-mpi-procs-limit --output-csv temp-bench-out/mpi_priority_frontier_8.csv'
+bsub -n 64 'python -m scripts.bench_algorithm run --input-dir test_cases/temp_bench --limit-programs mpi_priority_frontier --mpi-procs 64 --no-direct-mpi-procs-limit --output-csv temp-bench-out/mpi_priority_frontier_64.csv'
+bsub -n 1 'python -m scripts.bench_algorithm run --input-dir test_cases/temp_bench --limit-programs sequential_frontier --mpi-procs 1 --no-direct-mpi-procs-limit --output-csv temp-bench-out/sequential_frontier_1.csv'
+```
+
+Note that `plan-batch` it **does not run these commands**. You have to run them yourself to start the actual batch jobs.
 
 ## On Euler
 
@@ -208,6 +234,8 @@ Use "module keyword key1 key2 ..." to search for all possible modules matching a
 ### Submit Jobs
 
 First, test out that the code works by executing it directly on the login node.
+
+**You probably want to use `bench_algorithm plan-batch`** instead of manually writing these commands. See "Scripts -> Run benchmarks" above.
 
 Submit job with:
 

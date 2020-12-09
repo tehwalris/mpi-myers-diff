@@ -151,7 +151,7 @@ def main():
             run_args = []
             if args.mpi_procs:
                 # run with MPI
-                run_args += ["mpiexec", "-np", str(args.mpi_procs)]
+                run_args += ["mpirun", "-np", str(args.mpi_procs)]
             run_args += [
                 args.regen_with,
                 folder.path + "/in_1.txt",
@@ -209,7 +209,7 @@ def main():
         run_args = []
         if args.mpi_procs:
             # run with MPI
-            run_args += ["mpiexec", "-np", str(args.mpi_procs)]
+            run_args += ["mpirun", "-np", str(args.mpi_procs)]
         run_args += [
             args.regen_with,
             test_case_dir / "in_1.txt",

@@ -22,7 +22,7 @@ parser.add_argument(
 parser.add_argument(
     "--mpi-procs",
     type=int,
-    default=multiprocessing.cpu_count(),
+    default=None,
     help="number of processes to run our distributed algorithm with",
 )
 parser.add_argument(
