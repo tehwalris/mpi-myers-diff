@@ -175,14 +175,17 @@ def run_own_diff_algorithm_sequential(file_1_path, file_2_path, executable_path)
 
 
 def run_diffutils(file_1_path, file_2_path):
-    result = subprocess.run(
-        [diffutils_executable, "--minimal", file_1_path, file_2_path],
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode not in [0, 1]:
-        raise RuntimeError(f"diff command returned {result.returncode}")
-    return DiffutilsOutput(result.stdout)
+
+    args = [diffutils_executable, "--minimal", file_1_path, file_2_path]
+
+    with subprocess.Popen(
+        args, universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    ) as proc:
+        all_output, error = proc.communicate()
+
+        if proc.returncode not in [0, 1]:
+            raise RuntimeError(f"diff command returned {result.returncode}")
+        return DiffutilsOutput(all_output)
 
 
 def run_sequential_measure_snakes(file_1_path, file_2_path):
