@@ -150,7 +150,7 @@ python -m scripts.bench_algorithm plan-batch --output-dir temp-bench-out --limit
 
 The `bench_algorithm plan-batch` command above will print the following:
 
-```
+```shell
 mkdir -p temp-bench-out
 bsub -n 4 'python -m scripts.bench_algorithm run --input-dir test_cases/temp_bench --limit-programs mpi_no_master_frontier --mpi-procs 4 --no-direct-mpi-procs-limit --output-csv temp-bench-out/mpi_no_master_frontier_4.csv'
 bsub -n 8 'python -m scripts.bench_algorithm run --input-dir test_cases/temp_bench --limit-programs mpi_no_master_frontier --mpi-procs 8 --no-direct-mpi-procs-limit --output-csv temp-bench-out/mpi_no_master_frontier_8.csv'
