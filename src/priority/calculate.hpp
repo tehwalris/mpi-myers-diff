@@ -1,3 +1,6 @@
+#ifndef CALCULATE_HPP
+#define CALCULATE_HPP
+
 #include <vector>
 #include <optional>
 #include <cmath>
@@ -50,3 +53,4 @@ inline std::optional<int> calculate_row_shared(
 
   return std::nullopt;
 }
+#endif

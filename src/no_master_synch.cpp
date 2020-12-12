@@ -10,6 +10,7 @@
 #include <new>
 #include <cmath>
 #include "priority/storage.hpp"
+#include "priority/calculate.hpp"
 #include "snake_computation.hpp"
 
 const int debug_level = 0;
@@ -301,16 +302,11 @@ int calculate_table(const std::vector<int> &in_1, const std::vector<int> &in_2, 
   // first worker starts alone on its pyramid until it reaches point where one layer contains MIN_ENTRIES
   for (int d = d_start; d < std::min((worker_rank + 1) * MIN_ENTRIES, d_max); ++d)
   {
-    for (int k = k_min; k <= k_max; k += 2)
+    std::optional<int> done = calculate_row_shared(results, in_1, in_2, d, k_min, k_max);
+    if (done.has_value())
     {
-      // compute entry (d,k) // Test for d=0 or add dummy entry for first worker!
-      DEBUG_NO_LINE(3, worker_rank << " | ");
-      bool done = compute_entry(d, k, results, in_1, in_2);
-      if (done)
-      {
-        stop_workers(num_workers, worker_rank, Tag::StopWorkers);
-        return d;
-      }
+      stop_workers(num_workers, worker_rank, Tag::StopWorkers);
+      return d;
     }
     // check for shutdown
     // MPI_Test(&shutdown_request, &shutdown_flag, MPI_STATUS_IGNORE);
@@ -369,18 +365,11 @@ int calculate_table(const std::vector<int> &in_1, const std::vector<int> &in_2, 
       MPI_Send(msg.data(), msg.size(), MPI_INT, worker_rank + 1, Tag::ResultEntry, MPI_COMM_WORLD);
     }
 
-    for (int k = k_min; k < k_max; k += 2)
+    std::optional<int> done_row = calculate_row_shared(results, in_1, in_2, d, k_min, k_max-2);
+    if (done_row.has_value())
     {
-
-      // compute (d,k)
-      DEBUG_NO_LINE(3, worker_rank << " | ");
-      bool done = compute_entry(d, k, results, in_1, in_2);
-      x = results.get(d, k);
-      if (done)
-      {
-        stop_workers(num_workers, worker_rank, Tag::StopWorkers);
-        return d;
-      }
+      stop_workers(num_workers, worker_rank, Tag::StopWorkers);
+      return d;
     }
     // Receive entry on left of row (d, k_min-2) from worker_rank-1
     // except worker 1 never receives and doesn't apply to very last row of growth phase.
@@ -604,15 +593,11 @@ int calculate_table(const std::vector<int> &in_1, const std::vector<int> &in_2, 
     assert(k_min == calc_k_min && k_max == calc_k_max);
 #endif
     DEBUG(2, worker_rank << " | Do rest of line");
-    for (int k = k_min + 2; k < k_max; k += 2)
+    std::optional<int> done_row = calculate_row_shared(results, in_1, in_2, d, k_min+2, k_max-2);
+    if (done_row.has_value())
     {
-      DEBUG_NO_LINE(3, worker_rank << " | ");
-      done = compute_entry(d, k, results, in_1, in_2);
-      if (done)
-      {
-        stop_workers(num_workers, worker_rank, Tag::StopWorkers);
-        return d;
-      }
+      stop_workers(num_workers, worker_rank, Tag::StopWorkers);
+      return d;
     }
   }
   return -1;

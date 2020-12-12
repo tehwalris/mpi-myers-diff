@@ -1,3 +1,6 @@
+#ifndef SNAKE_COMPUTATION_HPP
+#define SNAKE_COMPUTATION_HPP
+
 #include <vector>
 #include <immintrin.h> // Vector intrinsics
 
@@ -74,3 +77,4 @@ inline static void compute_end_of_snake(int &x, int &y, const std::vector<int> &
 
 #endif
 }
+#endif
