@@ -184,7 +184,7 @@ def run_diffutils(file_1_path, file_2_path):
         all_output, error = proc.communicate()
 
         if proc.returncode not in [0, 1]:
-            raise RuntimeError(f"diff command returned {result.returncode}")
+            raise RuntimeError(f"diff command returned {proc.returncode}")
         return DiffutilsOutput(all_output)
 
 
@@ -199,13 +199,12 @@ def run_sequential_measure_snakes(file_1_path, file_2_path):
 class RegexExtractedOutput:
     def __init__(self, output: str, field_configs):
         found_fields = set()
-        for line in output.splitlines():
-            for field in field_configs:
-                m = field["regex"].fullmatch(line)
-                if m:
-                    assert field["key"] not in found_fields
-                    setattr(self, field["key"], field["extract"](m))
-                    found_fields.add(field["key"])
+        for field in field_configs:
+            m = field["regex"].search(output)
+            if m:
+                assert field["key"] not in found_fields
+                setattr(self, field["key"], field["extract"](m))
+                found_fields.add(field["key"])
 
         missing_fields = {field["key"] for field in field_configs} - found_fields
         if missing_fields:
@@ -217,28 +216,33 @@ class RegexExtractedOutput:
 
 own_diff_output_fields = [
     {
-        "key": "min_edit_len",
-        "regex": re.compile(r"^min edit length (\d+)$"),
+        "key": "min_edit_length",
+        "regex": re.compile(r"^min edit length (\d+)$", re.MULTILINE),
         "extract": lambda m: int(m[1]),
     },
     {
         "key": "micros_input",
-        "regex": re.compile(r"^Read Input \[μs\]:\s*(\d+)$"),
+        "regex": re.compile(r"^Read Input \[μs\]:\s*(\d+)$", re.MULTILINE),
         "extract": lambda m: int(m[1]),
     },
     {
         "key": "micros_precompute",
-        "regex": re.compile(r"^Precompute \[μs\]:\s*(\d+)$"),
+        "regex": re.compile(r"^Precompute \[μs\]:\s*(\d+)$", re.MULTILINE),
         "extract": lambda m: int(m[1]),
     },
     {
         "key": "micros_until_len",
-        "regex": re.compile(r"^Solution \[μs\]:\s*(\d+)$"),
+        "regex": re.compile(r"^Solution \[μs\]:\s*(\d+)$", re.MULTILINE),
         "extract": lambda m: int(m[1]),
     },
     {
         "key": "micros_edit_script",
-        "regex": re.compile(r"^Edit Script \[μs\]:\s*(\d+)$"),
+        "regex": re.compile(r"^Edit Script \[μs\]:\s*(\d+)$", re.MULTILINE),
+        "extract": lambda m: int(m[1]),
+    },
+    {
+        "key": "mpi_comm_world",
+        "regex": re.compile(r"^mpi comm_world:\s*(\d+)$", re.MULTILINE),
         "extract": lambda m: int(m[1]),
     },
 ]
@@ -252,22 +256,22 @@ class OwnDiffOutput(RegexExtractedOutput):
 diffutils_output_fields = [
     {
         "key": "micros_input",
-        "regex": re.compile(r"^Read Input \[μs\]:\s*(\d+)$"),
+        "regex": re.compile(r"^Read Input \[μs\]:\s*(\d+)$", re.MULTILINE),
         "extract": lambda m: int(m[1]),
     },
     {
         "key": "micros_precompute",
-        "regex": re.compile(r"^Precompute \[μs\]:\s*(\d+)$"),
+        "regex": re.compile(r"^Precompute \[μs\]:\s*(\d+)$", re.MULTILINE),
         "extract": lambda m: int(m[1]),
     },
     {
         "key": "micros_until_len",
-        "regex": re.compile(r"^Solution \[μs\]:\s*(\d+)$"),
+        "regex": re.compile(r"^Solution \[μs\]:\s*(\d+)$", re.MULTILINE),
         "extract": lambda m: int(m[1]),
     },
     {
         "key": "micros_edit_script",
-        "regex": re.compile(r"^Edit Script \[μs\]:\s*(\d+)$"),
+        "regex": re.compile(r"^Edit Script \[μs\]:\s*(\d+)$", re.MULTILINE),
         "extract": lambda m: int(m[1]),
     },
 ]
@@ -277,6 +281,9 @@ class DiffutilsOutput(RegexExtractedOutput):
     def __init__(self, output: str):
         super().__init__(output, diffutils_output_fields)
 
+        # add "min edit length" by counting its output:
+        edit_len = len(re.findall(r"^[<>]", output, re.MULTILINE))
+        setattr(self, "min_edit_length", edit_len)
 
 class MeasureSnakesOutput:
     tuples = []

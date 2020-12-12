@@ -458,11 +458,14 @@ def run_benchmark(args):
                         "repetition_i": repetition_i,
                         "diff_program": diff_program["name"],
                         **extra_fields,
+                        "mpi_comm_world": getattr(program_result, "mpi_comm_world", 1),
                         "micros_input": program_result.micros_input,
                         "micros_precompute": program_result.micros_precompute,
                         "micros_until_len": program_result.micros_until_len,
                         "micros_edit_script": program_result.micros_edit_script,
+                        "min_edit_length": program_result.min_edit_length,
                     }
+
                     csv_output_writer.write_row(output_data)
 
                 if break_flag:

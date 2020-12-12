@@ -204,6 +204,7 @@ void main_worker(std::string path_1, std::string path_2)
   }
 
   std::cout << "min edit length " << lcs_length << std::endl;
+  std::cout << "mpi comm_world: " << world_size << std::endl;
   std::cout << "Read Input [μs]: \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_in_end - t_in_start).count() << std::endl;
   std::cout << "Precompute [μs]: \t" << 0 << std::endl;
   std::cout << "Solution [μs]:   \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_sol_end - t_sol_start).count() << std::endl;

@@ -922,6 +922,7 @@ void main_worker(const std::string &path_1, const std::string &path_2, bool edit
     assert(edit_len >= 0);
     std::cout << "\nmin edit length " << edit_len << std::endl
               << std::endl;
+    std::cout << "mpi comm_world: " << comm_size << std::endl;
     std::cout << "Read Input [μs]: \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_in_end - t_in_start).count() << std::endl;
     std::cout << "Precompute [μs]: \t" << 0 << std::endl;
     std::cout << "Solution [μs]:   \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_sol_end - t_sol_start).count() << std::endl;
