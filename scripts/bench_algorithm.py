@@ -16,6 +16,7 @@ import shlex
 from scipy.stats import binom
 import bisect
 from subprocess import TimeoutExpired
+import math
 
 default_bench_dir = Path(__file__).parent / "../test_cases/temp_bench"
 flush_every_seconds = 5
@@ -160,26 +161,30 @@ add_plan_batch_run_shared_argument(
     "--min-repetitions",
     type=int,
     default=5,
-    help="minimum number of times to re-run each diff program with exactly the same input",
+    help="minimum number of times to re-run each diff program with exactly the same input, without --auto-repetitions it is the actual number of repetitions",
 )
 add_plan_batch_run_shared_argument(
     "--max-repetitions",
     type=int,
-    default=1000,  # "infinity"
+    default=500,  # "infinity"
     help="maximum number of times to re-run each diff program with exactly the same input, only active if --auto-repetitions is given",
-)  # TODO: needs to be >= 5?
+)
 add_plan_batch_run_shared_argument(
     "--max-median-error",
     type=float,
-    default=0.05,  # TODO: ?
+    default=0.08,
     help="maximal relative error of the median in the confidence interval, only active if --auto-repetitions is given",
 )
-confidence_level = 0.95  # TODO:
 add_plan_batch_run_shared_argument(
     "--verbose",
     default=False,
     action="store_true",
     help="print detailed information when running each benchmark",
+)
+
+confidence_level = 0.95
+min_repetitions_for_confidence = (
+    6  # 6 for confidence level = 0.95, 8 for confidence level = 0.99
 )
 
 
@@ -343,7 +348,7 @@ def plan_batch_benchmark(args):
             "--limit-programs",
             program["name"],
             "--no-direct-mpi-procs-limit",
-            "--min-repetitions",  # TODO: only pass if non-default?
+            "--min-repetitions",
             str(args.min_repetitions),
             "--max-repetitions",
             str(args.max_repetitions),
@@ -406,7 +411,7 @@ def run_benchmark(args):
         len(shuffled_generation_configs),
         num_regens,
         len(diff_programs),
-        # args.num_repetitions,  # TODO
+        # don't count number of repetitions, because it is possibly dynamic
     ]
     total_test_combinations = np.prod(test_combination_factors)
     print(
@@ -423,7 +428,6 @@ def run_benchmark(args):
     failed_file_path = get_extra_file_path("-FAILED.txt")
     failed_file = open(failed_file_path, "w")
 
-    # TODO: compute indices via Bin for different n until max
     if args.auto_repetitions:
         num_repetitions = args.max_repetitions
     else:
@@ -451,6 +455,7 @@ def run_benchmark(args):
 
                 # sorted list of measurements
                 micros_until_len_res = []
+                check_interval = min_repetitions_for_confidence - 1
 
                 for repetition_i in range(num_repetitions):
                     if time.monotonic() - last_flush_time > flush_every_seconds:
@@ -498,7 +503,7 @@ def run_benchmark(args):
                                 and micros_until_len_res[0] == timeout_micros
                             ):
                                 break  # if five iterations timed out -> assume all will timeout, don't try again
-                            micros_until_len_res.append(timeout_micros)  # TODO:?
+                            micros_until_len_res.append(timeout_micros)
                         continue
                     except Exception as e:  # catch all
                         some_benchmarks_failed = True
@@ -528,9 +533,11 @@ def run_benchmark(args):
                         bisect.insort(
                             micros_until_len_res, program_result.micros_until_len
                         )
+
                         if (
-                            repetition_i >= args.min_repetitions and repetition_i >= 5
-                        ):  # TODO: 5 for 0.95, 7 for 0.99
+                            repetition_i >= args.min_repetitions
+                            and repetition_i % check_interval == 0
+                        ) or repetition_i == num_repetitions - 1:  # reached the last iteration
                             # check if required confidence interval is reached
                             if repetition_i % 2 == 0:  # odd number of results
                                 current_median = micros_until_len_res[repetition_i // 2]
@@ -539,6 +546,9 @@ def run_benchmark(args):
                                     micros_until_len_res[(repetition_i - 1) // 2]
                                     + micros_until_len_res[(repetition_i + 1) // 2]
                                 ) / 2
+
+                            # check about every 20 ms = 20'000 microseconds  (overhead is about 1 ms)  => max 5% overhead
+                            check_interval = math.ceil(20000 / current_median)
 
                             lower_idx, upper_idx = binom.interval(
                                 confidence_level, repetition_i + 1, 0.5
