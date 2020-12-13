@@ -416,12 +416,14 @@ def run_benchmark(args):
 
                     verbose_print("  diff_program", diff_program["name"])
 
-                    extra_fields = {
+                    extra_fields_for_output = {
                         k: diff_program.get("extra_fields", {}).get(k, "")
                         for k in all_diff_program_extra_fields
                     }
 
-                    extra_fields_for_run = deepcopy(extra_fields)
+                    extra_fields_for_run = deepcopy(
+                        diff_program.get("extra_fields", {})
+                    )
                     if (
                         args.no_direct_mpi_procs_limit
                         and "mpi_procs" in extra_fields_for_run
@@ -457,7 +459,7 @@ def run_benchmark(args):
                         "regen_i": regen_i,
                         "repetition_i": repetition_i,
                         "diff_program": diff_program["name"],
-                        **extra_fields,
+                        **extra_fields_for_output,
                         "mpi_comm_world": getattr(program_result, "mpi_comm_world", 1),
                         "micros_input": program_result.micros_input,
                         "micros_precompute": program_result.micros_precompute,
