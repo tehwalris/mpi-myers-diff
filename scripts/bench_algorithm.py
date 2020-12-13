@@ -307,8 +307,9 @@ def plan_batch_benchmark(args):
 
     job_start_commands = []
     for program in diff_programs:
-        mpi_procs = program.get("extra_fields", {}).get("mpi_procs", 1)
-        assert isinstance(mpi_procs, int)
+        mpi_procs = program.get("extra_fields", {}).get("mpi_procs", None)
+        batch_procs = 1 if mpi_procs is None else mpi_procs
+        assert isinstance(batch_procs, int)
 
         bench_command = [
             "python",
@@ -321,19 +322,23 @@ def plan_batch_benchmark(args):
             str(args.num_repetitions),
             "--limit-programs",
             program["name"],
-            "--mpi-procs",
-            str(mpi_procs),
             "--no-direct-mpi-procs-limit",
             "--output-csv",
-            path_to_str(args.output_dir / f'{program["name"]}_{mpi_procs}.csv'),
+            path_to_str(args.output_dir / f'{program["name"]}_{batch_procs}.csv'),
         ]
+
+        if mpi_procs is not None:
+            bench_command += [
+                "--mpi-procs",
+                str(mpi_procs),
+            ]
 
         if args.verbose:
             bench_command.append("--verbose")
 
         job_start_command = args.job_start_command_format.replace(
             r"%procs%",
-            str(mpi_procs),
+            str(batch_procs),
         ).replace(
             r"%command%",
             shlex.quote(join_command(bench_command)),
