@@ -290,6 +290,7 @@ done:
         edit_script_file.close();
     }
 
+    std::cout << "mpi comm_world: " << 1 << std::endl;
     auto chrono_t = std::chrono::duration_cast<std::chrono::microseconds>(chrono_after_read - chrono_start).count();
     std::cout << "chrono Time for file read [μs]: \t" << chrono_t << "\n";
     chrono_t = std::chrono::duration_cast<std::chrono::microseconds>(chrono_after_snakes - chrono_after_read).count();

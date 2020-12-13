@@ -188,6 +188,8 @@ int main(int argc, char *argv[])
 
 done:
     std::cout << "min edit length " << edit_len << std::endl;
+    std::cout << "mpi comm_world: " << 1 << std::endl;
+
 
     std::vector<struct Edit_step> steps(edit_len);
     int k = in_1.size() - in_2.size();

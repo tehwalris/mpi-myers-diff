@@ -243,6 +243,8 @@ int main(int argc, char *argv[])
 done:
     int actual_edit_len = edit_len == unknown_len ? unknown_len : (edit_len + trivial_edits);
     std::cout << "min edit length " << actual_edit_len << std::endl;
+    std::cout << "mpi comm_world: " << 1 << std::endl;
+
 
     std::vector<std::pair<size_t, int>> lcs_insertions;
 

@@ -302,6 +302,7 @@ done:
     std::cout.rdbuf(cout_buf);
     std::cout << "\nmin edit length " << edit_len << std::endl
               << std::endl;
+    std::cout << "mpi comm_world: " << 1 << std::endl;
     std::cout << "Read Input [μs]: \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_in_end - t_in_start).count() << std::endl;
     std::cout << "Precompute [μs]: \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_pre_end - t_pre_start).count() << std::endl;
     std::cout << "Solution [μs]:   \t" << std::chrono::duration_cast<std::chrono::microseconds>(t_sol_end - t_sol_start).count() << std::endl;
