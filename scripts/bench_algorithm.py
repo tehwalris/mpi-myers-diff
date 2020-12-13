@@ -340,17 +340,15 @@ def plan_batch_benchmark(args):
             "run",
             "--input-dir",
             path_to_str(args.input_dir),
-            "--auto-repetitions",
-            str(args.auto_repetitions),
-            "--min-repetitions",
+            "--limit-programs",
+            program["name"],
+            "--no-direct-mpi-procs-limit",
+            "--min-repetitions",  # TODO: only pass if non-default?
             str(args.min_repetitions),
             "--max-repetitions",
             str(args.max_repetitions),
             "--max-median-error",
             str(args.max_median_error),
-            "--limit-programs",
-            program["name"],
-            "--no-direct-mpi-procs-limit",
             "--output-csv",
             path_to_str(args.output_dir / f'{program["name"]}_{batch_procs}.csv'),
         ]
@@ -360,6 +358,9 @@ def plan_batch_benchmark(args):
                 "--mpi-procs",
                 str(mpi_procs),
             ]
+
+        if args.auto_repetitions:
+            bench_command += ["--auto-repetitions"]
 
         if args.verbose:
             bench_command.append("--verbose")
