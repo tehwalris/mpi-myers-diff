@@ -13,6 +13,10 @@ import json
 import sys
 import time
 import shlex
+from scipy.stats import binom
+import bisect
+from subprocess import TimeoutExpired
+import math
 
 default_bench_dir = Path(__file__).parent / "../test_cases/temp_bench"
 flush_every_seconds = 5
@@ -148,16 +152,39 @@ add_plan_batch_run_shared_argument(
     help="comma separated list of programs to benchmark",
 )
 add_plan_batch_run_shared_argument(
-    "--num-repetitions",
+    "--auto-repetitions",
+    default=False,
+    action="store_true",
+    help="Determine number of repitions automatically based on the confidence interval around the median",
+)
+add_plan_batch_run_shared_argument(
+    "--min-repetitions",
     type=int,
-    default=3,
-    help="number of times to re-run each diff program with exactly the same input",
+    default=5,
+    help="minimum number of times to re-run each diff program with exactly the same input, without --auto-repetitions it is the actual number of repetitions",
+)
+add_plan_batch_run_shared_argument(
+    "--max-repetitions",
+    type=int,
+    default=500,  # "infinity"
+    help="maximum number of times to re-run each diff program with exactly the same input, only active if --auto-repetitions is given",
+)
+add_plan_batch_run_shared_argument(
+    "--max-median-error",
+    type=float,
+    default=0.08,
+    help="maximal relative error of the median in the confidence interval, only active if --auto-repetitions is given",
 )
 add_plan_batch_run_shared_argument(
     "--verbose",
     default=False,
     action="store_true",
     help="print detailed information when running each benchmark",
+)
+
+confidence_level = 0.95
+min_repetitions_for_confidence = (
+    6  # 6 for confidence level = 0.95, 8 for confidence level = 0.99
 )
 
 
@@ -318,11 +345,15 @@ def plan_batch_benchmark(args):
             "run",
             "--input-dir",
             path_to_str(args.input_dir),
-            "--num-repetitions",
-            str(args.num_repetitions),
             "--limit-programs",
             program["name"],
             "--no-direct-mpi-procs-limit",
+            "--min-repetitions",
+            str(args.min_repetitions),
+            "--max-repetitions",
+            str(args.max_repetitions),
+            "--max-median-error",
+            str(args.max_median_error),
             "--output-csv",
             path_to_str(args.output_dir / f'{program["name"]}_{batch_procs}.csv'),
         ]
@@ -332,6 +363,9 @@ def plan_batch_benchmark(args):
                 "--mpi-procs",
                 str(mpi_procs),
             ]
+
+        if args.auto_repetitions:
+            bench_command += ["--auto-repetitions"]
 
         if args.verbose:
             bench_command.append("--verbose")
@@ -377,7 +411,7 @@ def run_benchmark(args):
         len(shuffled_generation_configs),
         num_regens,
         len(diff_programs),
-        args.num_repetitions,
+        # don't count number of repetitions, because it is possibly dynamic
     ]
     total_test_combinations = np.prod(test_combination_factors)
     print(
@@ -393,6 +427,11 @@ def run_benchmark(args):
 
     failed_file_path = get_extra_file_path("-FAILED.txt")
     failed_file = open(failed_file_path, "w")
+
+    if args.auto_repetitions:
+        num_repetitions = args.max_repetitions
+    else:
+        num_repetitions = args.min_repetitions
 
     if args.no_progress_bar:
         progress_bar = NoopProgressBar()
@@ -413,7 +452,12 @@ def run_benchmark(args):
             )
 
             for diff_program in diff_programs:
-                for repetition_i in range(args.num_repetitions):
+
+                # sorted list of measurements
+                micros_until_len_res = []
+                check_interval = min_repetitions_for_confidence - 1
+
+                for repetition_i in range(num_repetitions):
                     if time.monotonic() - last_flush_time > flush_every_seconds:
                         csv_output_file.flush()
                         failed_file.flush()
@@ -447,16 +491,26 @@ def run_benchmark(args):
                     except KeyboardInterrupt:  # exit the benchmark
                         break_flag = True
                         break
+                    except TimeoutExpired as te:
+                        some_benchmarks_failed = True
+                        print(diff_program["name"] + "\t", file=failed_file, end="")
+                        print(generation_config, file=failed_file, end="")
+                        print("\t" + repr(te), file=failed_file)
+                        if args.auto_repetitions:
+                            timeout_micros = te.timeout * 1e6  # seconds to microseconds
+                            if (
+                                repetition_i >= 5
+                                and micros_until_len_res[0] == timeout_micros
+                            ):
+                                break  # if five iterations timed out -> assume all will timeout, don't try again
+                            micros_until_len_res.append(timeout_micros)
+                        continue
                     except Exception as e:  # catch all
-                        progress_bar.update()
-
                         some_benchmarks_failed = True
                         print(diff_program["name"] + "\t", file=failed_file, end="")
                         print(generation_config, file=failed_file, end="")
                         print("\t" + repr(e), file=failed_file)
-                        continue
-
-                    progress_bar.update()
+                        break  # assumption: will always fail with these exceptions -> no need to run all repetitions
 
                     output_data = {
                         "generation_config_i": generation_config_i,
@@ -474,6 +528,60 @@ def run_benchmark(args):
                     }
 
                     csv_output_writer.write_row(output_data)
+
+                    if args.auto_repetitions:
+                        bisect.insort(
+                            micros_until_len_res, program_result.micros_until_len
+                        )
+
+                        if (
+                            repetition_i >= args.min_repetitions
+                            and repetition_i % check_interval == 0
+                        ) or repetition_i == num_repetitions - 1:  # reached the last iteration
+                            # check if required confidence interval is reached
+                            if repetition_i % 2 == 0:  # odd number of results
+                                current_median = micros_until_len_res[repetition_i // 2]
+                            else:
+                                current_median = (
+                                    micros_until_len_res[(repetition_i - 1) // 2]
+                                    + micros_until_len_res[(repetition_i + 1) // 2]
+                                ) / 2
+
+                            # check about every 20 ms = 20'000 microseconds  (overhead is about 1 ms)  => max 5% overhead
+                            check_interval = math.ceil(20000 / current_median)
+
+                            lower_idx, upper_idx = binom.interval(
+                                confidence_level, repetition_i + 1, 0.5
+                            )
+                            # to get correct indices in python (Boudec paper Appendix A - 1)
+                            lower_idx -= 1
+                            # sometimes the interval is a little bit wider than in the Boudec paper, but this just means more confidence
+
+                            if (
+                                micros_until_len_res[int(lower_idx)]
+                                >= (1 - args.max_median_error) * current_median
+                                and micros_until_len_res[int(upper_idx)]
+                                <= (1 + args.max_median_error) * current_median
+                            ):
+                                break
+
+                            if repetition_i == num_repetitions - 1:
+                                # failed to reach required confidence
+                                some_benchmarks_failed = True
+                                print(
+                                    diff_program["name"] + "\t",
+                                    file=failed_file,
+                                    end="",
+                                )
+                                print(generation_config, file=failed_file, end="")
+                                print(
+                                    "\t"
+                                    + f"Failed to reach required confidence after {num_repetitions} repetitions; "
+                                    + f"current median: {current_median}, left end of CI: {micros_until_len_res[int(lower_idx)]}, right end of CI: {micros_until_len_res[int(upper_idx)]}",
+                                    file=failed_file,
+                                )
+
+                progress_bar.update()
 
                 if break_flag:
                     break
