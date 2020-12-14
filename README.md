@@ -175,19 +175,47 @@ connect with `ssh username@euler.ethz.ch`. You need to be in ETH VPN.
 git clone https://gitlab.ethz.ch/pascalm/2020-dphpc-project.git
 ```
 
-Euler uses Modules have to be loaded (compiler, libraries, python, etc.) first.
+Euler uses Modules that have to be loaded (compiler, libraries, python, etc.) first.
 
-Execute the script [`load_modules_euler.sh`](./euler/load_modules_euler.sh) to load the required Modules. Afterwards, you need to create the python virtual environment and install its requirements (see [script setup](#setup)) if it doesn't exist already.
-
-```shell
-source ./euler/load_modules_euler.sh
-```
-
-Compile all our binaries into the bin folder. If this script fails it means that the compilers haven't been loaded correctly.
+Execute the script [`setup_environment.sh`](./euler/setup_environment.sh) to load the required Modules. If the Python virtual environment is not setup already, the script will tell you to do so (see [script setup](#setup)), otherwise it is activated automatically.
 
 ```shell
-./scripts/compile_all.sh
+source ./euler/setup_environment.sh
 ```
+
+Compile all our binaries (optimized for Euler VI, which uses AMD Zen 2 processors) into the bin folder. If this script fails it means that the compilers haven't been loaded correctly.
+
+```shell
+./scripts/compile_all_zen2.sh
+```
+
+Prepare our benchmarks (WIP):
+
+```shell
+mkdir ./test_cases/independent-small-benchmark
+python -m scripts.bench_algorithm prepare --generation-strategies independent --min-file-size 30000 --max-file-size 100000 --target-file-size-steps 7 --output-dir ./test_cases/independent-small-benchmark/
+
+mkdir ./test_cases/add-remove-small-benchmark
+python -m scripts.bench_algorithm prepare --generation-strategies add,remove,addremove --min-file-size 100000 --max-file-size 240000 --target-file-size-steps 6 --output-dir ./test_cases/add-remove-small-benchmark/
+
+mkdir ./test_cases/independent-large-benchmark
+python -m scripts.bench_algorithm prepare --generation-strategies independent --min-file-size 100000 --max-file-size 6100000 --target-file-size-steps 6 --output-dir ./test_cases/independent-large-benchmark/
+
+```
+
+Create job commands for our benchmarks:
+```shell
+mkdir ./benchmarks/independent-small-benchmark
+python -m scripts.bench_algorithm plan-batch --input-dir ./test_cases/independent-small-benchmark/ --output-dir ./benchmarks/independent-small-benchmark/ --limit-programs sequential_frontier,mpi_priority_frontier,mpi_no_master_frontier --mpi-procs 1 2 3 4 8 16 32 64 --auto-repetitions
+
+mkdir ./benchmarks/add-remove-small-benchmark
+python -m scripts.bench_algorithm plan-batch --input-dir ./test_cases/add-remove-small-benchmark/ --output-dir ./benchmarks/add-remove-small-benchmark/ --limit-programs sequential_frontier,mpi_priority_frontier,mpi_no_master_frontier --mpi-procs 1 2 3 4 8 16 32 64 --auto-repetitions
+
+mkdir ./benchmarks/independent-large-benchmark
+python -m scripts.bench_algorithm plan-batch --input-dir ./test_cases/independent-large-benchmark/ --output-dir ./benchmarks/independent-large-benchmark/ --limit-programs mpi_priority_frontier,mpi_no_master_frontier --mpi-procs 64 128 256 512 1024 --min-repetitions 1 --mpi-timeout-seconds 600
+
+```
+
 
 ---
 
