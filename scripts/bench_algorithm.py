@@ -86,7 +86,7 @@ parser_plan_batch.add_argument(
 )
 parser_plan_batch.add_argument(
     "--job-start-command-format",
-    default=r"bsub -n %procs% %command%",
+    default=r"bsub -n %procs% -R 'select[model==EPYC_7742]' -R 'rusage[mem=512]' %command%",
     help=r"command for starting a single batch job. %procs% and %command% will be replaced.",
 )
 parser_plan_batch.add_argument(
@@ -155,7 +155,7 @@ add_plan_batch_run_shared_argument(
     "--auto-repetitions",
     default=False,
     action="store_true",
-    help="Determine number of repitions automatically based on the confidence interval around the median",
+    help="Determine number of repetions automatically based on the confidence interval around the median",
 )
 add_plan_batch_run_shared_argument(
     "--min-repetitions",
