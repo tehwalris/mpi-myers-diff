@@ -66,6 +66,12 @@ parser_prepare.add_argument(
     help="number of different chunkiness levels to try while keeping all other parameters fixed",
 )
 parser_prepare.add_argument(
+    "--generation-strategies",
+    type=str,
+    default="independent,add,remove,addremove",
+    help="comma separated list of strategies for generating inputs",
+)
+parser_prepare.add_argument(
     "--num-regens",
     type=int,
     default=3,
@@ -248,6 +254,21 @@ def get_diff_programs_for_args(args):
     return diff_programs
 
 
+def get_generation_strategies_for_args(args):
+    all_generation_strategies = {"independent", "add", "remove", "addremove"}
+    selected_generation_strategies = {
+        s.strip() for s in args.generation_strategies.strip().split(",")
+    }
+    unsupported_generation_strategies = (
+        selected_generation_strategies - all_generation_strategies
+    )
+    if unsupported_generation_strategies:
+        raise ValueError(
+            f"unsupported values for --generation-strategies: {', '.join(sorted(unsupported_generation_strategies))}"
+        )
+    return sorted(selected_generation_strategies)
+
+
 def prepare_benchmark(args):
     file_size_steps = np.linspace(
         args.min_file_size, args.max_file_size, args.target_file_size_steps
@@ -264,16 +285,13 @@ def prepare_benchmark(args):
 
     chunkiness_steps = np.linspace(0, 1, args.target_chunkiness_steps)
 
+    generation_strategies = get_generation_strategies_for_args(args)
+
     all_generation_configs = []
     for file_size in file_size_steps:
         for change_strength in change_strength_steps:
             for chunkiness in chunkiness_steps:
-                for generation_strategy in [
-                    "independent",
-                    "add",
-                    "remove",
-                    "addremove",
-                ]:
+                for generation_strategy in generation_strategies:
                     if generation_strategy == "independent" and (
                         change_strength != 1 or chunkiness != 0
                     ):
