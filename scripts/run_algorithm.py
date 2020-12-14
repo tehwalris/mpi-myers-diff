@@ -23,7 +23,13 @@ def _add_missing_fields_of_programs():
         assert "run" not in program
 
         def run(p1, p2, e):
-            return run_diff_algorithm_mpi(p1, p2, e["mpi_procs"], program["executable"])
+            return run_diff_algorithm_mpi(
+                p1,
+                p2,
+                e["mpi_procs"],
+                program["executable"],
+                timeout_seconds=e.get('timeout_seconds', None),
+            )
 
         program["run"] = run
 
@@ -111,6 +117,7 @@ def run_diff_algorithm_mpi(
     mpi_executable_path,
     edit_script_path=None,
     min_entries=None,
+    timeout_seconds=None,
 ):
     args = ["mpirun"]
 
@@ -138,7 +145,7 @@ def run_diff_algorithm_mpi(
         start_new_session=True,
     ) as proc:
         try:
-            all_output, error = proc.communicate(timeout=60)
+            all_output, error = proc.communicate(timeout=timeout_seconds)
 
         except Exception as e:
             # kill child and pass exception on to handle/log in benchmark

@@ -176,6 +176,12 @@ add_plan_batch_run_shared_argument(
     help="maximal relative error of the median in the confidence interval, only active if --auto-repetitions is given",
 )
 add_plan_batch_run_shared_argument(
+    "--mpi-timeout-seconds",
+    type=float,
+    default=60,
+    help="when running an MPI algorithm, stop if it takes longer than this number of seconds for a single input",
+)
+add_plan_batch_run_shared_argument(
     "--verbose",
     default=False,
     action="store_true",
@@ -226,7 +232,10 @@ def get_diff_programs_for_args(args):
         for mpi_procs in args.mpi_procs:
             program = deepcopy(program_template)
             assert "extra_fields" not in "program"
-            program["extra_fields"] = {"mpi_procs": mpi_procs}
+            program["extra_fields"] = {
+                "mpi_procs": mpi_procs,
+                "timeout_seconds": args.mpi_timeout_seconds,
+            }
             diff_programs.append(program)
 
     if args.limit_programs is not None:
@@ -347,6 +356,8 @@ def plan_batch_benchmark(args):
             path_to_str(args.input_dir),
             "--limit-programs",
             program["name"],
+            "--mpi-timeout-seconds",
+            str(args.mpi_timeout_seconds),
             "--no-direct-mpi-procs-limit",
             "--min-repetitions",
             str(args.min_repetitions),
