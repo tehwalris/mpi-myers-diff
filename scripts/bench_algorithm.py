@@ -66,6 +66,12 @@ parser_prepare.add_argument(
     help="number of different chunkiness levels to try while keeping all other parameters fixed",
 )
 parser_prepare.add_argument(
+    "--generation-strategies",
+    type=str,
+    default="independent,add,remove,addremove",
+    help="comma separated list of strategies for generating inputs",
+)
+parser_prepare.add_argument(
     "--num-regens",
     type=int,
     default=3,
@@ -86,7 +92,7 @@ parser_plan_batch.add_argument(
 )
 parser_plan_batch.add_argument(
     "--job-start-command-format",
-    default=r"bsub -n %procs% %command%",
+    default=r"bsub -n %procs% -R 'select[model==EPYC_7742]' -R 'rusage[mem=512]' %command%",
     help=r"command for starting a single batch job. %procs% and %command% will be replaced.",
 )
 parser_plan_batch.add_argument(
@@ -155,7 +161,7 @@ add_plan_batch_run_shared_argument(
     "--auto-repetitions",
     default=False,
     action="store_true",
-    help="Determine number of repitions automatically based on the confidence interval around the median",
+    help="Determine number of repetions automatically based on the confidence interval around the median",
 )
 add_plan_batch_run_shared_argument(
     "--min-repetitions",
@@ -174,6 +180,12 @@ add_plan_batch_run_shared_argument(
     type=float,
     default=0.05,
     help="maximal relative error of the median in the confidence interval, only active if --auto-repetitions is given",
+)
+add_plan_batch_run_shared_argument(
+    "--mpi-timeout-seconds",
+    type=float,
+    default=60,
+    help="when running an MPI algorithm, stop if it takes longer than this number of seconds for a single input",
 )
 add_plan_batch_run_shared_argument(
     "--verbose",
@@ -226,7 +238,10 @@ def get_diff_programs_for_args(args):
         for mpi_procs in args.mpi_procs:
             program = deepcopy(program_template)
             assert "extra_fields" not in "program"
-            program["extra_fields"] = {"mpi_procs": mpi_procs}
+            program["extra_fields"] = {
+                "mpi_procs": mpi_procs,
+                "timeout_seconds": args.mpi_timeout_seconds,
+            }
             diff_programs.append(program)
 
     if args.limit_programs is not None:
@@ -237,6 +252,21 @@ def get_diff_programs_for_args(args):
         )
 
     return diff_programs
+
+
+def get_generation_strategies_for_args(args):
+    all_generation_strategies = {"independent", "add", "remove", "addremove"}
+    selected_generation_strategies = {
+        s.strip() for s in args.generation_strategies.strip().split(",")
+    }
+    unsupported_generation_strategies = (
+        selected_generation_strategies - all_generation_strategies
+    )
+    if unsupported_generation_strategies:
+        raise ValueError(
+            f"unsupported values for --generation-strategies: {', '.join(sorted(unsupported_generation_strategies))}"
+        )
+    return sorted(selected_generation_strategies)
 
 
 def prepare_benchmark(args):
@@ -255,16 +285,13 @@ def prepare_benchmark(args):
 
     chunkiness_steps = np.linspace(0, 1, args.target_chunkiness_steps)
 
+    generation_strategies = get_generation_strategies_for_args(args)
+
     all_generation_configs = []
     for file_size in file_size_steps:
         for change_strength in change_strength_steps:
             for chunkiness in chunkiness_steps:
-                for generation_strategy in [
-                    "independent",
-                    "add",
-                    "remove",
-                    "addremove",
-                ]:
+                for generation_strategy in generation_strategies:
                     if generation_strategy == "independent" and (
                         change_strength != 1 or chunkiness != 0
                     ):
@@ -347,6 +374,8 @@ def plan_batch_benchmark(args):
             path_to_str(args.input_dir),
             "--limit-programs",
             program["name"],
+            "--mpi-timeout-seconds",
+            str(args.mpi_timeout_seconds),
             "--no-direct-mpi-procs-limit",
             "--min-repetitions",
             str(args.min_repetitions),
