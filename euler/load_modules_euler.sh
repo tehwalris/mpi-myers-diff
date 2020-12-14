@@ -4,7 +4,7 @@ DIR="$(dirname "$(readlink -f "$BASH_SOURCE")")"
 SCRIPT_DIR=$DIR/../scripts/
 
 # load new modulestack
-source /cluster/apps/local/env2lmod.sh 
+source /cluster/apps/local/env2lmod.sh
 
 echo "-> Loading modules required for build"
 module list &> /dev/null || source /cluster/apps/modules/init/bash
@@ -17,8 +17,10 @@ module list
 # automatic doesn't quite work
 if [ ! -d "$SCRIPT_DIR/.venv/" ]; then
   # .venv doesn't exist
-  tput setaf 1 		# red
+  tput setaf 1          # red
   printf "\n\nYou need to set up the Python virtual venv in ${SCRIPT_DIR}\n"
-  tput sgr0 		# reset
+  tput sgr0             # reset
+else
+  echo "Activating venv"
+  source "$SCRIPT_DIR/.venv/bin/activate"
 fi
-
