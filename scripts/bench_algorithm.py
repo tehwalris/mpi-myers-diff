@@ -166,13 +166,13 @@ add_plan_batch_run_shared_argument(
 add_plan_batch_run_shared_argument(
     "--max-repetitions",
     type=int,
-    default=500,  # "infinity"
+    default=50,
     help="maximum number of times to re-run each diff program with exactly the same input, only active if --auto-repetitions is given",
 )
 add_plan_batch_run_shared_argument(
     "--max-median-error",
     type=float,
-    default=0.08,
+    default=0.05,
     help="maximal relative error of the median in the confidence interval, only active if --auto-repetitions is given",
 )
 add_plan_batch_run_shared_argument(
