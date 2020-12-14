@@ -138,7 +138,7 @@ def run_diff_algorithm_mpi(
         start_new_session=True,
     ) as proc:
         try:
-            all_output, error = proc.communicate(timeout=25)
+            all_output, error = proc.communicate(timeout=60)
 
         except Exception as e:
             # kill child and pass exception on to handle/log in benchmark
@@ -284,6 +284,7 @@ class DiffutilsOutput(RegexExtractedOutput):
         # add "min edit length" by counting its output:
         edit_len = len(re.findall(r"^[<>]", output, re.MULTILINE))
         setattr(self, "min_edit_length", edit_len)
+
 
 class MeasureSnakesOutput:
     tuples = []
