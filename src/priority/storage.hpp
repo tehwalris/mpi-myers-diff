@@ -102,7 +102,7 @@ protected:
 private:
   int d_max;
   int num_blocks;
-  int alloc_n_layers = 20;
+  int alloc_n_layers = 200;
   std::vector<int *> data_pointers;
 
   // allocate the data block that begins at layer index d_begin
