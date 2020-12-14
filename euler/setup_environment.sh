@@ -23,4 +23,6 @@ if [ ! -d "$SCRIPT_DIR/.venv/" ]; then
 else
   echo "Activating venv"
   source "$SCRIPT_DIR/.venv/bin/activate"
+  echo "Installing requirements..."
+  pip install -r "$SCRIPT_DIR/requirements.txt"
 fi
