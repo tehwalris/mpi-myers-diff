@@ -48,6 +48,12 @@ parser_prepare.add_argument(
     help="number of different file sizes to try while keeping all other parameters fixed",
 )
 parser_prepare.add_argument(
+    "--max-change-strength",
+    type=float,
+    default=1,
+    help="maximum change strength",
+)
+parser_prepare.add_argument(
     "--target-change-strength-steps",
     type=int,
     default=5,
@@ -280,7 +286,7 @@ def prepare_benchmark(args):
         change_strength_steps = np.array([args.only_change_strength])
     else:
         change_strength_steps = np.linspace(
-            0, 1, args.target_change_strength_steps + 1
+            0, args.max_change_strength, args.target_change_strength_steps + 1
         )[1:]
 
     chunkiness_steps = np.linspace(0, 1, args.target_chunkiness_steps)
@@ -289,22 +295,29 @@ def prepare_benchmark(args):
 
     all_generation_configs = []
     for file_size in file_size_steps:
-        for change_strength in change_strength_steps:
-            for chunkiness in chunkiness_steps:
-                for generation_strategy in generation_strategies:
-                    if generation_strategy == "independent" and (
-                        change_strength != 1 or chunkiness != 0
-                    ):
-                        continue
+        for generation_strategy in generation_strategies:
+            if generation_strategy == "independent":
+                generation_config = {
+                    "strategy": generation_strategy,
+                    "length_1": file_size,
+                    "change_strength": 1,
+                    "chunkiness": 0,
+                    "distribution": "zipf",
+                }
+                all_generation_configs.append(generation_config)
 
-                    generation_config = {
-                        "strategy": generation_strategy,
-                        "length_1": file_size,
-                        "change_strength": change_strength,
-                        "chunkiness": chunkiness,
-                        "distribution": "zipf",
-                    }
-                    all_generation_configs.append(generation_config)
+            else:
+                for change_strength in change_strength_steps:
+                    for chunkiness in chunkiness_steps:
+                        generation_config = {
+                            "strategy": generation_strategy,
+                            "length_1": file_size,
+                            "change_strength": change_strength,
+                            "chunkiness": chunkiness,
+                            "distribution": "zipf",
+                        }
+                        all_generation_configs.append(generation_config)
+
     print(f"{len(all_generation_configs)} unique test cases")
 
     shuffled_generation_configs = list(
