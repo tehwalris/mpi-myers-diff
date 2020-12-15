@@ -189,7 +189,9 @@ To compile all our binaries (optimized for Euler VI, which uses AMD Zen 2 proces
 ./scripts/compile_all_zen2.sh
 ```
 
-Prepare our benchmarks (WIP):
+### Running our benchmarks (WIP)
+
+Prepare our benchmarks:
 
 ```shell
 mkdir ./test_cases/independent-small-benchmark
@@ -204,6 +206,7 @@ python -m scripts.bench_algorithm prepare --generation-strategies independent --
 ```
 
 Create job commands for our benchmarks:
+
 *If the job should run over night, you might want to add `--job-start-command-format "bsub -n %procs% -W 8:00 -R 'select[model==EPYC_7742]' -R 'rusage[mem=512]' %command%"` or something similar to prevent early termination due to a timeout*
 ```shell
 mkdir ./benchmarks/independent-small-benchmark
