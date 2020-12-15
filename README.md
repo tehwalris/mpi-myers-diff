@@ -183,7 +183,7 @@ Execute the script [`setup_environment.sh`](./euler/setup_environment.sh) to loa
 source ./euler/setup_environment.sh
 ```
 
-Compile all our binaries (optimized for Euler VI, which uses AMD Zen 2 processors) into the bin folder. If this script fails it means that the compilers haven't been loaded correctly.
+To compile all our binaries (optimized for Euler VI, which uses AMD Zen 2 processors) into the bin folder, run the following command LOCALLY (Euler's GCC version does not support compiling for Zen 2). Then copy the bin folder to Euler using rsync (see section below).
 
 ```shell
 ./scripts/compile_all_zen2.sh
@@ -196,7 +196,7 @@ mkdir ./test_cases/independent-small-benchmark
 python -m scripts.bench_algorithm prepare --generation-strategies independent --min-file-size 30000 --max-file-size 100000 --target-file-size-steps 7 --output-dir ./test_cases/independent-small-benchmark/
 
 mkdir ./test_cases/add-remove-small-benchmark
-python -m scripts.bench_algorithm prepare --generation-strategies add,remove,addremove --min-file-size 100000 --max-file-size 240000 --target-file-size-steps 6 --output-dir ./test_cases/add-remove-small-benchmark/
+python -m scripts.bench_algorithm prepare --generation-strategies add,remove,addremove --min-file-size 100000 --max-file-size 240000 --target-file-size-steps 6 --max-change-strength 0.5 --output-dir ./test_cases/add-remove-small-benchmark/
 
 mkdir ./test_cases/independent-large-benchmark
 python -m scripts.bench_algorithm prepare --generation-strategies independent --min-file-size 100000 --max-file-size 6100000 --target-file-size-steps 6 --output-dir ./test_cases/independent-large-benchmark/
@@ -204,12 +204,17 @@ python -m scripts.bench_algorithm prepare --generation-strategies independent --
 ```
 
 Create job commands for our benchmarks:
+*If the job should run over night, you might want to add `--job-start-command-format "bsub -n %procs% -W 8:00 -R 'select[model==EPYC_7742]' -R 'rusage[mem=512]' %command%"` or something similar to prevent early termination due to a timeout*
 ```shell
 mkdir ./benchmarks/independent-small-benchmark
-python -m scripts.bench_algorithm plan-batch --input-dir ./test_cases/independent-small-benchmark/ --output-dir ./benchmarks/independent-small-benchmark/ --limit-programs sequential_frontier,mpi_priority_frontier,mpi_no_master_frontier --mpi-procs 1 2 3 4 8 16 32 64 --auto-repetitions
+python -m scripts.bench_algorithm plan-batch --input-dir ./test_cases/independent-small-benchmark/ --output-dir ./benchmarks/independent-small-benchmark/ --limit-programs sequential_frontier,mpi_no_master_frontier --mpi-procs 1 2 3 4 8 16 32 64 --auto-repetitions
+
+python -m scripts.bench_algorithm plan-batch --input-dir ./test_cases/independent-small-benchmark/ --output-dir ./benchmarks/independent-small-benchmark/ --limit-programs mpi_priority_frontier --mpi-procs 1 2 3 4 8 16 32 64 --auto-repetitions --max-repetitions 20
 
 mkdir ./benchmarks/add-remove-small-benchmark
-python -m scripts.bench_algorithm plan-batch --input-dir ./test_cases/add-remove-small-benchmark/ --output-dir ./benchmarks/add-remove-small-benchmark/ --limit-programs sequential_frontier,mpi_priority_frontier,mpi_no_master_frontier --mpi-procs 1 2 3 4 8 16 32 64 --auto-repetitions
+python -m scripts.bench_algorithm plan-batch --input-dir ./test_cases/add-remove-small-benchmark/ --output-dir ./benchmarks/add-remove-small-benchmark/ --limit-programs sequential_frontier,mpi_no_master_frontier --mpi-procs 1 2 3 4 8 16 32 64 --auto-repetitions
+
+python -m scripts.bench_algorithm plan-batch --input-dir ./test_cases/add-remove-small-benchmark/ --output-dir ./benchmarks/add-remove-small-benchmark/ --limit-programs mpi_priority_frontier --mpi-procs 1 2 3 4 8 16 32 64 --auto-repetitions --max-repetitions 20
 
 mkdir ./benchmarks/independent-large-benchmark
 python -m scripts.bench_algorithm plan-batch --input-dir ./test_cases/independent-large-benchmark/ --output-dir ./benchmarks/independent-large-benchmark/ --limit-programs mpi_priority_frontier,mpi_no_master_frontier --mpi-procs 64 128 256 512 1024 --min-repetitions 1 --mpi-timeout-seconds 600
