@@ -1,0 +1,11 @@
+generation_config_i,input_strategy,input_length_1,input_change_strength,input_chunkiness,input_distribution,regen_i,repetition_i,diff_program,mpi_procs,timeout_seconds,mpi_comm_world,micros_input,micros_precompute,micros_until_len,micros_edit_script,min_edit_length
+0,independent,120000,1,0,zipf,0,0,mpi_priority_frontier,1024,600.0,1024,17534,0,474154,0,205696
+4,independent,2733333,1,0,zipf,0,0,mpi_priority_frontier,1024,600.0,1024,518056,0,106158090,0,4844472
+9,independent,6000000,1,0,zipf,0,0,mpi_priority_frontier,1024,600.0,1024,1172356,0,490284049,0,10701608
+2,independent,1426666,1,0,zipf,0,0,mpi_priority_frontier,1024,600.0,1024,253202,0,30517934,0,2514712
+5,independent,3386666,1,0,zipf,0,0,mpi_priority_frontier,1024,600.0,1024,655480,0,163564750,0,6013702
+7,independent,4693333,1,0,zipf,0,0,mpi_priority_frontier,1024,600.0,1024,925723,0,306928713,0,8355196
+1,independent,773333,1,0,zipf,0,0,mpi_priority_frontier,1024,600.0,1024,135534,0,9866384,0,1355262
+3,independent,2080000,1,0,zipf,0,0,mpi_priority_frontier,1024,600.0,1024,384361,0,62501081,0,3678934
+6,independent,4040000,1,0,zipf,0,0,mpi_priority_frontier,1024,600.0,1024,764530,0,235537105,0,7183720
+8,independent,5346666,1,0,zipf,0,0,mpi_priority_frontier,1024,600.0,1024,1049138,0,388963578,0,9527426
