@@ -1,0 +1,2 @@
+mpi_priority_frontier_simd	{'strategy': 'independent', 'length_1': 53333, 'change_strength': 1, 'chunkiness': 0, 'distribution': 'zipf'}	Failed to reach required confidence after 20 repetitions; current median: 563577.0, left end of CI: 557348, right end of CI: 593177
+mpi_priority_frontier_simd	{'strategy': 'independent', 'length_1': 88333, 'change_strength': 1, 'chunkiness': 0, 'distribution': 'zipf'}	Failed to reach required confidence after 20 repetitions; current median: 1362437.0, left end of CI: 1356098, right end of CI: 1437463
