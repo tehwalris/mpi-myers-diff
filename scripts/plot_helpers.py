@@ -1,4 +1,7 @@
 import seaborn as sns
+from pathlib import Path
+
+plot_base_path = (Path(__file__).parent / "../temp-figures").absolute()
 
 nice_name_map = {
     "input_length_1": "Input size (file 1) [elements]",
@@ -53,3 +56,7 @@ def plot_scatter_with_lines(
         )
     ax.set_xlabel(nice_name_map[x_key])
     ax.set_ylabel(nice_name_map[y_key])
+
+
+def save_plot(fig, name):
+    fig.savefig(plot_base_path / f"{name}.png", dpi=300, transparent=True)
