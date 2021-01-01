@@ -35,8 +35,8 @@ mpic++ src/priority/main.cpp -o bin/own-diff-mpi-priority-frontier.out -DFRONTIE
 printf "\nCompiling MPI Priority (FrontierStorage) with SIMD:\n"
 mpic++ src/priority/main.cpp -o bin/own-diff-mpi-priority-frontier-simd.out -DFRONTIER_STORAGE -DSIMD $CFLAGS
 
-printf "\nCompiling Sequential Fast Snakes:\n"
-g++ src/sequential_all_snakes_fast_lookup.cpp -o bin/own-diff-sequential-fast-snakes.out $CFLAGS
+#printf "\nCompiling Sequential Fast Snakes:\n"
+#g++ src/sequential_all_snakes_fast_lookup.cpp -o bin/own-diff-sequential-fast-snakes.out $CFLAGS
 
 printf "\nCompiling Sequential (FastStorage):\n"
 g++ src/sequential.cpp -o bin/own-diff-sequential.out $CFLAGS
