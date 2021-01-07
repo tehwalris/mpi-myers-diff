@@ -396,7 +396,6 @@ def plan_batch_benchmark(args):
             program["name"],
             "--mpi-timeout-seconds",
             str(args.mpi_timeout_seconds),
-            "--no-direct-mpi-procs-limit",
             "--min-repetitions",
             str(args.min_repetitions),
             "--max-repetitions",
