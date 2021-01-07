@@ -28,7 +28,7 @@ def _add_missing_fields_of_programs():
                 p2,
                 e["mpi_procs"],
                 program["executable"],
-                timeout_seconds=e.get('timeout_seconds', None),
+                timeout_seconds=e.get("timeout_seconds", None),
             )
 
         program["run"] = run
@@ -79,7 +79,7 @@ sequential_diff_programs = [
     {"name": "sequential_simd"},
     {"name": "sequential_frontier"},
     {"name": "sequential_frontier_simd"},
-    {"name": "sequential_fast_snakes"},
+    #    {"name": "sequential_fast_snakes"},
     {
         "name": "diffutils",
         "executable": diffutils_executable,

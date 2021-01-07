@@ -194,6 +194,13 @@ add_plan_batch_run_shared_argument(
     help="when running an MPI algorithm, stop if it takes longer than this number of seconds for a single input",
 )
 add_plan_batch_run_shared_argument(
+    "--skip-estimated-timeouts",
+    default=False,
+    action="store_true",
+    help="Enable skipping of larger input sizes if a smaller size already timed out with the same diff program configuration\n"
+    + "Should only be used with test cases with roughly the same number of edits relative to the file size (i.e. independent test cases)",
+)
+add_plan_batch_run_shared_argument(
     "--verbose",
     default=False,
     action="store_true",
@@ -480,6 +487,10 @@ def run_benchmark(args):
     else:
         progress_bar = tqdm(total=total_test_combinations, smoothing=0)
 
+    if args.skip_estimated_timeouts:
+        # record smallest input length with timeout per diff_program to skip larger test cases
+        smallest_timeout = {}
+
     last_flush_time = time.monotonic()
     break_flag = False
     some_benchmarks_failed = False
@@ -494,6 +505,28 @@ def run_benchmark(args):
             )
 
             for diff_program in diff_programs:
+
+                diff_prog_full_name = (
+                    diff_program["name"]
+                    + "_"
+                    + str(diff_program.get("extra_fields", {}).get("mpi_procs", 1))
+                )
+
+                if (
+                    args.skip_estimated_timeouts
+                    and diff_prog_full_name in smallest_timeout
+                    and generation_config["length_1"]
+                    >= smallest_timeout[diff_prog_full_name]
+                ):
+                    some_benchmarks_failed = True
+                    print(diff_prog_full_name + "\t", file=failed_file, end="")
+                    print(generation_config, file=failed_file, end="")
+                    print(
+                        f"\t skiped due to estimated timeout, since length_1 {generation_config['length_1']} >= {smallest_timeout[diff_prog_full_name]}",
+                        file=failed_file,
+                    )
+                    progress_bar.update()
+                    continue
 
                 # sorted list of measurements
                 micros_until_len_res = []
@@ -535,7 +568,7 @@ def run_benchmark(args):
                         break
                     except TimeoutExpired as te:
                         some_benchmarks_failed = True
-                        print(diff_program["name"] + "\t", file=failed_file, end="")
+                        print(diff_prog_full_name + "\t", file=failed_file, end="")
                         print(generation_config, file=failed_file, end="")
                         print("\t" + repr(te), file=failed_file)
                         if args.auto_repetitions:
@@ -544,12 +577,21 @@ def run_benchmark(args):
                                 repetition_i >= 5
                                 and micros_until_len_res[0] == timeout_micros
                             ):
+                                if args.skip_estimated_timeouts:
+                                    smallest_timeout[
+                                        diff_prog_full_name
+                                    ] = generation_config["length_1"]
                                 break  # if five iterations timed out -> assume all will timeout, don't try again
                             micros_until_len_res.append(timeout_micros)
+                        else:
+                            if args.skip_estimated_timeouts:
+                                smallest_timeout[
+                                    diff_prog_full_name
+                                ] = generation_config["length_1"]
                         continue
                     except Exception as e:  # catch all
                         some_benchmarks_failed = True
-                        print(diff_program["name"] + "\t", file=failed_file, end="")
+                        print(diff_prog_full_name + "\t", file=failed_file, end="")
                         print(generation_config, file=failed_file, end="")
                         print("\t" + repr(e), file=failed_file)
                         break  # assumption: will always fail with these exceptions -> no need to run all repetitions
@@ -611,7 +653,7 @@ def run_benchmark(args):
                                 # failed to reach required confidence
                                 some_benchmarks_failed = True
                                 print(
-                                    diff_program["name"] + "\t",
+                                    diff_prog_full_name + "\t",
                                     file=failed_file,
                                     end="",
                                 )
