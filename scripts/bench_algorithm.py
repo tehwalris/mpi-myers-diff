@@ -98,7 +98,7 @@ parser_plan_batch.add_argument(
 )
 parser_plan_batch.add_argument(
     "--job-start-command-format",
-    default=r"bsub -n %procs% -R 'select[model==EPYC_7742]' -R 'rusage[mem=512]' -R fullnode %command%",
+    default=r"bsub -n %procs% -R 'select[model==EPYC_7742]' -R 'rusage[mem=512]' -R 'span[ptile=128]' %command%",
     help=r"command for starting a single batch job. %procs% and %command% will be replaced.",
 )
 parser_plan_batch.add_argument(
