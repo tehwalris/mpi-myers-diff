@@ -98,7 +98,7 @@ parser_plan_batch.add_argument(
 )
 parser_plan_batch.add_argument(
     "--job-start-command-format",
-    default=r"bsub -n %procs% -R 'select[model==EPYC_7742]' -R 'rusage[mem=512]' %command%",
+    default=r"bsub -n %procs% -R 'select[model==EPYC_7742]' -R 'rusage[mem=512]' -R fullnode %command%",
     help=r"command for starting a single batch job. %procs% and %command% will be replaced.",
 )
 parser_plan_batch.add_argument(
@@ -418,6 +418,9 @@ def plan_batch_benchmark(args):
 
         if args.verbose:
             bench_command.append("--verbose")
+
+        # use fullnodes -> make batch_procs multiple of 128
+        batch_procs = -(-batch_procs // 128) * 128
 
         job_start_command = args.job_start_command_format.replace(
             r"%procs%",
