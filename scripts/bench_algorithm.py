@@ -415,6 +415,9 @@ def plan_batch_benchmark(args):
         if args.auto_repetitions:
             bench_command += ["--auto-repetitions"]
 
+        if args.skip_estimated_timeouts:
+            bench_command += ["--skip-estimated-timeouts"]
+
         if args.verbose:
             bench_command.append("--verbose")
 
