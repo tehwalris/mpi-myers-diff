@@ -527,7 +527,7 @@ def run_benchmark(args):
                     print(diff_prog_full_name + "\t", file=failed_file, end="")
                     print(generation_config, file=failed_file, end="")
                     print(
-                        f"\t skiped due to estimated timeout, since length_1 {generation_config['length_1']} >= {smallest_timeout[diff_prog_full_name]}",
+                        f"\t skipped due to estimated timeout, since length_1 {generation_config['length_1']} >= {smallest_timeout[diff_prog_full_name]}",
                         file=failed_file,
                     )
                     progress_bar.update()
