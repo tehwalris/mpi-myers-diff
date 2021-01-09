@@ -1,0 +1,6 @@
+generation_config_i,input_strategy,input_length_1,input_change_strength,input_chunkiness,input_distribution,regen_i,repetition_i,diff_program,mpi_procs,timeout_seconds,mpi_comm_world,micros_input,micros_precompute,micros_until_len,micros_edit_script,min_edit_length
+0,independent,120000,1,0,zipf,0,0,mpi_priority_frontier,128,600.0,128,19110,0,1273570,0,205696
+4,independent,2733333,1,0,zipf,0,0,mpi_priority_frontier,128,600.0,128,519641,0,477044066,0,4844472
+2,independent,1426666,1,0,zipf,0,0,mpi_priority_frontier,128,600.0,128,257334,0,141325868,0,2514712
+1,independent,773333,1,0,zipf,0,0,mpi_priority_frontier,128,600.0,128,141076,0,42925221,0,1355262
+3,independent,2080000,1,0,zipf,0,0,mpi_priority_frontier,128,600.0,128,393061,0,278807634,0,3678934

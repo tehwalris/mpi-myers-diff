@@ -6,7 +6,7 @@ cd $DIR/../diffutils
 if [ ! -f ./configure ]; then
   git submodule update --init --recursive --progress
   ./bootstrap --gnulib-srcdir=gnulib --no-git
-  ./configure CFLAGS="-w"
+  ./configure CFLAGS="-w -O3 -march=znver2 -ffast-math"
 fi
 
 make

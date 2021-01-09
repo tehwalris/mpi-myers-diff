@@ -1,0 +1,2 @@
+mpi_no_master_frontier	{'strategy': 'addremove', 'length_1': 184000, 'change_strength': 0.1, 'chunkiness': 0.0, 'distribution': 'zipf'}	Failed to reach required confidence after 50 repetitions; current median: 750546.0, left end of CI: 696085, right end of CI: 833016
+mpi_no_master_frontier	{'strategy': 'addremove', 'length_1': 240000, 'change_strength': 0.1, 'chunkiness': 0.0, 'distribution': 'zipf'}	Failed to reach required confidence after 50 repetitions; current median: 1340133.0, left end of CI: 1285843, right end of CI: 1443716
