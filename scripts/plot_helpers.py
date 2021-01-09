@@ -76,8 +76,13 @@ def plot_scatter_with_lines(
 
 
 def save_plot(fig, name):
-    fig.savefig(plot_base_path / f"{name}.png", dpi=300, transparent=True)
-    fig.savefig(plot_base_path / f"{name}.pdf")
+    shared_options = {
+        "bbox_inches": "tight",
+        "pad_inches": 0,
+        "transparent": True,
+    }
+    fig.savefig(plot_base_path / f"{name}.png", dpi=300, **shared_options)
+    fig.savefig(plot_base_path / f"{name}.pdf", **shared_options)
 
 
 def format_input_size(n):
