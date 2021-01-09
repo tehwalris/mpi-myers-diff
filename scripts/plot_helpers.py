@@ -67,6 +67,9 @@ def plot_scatter_with_lines(
             labels=labels,
             title=nice_name_map[hue_key],
             ncol=len(labels) // 2 if legend_columns is None else legend_columns,
+            handletextpad=0,
+            labelspacing=0.75,
+            columnspacing=1,
         )
     ax.set_xlabel(nice_name_map[x_key])
     ax.set_ylabel(nice_name_map[y_key])
@@ -74,3 +77,8 @@ def plot_scatter_with_lines(
 
 def save_plot(fig, name):
     fig.savefig(plot_base_path / f"{name}.png", dpi=300, transparent=True)
+    fig.savefig(plot_base_path / f"{name}.pdf")
+
+
+def format_input_size(n):
+    return "{:,}".format(n).replace(",", "'")
