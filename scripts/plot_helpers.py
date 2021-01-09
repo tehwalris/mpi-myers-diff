@@ -8,8 +8,11 @@ nice_name_map = {
     "nd": "Expected number of calculated cells (n * d)",
     "seconds_per_cell": "Calculation time per cell [s]",
     "seconds_until_len": "Calculation time (only edit distance) [s]",
+    "inv_seconds_until_len": "Inverse calculation time [1 / s]",
+    "cells_per_second": "Rate [work / s]",
     "time_relative_to_sequential": "Time relative to sequential times cores",
     "mpi_procs": "Cores",
+    "mpi_nodes": "Nodes",
     "diff_program": "Program",
     "diffutils": "diffutils",
     "mpi_priority_frontier": "MPI dynamic priority (no SIMD)",
@@ -29,7 +32,9 @@ def plot_scatter_with_lines(
     y_key,
     hue_key,
     hue_to_label=lambda v: str(int(v)),
+    sort_hue_keys=False,
     show_legend=True,
+    legend_columns=None,
 ):
     def get_palette(name=None):
         return {
@@ -52,13 +57,16 @@ def plot_scatter_with_lines(
         legend=show_legend,
     )
     if show_legend:
-        labels = [hue_to_label(v) for v in scatter_data[hue_key].unique()]
+        hue_keys = list(scatter_data[hue_key].unique())
+        if sort_hue_keys:
+            hue_keys.sort()
+        labels = [hue_to_label(v) for v in hue_keys]
         handles_to_show = ax.legend().legendHandles[len(labels) : 2 * len(labels)]
         ax.legend(
             handles=handles_to_show,
             labels=labels,
             title=nice_name_map[hue_key],
-            ncol=len(labels) // 2,
+            ncol=len(labels) // 2 if legend_columns is None else legend_columns,
         )
     ax.set_xlabel(nice_name_map[x_key])
     ax.set_ylabel(nice_name_map[y_key])
