@@ -10,9 +10,14 @@ nice_name_map = {
     "seconds_until_len": "Calculation time (only edit distance) [s]",
     "time_relative_to_sequential": "Time relative to sequential times cores",
     "mpi_procs": "Cores",
-    "mpi_priority_frontier": "MPI dynamic priority",
-    "mpi_no_master_frontier": "MPI row-wise",
-    "sequential_frontier": "Sequential",
+    "diff_program": "Program",
+    "diffutils": "diffutils",
+    "mpi_priority_frontier": "MPI dynamic priority (no SIMD)",
+    "mpi_no_master_frontier": "MPI row-wise (no SIMD)",
+    "sequential_frontier": "Sequential (no SIMD)",
+    "mpi_priority_frontier_simd": "MPI dynamic priority",
+    "mpi_no_master_frontier_simd": "MPI row-wise",
+    "sequential_frontier_simd": "Sequential",
 }
 
 
@@ -28,8 +33,8 @@ def plot_scatter_with_lines(
 ):
     def get_palette(name=None):
         return {
-            mpi_procs: color
-            for mpi_procs, color in zip(
+            v: color
+            for v, color in zip(
                 sorted(scatter_data[hue_key].dropna().unique()),
                 sns.color_palette(name),
             )
@@ -41,12 +46,13 @@ def plot_scatter_with_lines(
         x=x_key,
         y=y_key,
         hue=hue_key,
+        marker="x",
         palette=get_palette(),
         ax=ax,
         legend=show_legend,
     )
     if show_legend:
-        labels = [hue_to_label(v) for v in sorted(scatter_data[hue_key].unique())]
+        labels = [hue_to_label(v) for v in scatter_data[hue_key].unique()]
         handles_to_show = ax.legend().legendHandles[len(labels) : 2 * len(labels)]
         ax.legend(
             handles=handles_to_show,
