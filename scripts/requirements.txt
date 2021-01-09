@@ -2,3 +2,4 @@ termcolor==1.1.0
 numpy==1.19.3
 scipy==1.5.4
 tqdm==4.53.0
+jupyterlab==3.0.3
