@@ -1,0 +1,13 @@
+{
+    "shuffled_generation_configs": [
+        {
+            "i": 0,
+            "config": {
+                "strategy": "dna",
+                "length_1": 29749,
+                "name": "corona"
+            }
+        }
+    ],
+    "num_regens": 1
+}
