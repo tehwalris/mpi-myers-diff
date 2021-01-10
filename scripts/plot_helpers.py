@@ -9,7 +9,7 @@ nice_name_map = {
     "seconds_per_cell": "Calculation time per cell [s]",
     "seconds_until_len": "Calculation time (only edit distance) [s]",
     "inv_seconds_until_len": "Inverse calculation time [1 / s]",
-    "cells_per_second": "Rate [work / s]",
+    "cells_per_second": "Rate [1 / s]",
     "time_relative_to_sequential": "Time relative to sequential times cores",
     "mpi_procs": "Cores",
     "mpi_nodes": "Nodes",
