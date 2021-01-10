@@ -1,0 +1,1 @@
+mpi_no_master_frontier_simd_512	{'strategy': 'independent', 'length_1': 100000, 'change_strength': 1, 'chunkiness': 0, 'distribution': 'zipf'}	Failed to reach required confidence after 50 repetitions; current median: 517575.0, left end of CI: 465655, right end of CI: 624149
