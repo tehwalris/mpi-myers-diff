@@ -1,0 +1,21 @@
+{
+    "shuffled_generation_configs": [
+        {
+            "i": 0,
+            "config": {
+                "strategy": "dna",
+                "length_1": 171309,
+                "name": "streptomyces_aureoverticillatus"
+            }
+        },
+        {
+            "i": 1,
+            "config": {
+                "strategy": "dna",
+                "length_1": 2696255,
+                "name": "synechococcus_elongatus"
+            }
+        }
+    ],
+    "num_regens": 1
+}
