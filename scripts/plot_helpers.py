@@ -23,6 +23,8 @@ nice_name_map = {
     "sequential_frontier_simd": "Sequential",
 }
 
+report_figsize = [6.4, 3.9]
+
 
 def plot_scatter_with_lines(
     ax,
