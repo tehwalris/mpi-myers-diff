@@ -1,0 +1,7 @@
+generation_config_i,input_strategy,input_length_1,input_name,regen_i,repetition_i,diff_program,mpi_procs,timeout_seconds,mpi_comm_world,micros_input,micros_precompute,micros_until_len,micros_edit_script,min_edit_length
+0,dna,171309,streptomyces_aureoverticillatus,0,0,mpi_no_master_frontier_simd,64,120.0,64,412797,0,984885,0,99883
+0,dna,171309,streptomyces_aureoverticillatus,0,1,mpi_no_master_frontier_simd,64,120.0,64,1099077,0,964300,0,99883
+0,dna,171309,streptomyces_aureoverticillatus,0,2,mpi_no_master_frontier_simd,64,120.0,64,487441,0,972466,0,99883
+0,dna,171309,streptomyces_aureoverticillatus,0,3,mpi_no_master_frontier_simd,64,120.0,64,369662,0,969611,0,99883
+0,dna,171309,streptomyces_aureoverticillatus,0,4,mpi_no_master_frontier_simd,64,120.0,64,459181,0,984516,0,99883
+0,dna,171309,streptomyces_aureoverticillatus,0,5,mpi_no_master_frontier_simd,64,120.0,64,497486,0,973958,0,99883
