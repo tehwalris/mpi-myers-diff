@@ -1,0 +1,13 @@
+generation_config_i,input_strategy,input_length_1,input_name,regen_i,repetition_i,diff_program,mpi_comm_world,micros_input,micros_precompute,micros_until_len,micros_edit_script,min_edit_length
+0,dna,171309,streptomyces_aureoverticillatus,0,0,diffutils,1,10957,4314,39281649,25180,99883
+0,dna,171309,streptomyces_aureoverticillatus,0,1,diffutils,1,7812,4078,39446824,29402,99883
+0,dna,171309,streptomyces_aureoverticillatus,0,2,diffutils,1,7994,3727,39703991,54042,99883
+0,dna,171309,streptomyces_aureoverticillatus,0,3,diffutils,1,8189,3946,38847480,38965,99883
+0,dna,171309,streptomyces_aureoverticillatus,0,4,diffutils,1,6936,4286,39600469,30473,99883
+0,dna,171309,streptomyces_aureoverticillatus,0,5,diffutils,1,7624,3814,38698951,25982,99883
+0,dna,171309,streptomyces_aureoverticillatus,0,0,sequential_frontier_simd,1,20155,0,49308940,0,99883
+0,dna,171309,streptomyces_aureoverticillatus,0,1,sequential_frontier_simd,1,16815,0,50769117,0,99883
+0,dna,171309,streptomyces_aureoverticillatus,0,2,sequential_frontier_simd,1,18607,0,49641574,0,99883
+0,dna,171309,streptomyces_aureoverticillatus,0,3,sequential_frontier_simd,1,15208,0,49438523,0,99883
+0,dna,171309,streptomyces_aureoverticillatus,0,4,sequential_frontier_simd,1,19576,0,49610012,0,99883
+0,dna,171309,streptomyces_aureoverticillatus,0,5,sequential_frontier_simd,1,15559,0,49853016,0,99883
