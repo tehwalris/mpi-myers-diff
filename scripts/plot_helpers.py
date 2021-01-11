@@ -7,7 +7,7 @@ nice_name_map = {
     "input_length_1": "Input size (file 1) [elements]",
     "nd": "Expected number of calculated cells (n * d)",
     "seconds_per_cell": "Calculation time per cell [s]",
-    "seconds_until_len": "Calculation time (only edit distance) [s]",
+    "seconds_until_len": "Calculation time [s]",
     "inv_seconds_until_len": "Inverse calculation time [1 / s]",
     "cells_per_second": "Rate [1 / s]",
     "time_relative_to_sequential": "Time relative to sequential times cores",
