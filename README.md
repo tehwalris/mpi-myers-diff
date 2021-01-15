@@ -1,5 +1,13 @@
 # 2020 DPHPC Project - Longest Common Subsequence
 
+This is a parallelized version of Myers' O(nd) diff algorithm. We designed, implemented and benchmarked our parallel algorithm as part of the [2020 DPHPC course](http://vvz.ethz.ch/Vorlesungsverzeichnis/lerneinheit.view?lang=en&lerneinheitId=139532&semkez=2020W&ansicht=KATALOGDATEN&) at ETH.
+
+Due to time constraints, our algorithms **only calculate the edit distance** not the full edit script. However they could be modified to extract the edit script using Myers' "linear refinement" technique.
+
+Our code uses the [MIT license](./LICENSE). Note that diffutils, which we modified to output timing information for benchmarks, but which is not part of our code, is [GPL licensed](./diffutils/COPYING).
+
+The rest of this readme contains notes which might be useful for reproducing our results.
+
 ## Building diffutils
 
 ### Automatic build
@@ -193,6 +201,7 @@ mkdir -p ./bin-euler
 ### Running our benchmarks (WIP)
 
 Prepare our benchmarks:
+
 ```shell
 python -m scripts.bench_algorithm prepare --generation-strategies independent --min-file-size 30000 --max-file-size 100000 --target-file-size-steps 8 --num-regens=1 --output-dir ./test_cases/independent-small-benchmark/
 
@@ -204,9 +213,10 @@ python -m scripts.bench_algorithm prepare --generation-strategies independent --
 
 Create job commands for our benchmarks:
 
-*If the job should run over night, you might want to add `--job-start-command-format "bsub -n %procs% -W 8:00 -R 'select[model==EPYC_7742]' -R 'rusage[mem=512]' %command%"` or something similar to prevent early termination due to a timeout*
+_If the job should run over night, you might want to add `--job-start-command-format "bsub -n %procs% -W 8:00 -R 'select[model==EPYC_7742]' -R 'rusage[mem=512]' %command%"` or something similar to prevent early termination due to a timeout_
 
 **For the add-remove test case you need to add `-W 6:00` to the job commands with `-n 1`**
+
 ```shell
 python -m scripts.bench_algorithm plan-batch --input-dir ./test_cases/independent-small-benchmark/ --output-dir ./benchmarks/independent-small-benchmark/ --limit-programs sequential_frontier,mpi_no_master_frontier --mpi-procs 1 2 3 4 8 16 32 64 --auto-repetitions
 
@@ -221,7 +231,6 @@ python -m scripts.bench_algorithm plan-batch --input-dir ./test_cases/add-remove
 python -m scripts.bench_algorithm plan-batch --input-dir ./test_cases/independent-large-benchmark/ --output-dir ./benchmarks/independent-large-benchmark/ --limit-programs mpi_priority_frontier,mpi_no_master_frontier --mpi-procs 64 128 256 512 1024 --min-repetitions 1 --mpi-timeout-seconds 1200
 
 ```
-
 
 ---
 
