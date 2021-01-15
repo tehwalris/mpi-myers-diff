@@ -1,0 +1,19 @@
+\section{Conclusion}
+In this report we presented a way to parallelize Myers' longest common subsequence algorithm and applied various optimizations. Our results showed that that our simple row-wise algorithm scales well to many processes. Our algorithms hold up against diffutils when run sequentially. Against our expectations, our dynamic priority algorithm does not scale well.
+
+\mypar{Future work} 
+In our work on this algorithm we considered various ideas to increase performance or reduce memory consumption, which we unfortunately did not have the time to experiment with for our report.
+
+As such, we currently do not read out the edit script due to the quadratic memory consumption that it requires with this algorithm. If our algorithm is adapted to use Myers' recursive approach for linear space refinement \cite{myers_anond_1986} (which calls the non-recursive algorithm), it could output the edit script with only a minor performance cost.
+
+It is possible that using SIMD to calculate multiple cells in parallel would improve the performance further.
+    
+% Here you need to summarize what you did and why this is
+% important. {\em Do not take the abstract} and put it in the past
+% tense. Remember, now the reader has (hopefully) read the report, so it
+% is a very different situation from the abstract. Try to highlight
+% important results and say the things you really want to get across
+% such as high-level statements (e.g., we believe that .... is the right
+% approach to .... Even though we only considered x, the
+% .... technique should be applicable ....) You can also formulate next
+% steps if you want. Be brief. After the conclusions there are only the references.

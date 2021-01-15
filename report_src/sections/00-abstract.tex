@@ -1,0 +1,11 @@
+\begin{abstract}
+%Describe in concise words what you do, why you do it (not necessarily
+%in this order), and the main result.  The abstract has to be
+%self-contained and readable for a person in the general area. You
+%should write the abstract last.
+The longest common subsequence is the longest possible subsequence of symbols that two input sequences have in common. Its most common applications are in finding the smallest number of differences in text files (usually source code) or aligning common regions of DNA strands.
+
+In this report, we present our approach to parallelizing Myers' sequential algorithm. We implemented two different versions: statically distributing each DP table row across MPI workers and a priority approach that avoids idle waiting by dynamically prioritizing entries needed by other workers. We applied vectorization to further improve the performance.
+
+We analyze the performance using both synthetic randomly generated input sequences and real DNA (nucleic acid) sequences. Overall, our row-wise implementation scales nearly linearly with the amount of workers and does not suffer from any additional overhead, as long as that the inputs are sufficiently large.
+\end{abstract}

@@ -1,0 +1,17 @@
+\section{Introduction}\label{sec:intro}
+
+\mypar{Motivation} The longest common subsequence (LCS) problem is the problem of finding the longest (not necessarily contiguous) subsequence that is shared by two input strings. This problem occurs very widely in practice. For example, the two sequences $ABCD$ and $ACBAD$ have the longest common subsequences $ACD$ and $ABD$. The length of the LCS is unique, although multiple subsequences with that length might exist.
+
+LCS algorithms are at the core of comparison tools like ``diff'', which are ubiquitous when working with source code. These comparisons are also used extensively in version control systems. Outside of the software domain, the longest common subsequence problem is extremely important in biology - LCS is the exact solution to DNA nucleotide \emph{sequence alignment}. However, it is important to note that heuristic methods (BLAST \cite{altschul_basic_1990}) are often used today, since they allow fast search of very large databases of genetic sequences.
+
+There exist various specialized LCS algorithms which achieve faster runtime or lower memory usage than general algorithms. One class of specialized algorithms provides improved runtime when both input sequences have significant similarities (edit distance not too large). This is generally the case when comparing two versions of a text document. For this reason algorithms of this class are nearly universally used by tools similar to ``diff''. However such algorithms are generally sequential.
+
+We adapt the sequential LCS algorithm of Myers \cite{myers_anond_1986}, which is by far the most commonly used LCS algorithm for similar sequences, for parallel execution on a distributed memory system.
+
+\mypar{Related work} Bergroth et al. prepared a survey \cite{bergroth_survey_2000} of various sequential LCS algorithms. They group the algorithms into three categories: ``row-by-row methods'', ``contour methods'' and ``diagonal methods''. The classic dynamic programming algorithm for LCS \cite{wagner_string--string_1974} is classified as a row-by-row method. Myers' algorithm \cite{myers_anond_1986} belongs to the class of diagonal methods. Diagonal methods are designed to be efficient when both input sequences are similar. 
+
+Most parallel algorithms for the LCS problem are based on row-by-row sequential algorithms. Lu and Lin \cite{mi_lu_parallel_1994} presented a parallel algorithm of this class, achieving optimal complexity with a shared-memory machine model. Yang et al. \cite{jiaoyun_efficient_2010} designed a parallel LCS algorithm for GPUs (graphics processing units) by restructuring the classic DP (dynamic programming) table to reduce data dependencies.\linebreak These algorithms are fundamentally based on row-by-row methods, which are less efficient than diagonal methods for similar input sequences.
+
+Allison and Dix \cite{allison_bit-string_1986} present a ``bit-parallel'' LCS algorithm (row-by-row method). Assuming a sufficiently small alphabet, their algorithm allows calculating multiple elements of the DP table in parallel, for example by using vector instructions. Their bit-parallel technique can be applied to other algorithms. We do not incorporate it into our algorithm, but do use vectorization within each DP cell.
+
+Since Myers' algorithm \cite{myers_anond_1986} is an extremely popular LCS algorithm, we attempted to parallelize it. As far as we are aware, there are no published parallel versions of an LCS algorithm from the ``diagonal methods'' class, which Myers' algorithm belongs to. 
