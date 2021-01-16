@@ -1,6 +1,6 @@
 # 2020 DPHPC Project - Longest Common Subsequence
 
-![Scaling analysis for our row-wise algorithm](./temp-figures/scaling-rate-mpi-row-wise.png)
+![Scaling analysis for our row-wise algorithm](./report_src/images/scaling-rate-mpi-row-wise.png)
 
 This is a parallelized version of Myers' O(nd) diff algorithm. We designed, implemented and benchmarked our parallel algorithm as part of the [2020 DPHPC course](http://vvz.ethz.ch/Vorlesungsverzeichnis/lerneinheit.view?lang=en&lerneinheitId=139532&semkez=2020W&ansicht=KATALOGDATEN&) at ETH. We wrote a [report](./report.pdf) which contains describes the algorithm and presents benchmark results.
 
