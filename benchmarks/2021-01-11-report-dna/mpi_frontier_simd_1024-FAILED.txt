@@ -1,0 +1,1 @@
+mpi_no_master_frontier_simd_1024	{'strategy': 'dna', 'length_1': 171309, 'name': 'streptomyces_aureoverticillatus'}	Failed to reach required confidence after 50 repetitions; current median: 935247.0, left end of CI: 673842, right end of CI: 1927700
