@@ -182,7 +182,7 @@ connect with `ssh username@euler.ethz.ch`. You need to be in ETH VPN.
 ### Setup
 
 ```shell
-git clone https://gitlab.ethz.ch/pascalm/2020-dphpc-project.git
+git clone https://github.com/tehwalris/mpi-myers-diff.git
 ```
 
 Euler uses Modules that have to be loaded (compiler, libraries, python, etc.) first.
